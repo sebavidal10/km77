@@ -474,6 +474,36 @@ func _damage_random_headlight() -> void:
 	victim.visible = false
 	headlight_damaged.emit(victim.name)
 
+## Restores fuel to the vehicle, clamping to max_fuel.
+func add_fuel(amount: float) -> void:
+	current_fuel = minf(max_fuel, current_fuel + amount)
+	if is_stalled and current_fuel > 0.0 and current_engine_health > 0.0:
+		is_stalled = false
+	fuel_changed.emit(current_fuel, max_fuel)
+
+## Restores engine health and repairs all broken headlights.
+func repair_vehicle(health_amount: float = 40.0) -> void:
+	current_engine_health = minf(max_engine_health, current_engine_health + health_amount)
+	if is_stalled and current_fuel > 0.0 and current_engine_health > 0.0:
+		is_stalled = false
+	engine_health_changed.emit(current_engine_health, max_engine_health)
+
+	if left_headlight_broken and headlight_left:
+		left_headlight_broken = false
+		headlight_left.visible = true
+		headlight_left.light_energy = 10.0
+	if right_headlight_broken and headlight_right:
+		right_headlight_broken = false
+		headlight_right.visible = true
+		headlight_right.light_energy = 10.0
+
+## Triggers erratic headlight strobing and camera shake when lingering dangerously in the dark.
+func trigger_threat_glitch() -> void:
+	_is_flickering_glitch = true
+	_glitch_timer = 2.4
+	_glitch_toggle_timer = 0.0
+	_apply_camera_shake(0.85)
+
 func _apply_camera_shake(trauma: float) -> void:
 	if not _chase_camera or not is_instance_valid(_chase_camera):
 		var tree := get_tree()

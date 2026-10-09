@@ -3,6 +3,8 @@ extends Node3D
 
 const RoadEventSpawner = preload("res://road_event_spawner.gd")
 const OncomingVehicle = preload("res://oncoming_vehicle.gd")
+const SupplyStop = preload("res://supply_stop.gd")
+const SupplyStopScene = preload("res://supply_stop.tscn")
 
 @export_group("Target Vehicle")
 ## Node representing the vehicle to track for spawning and recycling road segments.
@@ -36,6 +38,14 @@ const OncomingVehicle = preload("res://oncoming_vehicle.gd")
 ## Optional custom event spawner node. If null, a default RoadEventSpawner is created automatically.
 @export var event_spawner: RoadEventSpawner
 
+@export_group("Supply Stops")
+## Enables roadside supply stops on the shoulder for refueling and vehicle repairs.
+@export var enable_supply_stops: bool = true
+## Minimum chunks between supply stop occurrences (8 to 10 chunks).
+@export var supply_stop_min_chunks: int = 8
+## Maximum chunks between supply stop occurrences.
+@export var supply_stop_max_chunks: int = 10
+
 @export_group("Doppelgänger / Oncoming Vehicle")
 ## Enables oncoming doppelgänger patrol vehicle encounters in the opposing lane.
 @export var enable_oncoming_vehicle: bool = true
@@ -59,10 +69,15 @@ var active_oncoming_vehicle: OncomingVehicle = null
 var chunks_since_last_oncoming: int = 0
 var next_oncoming_chunk_interval: int = 5
 
+var chunks_since_last_supply_stop: int = 0
+var next_supply_stop_interval: int = 8
+
 func _ready() -> void:
 	_init_rng()
 	_init_event_spawner()
 	next_oncoming_chunk_interval = rng.randi_range(oncoming_spawn_min_chunks, oncoming_spawn_max_chunks)
+	next_supply_stop_interval = rng.randi_range(supply_stop_min_chunks, supply_stop_max_chunks)
+	chunks_since_last_supply_stop = 0
 	_find_target_vehicle()
 	_spawn_initial_track()
 
@@ -121,6 +136,8 @@ func _spawn_initial_track() -> void:
 	last_curve_type = RoadSegment.SegmentType.STRAIGHT
 	total_segments_spawned = 0
 	chunks_since_last_oncoming = 0
+	chunks_since_last_supply_stop = 0
+	next_supply_stop_interval = rng.randi_range(supply_stop_min_chunks, supply_stop_max_chunks)
 
 	# 1. Spawn a straight buffer segment behind the starting vehicle position (from Z = 80 to Z = 0)
 	var initial_rear_transform := Transform3D(Basis.IDENTITY, Vector3(0.0, 0.0, segment_length))
@@ -223,14 +240,38 @@ func _spawn_segment(type: RoadSegment.SegmentType) -> RoadSegment:
 	add_child(segment)
 	segment.global_transform = target_transform
 	segment.build_segment()
+
+	# Check supply stop spawn eligibility
+	var has_supply_stop: bool = false
+	if enable_supply_stops and total_segments_spawned > 3:
+		chunks_since_last_supply_stop += 1
+		if chunks_since_last_supply_stop >= next_supply_stop_interval:
+			chunks_since_last_supply_stop = 0
+			next_supply_stop_interval = rng.randi_range(supply_stop_min_chunks, supply_stop_max_chunks)
+			has_supply_stop = true
+			_spawn_supply_stop(segment)
+
 	if enable_events and event_spawner:
-		event_spawner.spawn_events_for_segment(segment, total_segments_spawned, rng)
+		event_spawner.spawn_events_for_segment(segment, total_segments_spawned, rng, has_supply_stop)
+
 	active_segments.append(segment)
 	total_segments_spawned += 1
 
 	_on_segment_spawned_check_oncoming()
 
 	return segment
+
+func _spawn_supply_stop(segment: RoadSegment) -> void:
+	var slice_count := segment.get_slice_count()
+	if slice_count < 2:
+		return
+	var slice_idx: int = slice_count / 2
+	var slice_tr: Transform3D = segment.get_slice_transform(slice_idx)
+
+	var stop_inst := SupplyStopScene.instantiate() as SupplyStop
+	var local_offset := Vector3(5.8, 0.0, 0.0)
+	stop_inst.transform = slice_tr * Transform3D(Basis.IDENTITY, local_offset)
+	segment.add_child(stop_inst)
 
 func _on_segment_spawned_check_oncoming() -> void:
 	if not enable_oncoming_vehicle:

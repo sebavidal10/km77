@@ -185,12 +185,12 @@ static func _get_window_emission_mat() -> StandardMaterial3D:
 	return _window_emission_mat
 
 ## Populates a newly spawned RoadSegment with obstacles, roadside props, and milestone markers.
-func spawn_events_for_segment(segment: RoadSegment, chunk_index: int, rng: RandomNumberGenerator) -> void:
+func spawn_events_for_segment(segment: RoadSegment, chunk_index: int, rng: RandomNumberGenerator, has_supply_stop: bool = false) -> void:
 	if not segment:
 		return
 
-	# Don't spawn hazardous obstacles on the first 2 chunks (initial player runway)
-	var allow_obstacles: bool = chunk_index > 2
+	# Don't spawn hazardous obstacles on the initial runway or on chunks with a supply stop
+	var allow_obstacles: bool = chunk_index > 2 and not has_supply_stop
 	var slice_count: int = segment.get_slice_count()
 	if slice_count < 3:
 		return
@@ -234,12 +234,12 @@ func spawn_events_for_segment(segment: RoadSegment, chunk_index: int, rng: Rando
 		_spawn_woods_for_segment(segment, rng)
 
 	# 7. Roadside Hitchhiker with vehicle tracking rotation
-	if rng.randf() < hitchhiker_probability:
+	if not has_supply_stop and rng.randf() < hitchhiker_probability:
 		var slice_idx: int = rng.randi_range(1, slice_count - 2)
 		_spawn_hitchhiker(segment, slice_idx, rng)
 
 	# 8. Rural Bus Stop Shelter with optional silhouette and sickly bulb
-	if rng.randf() < bus_stop_probability:
+	if not has_supply_stop and rng.randf() < bus_stop_probability:
 		var slice_idx: int = rng.randi_range(1, slice_count - 2)
 		_spawn_bus_stop(segment, slice_idx, rng)
 

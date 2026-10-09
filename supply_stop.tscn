@@ -1,0 +1,218 @@
+[gd_scene format=3 uid="uid://c6stopsuply77v1"]
+
+[ext_resource type="Script" path="res://supply_stop.gd" id="1_stop"]
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_turnout"]
+albedo_color = Color(0.11, 0.11, 0.13, 1)
+roughness = 0.95
+
+[sub_resource type="BoxMesh" id="BoxMesh_turnout"]
+material = SubResource("StandardMaterial3D_turnout")
+size = Vector3(5.2, 0.15, 18)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_rust"]
+albedo_color = Color(0.24, 0.16, 0.13, 1)
+roughness = 0.85
+metallic = 0.35
+
+[sub_resource type="BoxMesh" id="BoxMesh_car_body"]
+material = SubResource("StandardMaterial3D_rust")
+size = Vector3(2.1, 1.1, 4.4)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_glass"]
+albedo_color = Color(0.08, 0.09, 0.1, 1)
+roughness = 0.4
+metallic = 0.2
+
+[sub_resource type="BoxMesh" id="BoxMesh_car_cabin"]
+material = SubResource("StandardMaterial3D_glass")
+size = Vector3(1.9, 0.85, 2.3)
+
+[sub_resource type="BoxMesh" id="BoxMesh_car_hood"]
+material = SubResource("StandardMaterial3D_rust")
+size = Vector3(1.8, 0.08, 1.3)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_wheel"]
+albedo_color = Color(0.08, 0.08, 0.08, 1)
+roughness = 0.9
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_wheel"]
+material = SubResource("StandardMaterial3D_wheel")
+top_radius = 0.36
+bottom_radius = 0.36
+height = 0.26
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_wood"]
+albedo_color = Color(0.22, 0.18, 0.14, 1)
+roughness = 0.9
+
+[sub_resource type="BoxMesh" id="BoxMesh_crate1"]
+material = SubResource("StandardMaterial3D_wood")
+size = Vector3(1.2, 0.9, 1.2)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_case"]
+albedo_color = Color(0.18, 0.2, 0.19, 1)
+roughness = 0.6
+metallic = 0.4
+
+[sub_resource type="BoxMesh" id="BoxMesh_crate2"]
+material = SubResource("StandardMaterial3D_case")
+size = Vector3(0.9, 0.6, 0.9)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_jerry_red"]
+albedo_color = Color(0.65, 0.2, 0.15, 1)
+roughness = 0.7
+
+[sub_resource type="BoxMesh" id="BoxMesh_jerry1"]
+material = SubResource("StandardMaterial3D_jerry_red")
+size = Vector3(0.35, 0.55, 0.45)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_jerry_olive"]
+albedo_color = Color(0.25, 0.28, 0.2, 1)
+roughness = 0.75
+
+[sub_resource type="BoxMesh" id="BoxMesh_jerry2"]
+material = SubResource("StandardMaterial3D_jerry_olive")
+size = Vector3(0.35, 0.55, 0.45)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_flare_stick"]
+albedo_color = Color(0.85, 0.2, 0.15, 1)
+roughness = 0.6
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_flare_stick"]
+material = SubResource("StandardMaterial3D_flare_stick")
+top_radius = 0.04
+bottom_radius = 0.04
+height = 0.35
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_flare_tip"]
+albedo_color = Color(1, 0.35, 0.1, 1)
+emission_enabled = true
+emission = Color(1, 0.25, 0.08, 1)
+emission_energy_multiplier = 4.0
+
+[sub_resource type="BoxMesh" id="BoxMesh_flare_tip"]
+material = SubResource("StandardMaterial3D_flare_tip")
+size = Vector3(0.1, 0.1, 0.1)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_interaction"]
+size = Vector3(5.2, 3.5, 14)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_shadow"]
+albedo_color = Color(0.015, 0.015, 0.015, 1)
+roughness = 1.0
+
+[sub_resource type="BoxMesh" id="BoxMesh_shadow_torso"]
+material = SubResource("StandardMaterial3D_shadow")
+size = Vector3(0.42, 1.1, 0.28)
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_shadow_head"]
+material = SubResource("StandardMaterial3D_shadow")
+top_radius = 0.15
+bottom_radius = 0.16
+height = 0.32
+
+[sub_resource type="BoxMesh" id="BoxMesh_shadow_legs"]
+material = SubResource("StandardMaterial3D_shadow")
+size = Vector3(0.36, 0.65, 0.25)
+
+[node name="SupplyStop" type="Node3D" unique_id=9812401]
+script = ExtResource("1_stop")
+
+[node name="TurnoutPad" type="MeshInstance3D" parent="." unique_id=9812402]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.06, 0)
+mesh = SubResource("BoxMesh_turnout")
+
+[node name="WreckedVehicle" type="Node3D" parent="." unique_id=9812403]
+transform = Transform3D(0.9702957, 0, -0.2419219, 0, 1, 0, 0.2419219, 0, 0.9702957, 1.1, 0, -6.5)
+
+[node name="Body" type="MeshInstance3D" parent="WreckedVehicle" unique_id=9812404]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.75, 0)
+mesh = SubResource("BoxMesh_car_body")
+
+[node name="Cabin" type="MeshInstance3D" parent="WreckedVehicle" unique_id=9812405]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.65, 0.2)
+mesh = SubResource("BoxMesh_car_cabin")
+
+[node name="PoppedHood" type="MeshInstance3D" parent="WreckedVehicle" unique_id=9812406]
+transform = Transform3D(1, 0, 0, 0, 0.8829476, 0.4694716, 0, -0.4694716, 0.8829476, 0, 1.35, -1.5)
+mesh = SubResource("BoxMesh_car_hood")
+
+[node name="WheelFL" type="MeshInstance3D" parent="WreckedVehicle" unique_id=9812407]
+transform = Transform3D(0, -1, 0, 1, 0, 0, 0, 0, 1, -1.05, 0.36, -1.3)
+mesh = SubResource("CylinderMesh_wheel")
+
+[node name="WheelFR" type="MeshInstance3D" parent="WreckedVehicle" unique_id=9812408]
+transform = Transform3D(0, -1, 0, 1, 0, 0, 0, 0, 1, 1.05, 0.36, -1.3)
+mesh = SubResource("CylinderMesh_wheel")
+
+[node name="WheelRL" type="MeshInstance3D" parent="WreckedVehicle" unique_id=9812409]
+transform = Transform3D(0, -1, 0, 1, 0, 0, 0, 0, 1, -1.05, 0.36, 1.3)
+mesh = SubResource("CylinderMesh_wheel")
+
+[node name="WheelRR" type="MeshInstance3D" parent="WreckedVehicle" unique_id=9812410]
+transform = Transform3D(0, -1, 0, 1, 0, 0, 0, 0, 1, 1.05, 0.36, 1.3)
+mesh = SubResource("CylinderMesh_wheel")
+
+[node name="SupplyCrates" type="Node3D" parent="." unique_id=9812411]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.3, 0, -3.2)
+
+[node name="CrateWood" type="MeshInstance3D" parent="SupplyCrates" unique_id=9812412]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.45, 0)
+mesh = SubResource("BoxMesh_crate1")
+
+[node name="CrateCase" type="MeshInstance3D" parent="SupplyCrates" unique_id=9812413]
+transform = Transform3D(0.9659258, 0, 0.258819, 0, 1, 0, -0.258819, 0, 0.9659258, 0.1, 1.2, 0)
+mesh = SubResource("BoxMesh_crate2")
+
+[node name="JerrycanRed" type="MeshInstance3D" parent="SupplyCrates" unique_id=9812414]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.9, 0.28, 0.4)
+mesh = SubResource("BoxMesh_jerry1")
+
+[node name="JerrycanOlive" type="MeshInstance3D" parent="SupplyCrates" unique_id=9812415]
+transform = Transform3D(0.9848077, 0, -0.1736482, 0, 1, 0, 0.1736482, 0, 0.9848077, -0.9, 0.28, -0.3)
+mesh = SubResource("BoxMesh_jerry2")
+
+[node name="RoadFlare" type="Node3D" parent="." unique_id=9812416]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.8, 0, 2.5)
+
+[node name="Stick" type="MeshInstance3D" parent="RoadFlare" unique_id=9812417]
+transform = Transform3D(0.9659258, -0.258819, 0, 0.2558596, 0.9548694, -0.1503837, 0.0389221, 0.1452599, 0.9886278, 0, 0.08, 0)
+mesh = SubResource("CylinderMesh_flare_stick")
+
+[node name="FlareTip" type="MeshInstance3D" parent="RoadFlare" unique_id=9812418]
+unique_name_in_owner = true
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.05, 0.22, 0)
+mesh = SubResource("BoxMesh_flare_tip")
+surface_material_override/0 = SubResource("StandardMaterial3D_flare_tip")
+
+[node name="FlareLight" type="OmniLight3D" parent="RoadFlare" unique_id=9812419]
+unique_name_in_owner = true
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.05, 0.38, 0)
+light_color = Color(1, 0.22, 0.1, 1)
+light_energy = 6.5
+omni_range = 14.0
+omni_attenuation = 1.35
+
+[node name="InteractionArea" type="Area3D" parent="." unique_id=9812420]
+unique_name_in_owner = true
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.6, 1.5, 0)
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="InteractionArea" unique_id=9812421]
+shape = SubResource("BoxShape3D_interaction")
+
+[node name="ThreatSilhouette" type="Node3D" parent="." unique_id=9812422]
+unique_name_in_owner = true
+visible = false
+
+[node name="Torso" type="MeshInstance3D" parent="ThreatSilhouette" unique_id=9812423]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.1, 0)
+mesh = SubResource("BoxMesh_shadow_torso")
+
+[node name="Head" type="MeshInstance3D" parent="ThreatSilhouette" unique_id=9812424]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.8, 0)
+mesh = SubResource("CylinderMesh_shadow_head")
+
+[node name="Legs" type="MeshInstance3D" parent="ThreatSilhouette" unique_id=9812425]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.35, 0)
+mesh = SubResource("BoxMesh_shadow_legs")
