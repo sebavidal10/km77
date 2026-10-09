@@ -1,6 +1,13 @@
 class_name Van
 extends CharacterBody3D
 
+# Telemetry signals
+signal fuel_changed(current_fuel: float, max_fuel: float)
+signal fuel_depleted
+signal distance_updated(distance_traveled_meters: float, current_kilometer: float)
+signal speed_updated(speed_kmh: float)
+signal drift_state_changed(is_drifting_active: bool)
+
 @export_group("Engine & Speed")
 ## Maximum forward speed in meters per second (approx 137 km/h).
 @export var max_speed: float = 38.0
@@ -14,6 +21,22 @@ extends CharacterBody3D
 @export var reverse_acceleration: float = 16.0
 ## Passive coasting slowdown rate when neither throttle nor brake is pressed.
 @export var coast_deceleration: float = 8.0
+
+@export_group("Fuel Economy")
+## Maximum fuel capacity in units/liters.
+@export var max_fuel: float = 100.0
+## Current fuel level.
+@export var current_fuel: float = 100.0
+## Base fuel consumed per second when engine is idling/active.
+@export var fuel_consumption_idle: float = 0.12
+## Additional fuel consumed per second under full acceleration throttle.
+@export var fuel_consumption_throttle: float = 0.75
+
+@export_group("Trip & Navigation")
+## Starting kilometer marker (counts down toward target_kilometer).
+@export var starting_kilometer: float = 85.0
+## Destination kilometer goal.
+@export var target_kilometer: float = 77.0
 
 @export_group("Steering & Oversteer")
 ## Base turning rate in radians per second during normal driving.
@@ -54,8 +77,20 @@ extends CharacterBody3D
 var current_grip: float = 16.0
 var is_drifting: bool = false
 var forward_speed_state: float = 0.0
+var current_speed_kmh: float = 0.0
+var distance_traveled_meters: float = 0.0
+var current_kilometer: float = 85.0
+var is_actively_drifting: bool = false
+var _was_drifting: bool = false
 
 @onready var visual_mesh: MeshInstance3D = get_node_or_null("MeshInstance3D") as MeshInstance3D
+
+func _ready() -> void:
+	current_kilometer = starting_kilometer
+	fuel_changed.emit(current_fuel, max_fuel)
+	distance_updated.emit(distance_traveled_meters, current_kilometer)
+	speed_updated.emit(0.0)
+	drift_state_changed.emit(false)
 
 func _physics_process(delta: float) -> void:
 	is_drifting = Input.is_action_pressed("handbrake")
@@ -97,7 +132,12 @@ func _physics_process(delta: float) -> void:
 	# 8. Handle obstacle impact deceleration and debris knockback impulses
 	_process_collisions(forward_dir, delta)
 
-	# 9. Visual chassis roll animation
+	# 9. Update telemetry: fuel, odometer, speed km/h, and drift state
+	_process_fuel(delta)
+	_process_odometer(delta)
+	_process_telemetry()
+
+	# 10. Visual chassis roll animation
 	_process_visual_roll(delta, forward_speed_state)
 
 ## Handles physical impacts with heavy obstacles (heavy deceleration) and pushes debris RigidBodies.
@@ -154,18 +194,24 @@ func _process_steering(delta: float) -> void:
 		var turn_angle: float = steer_input * effective_steer * delta * direction_sign
 		rotate_y(turn_angle)
 
-## Updates forward/reverse speed based on throttle and handbrake scrub.
+## Updates forward/reverse speed based on throttle, fuel availability, and handbrake scrub.
 func _process_longitudinal(fwd_speed: float, delta: float) -> float:
 	var throttle := Input.get_axis("brake", "accelerate")
 
 	if throttle > 0.0:
-		if fwd_speed < 0.0:
+		if current_fuel <= 0.0:
+			# Engine stalled out of fuel: coast to stop
+			fwd_speed = move_toward(fwd_speed, 0.0, coast_deceleration * delta)
+		elif fwd_speed < 0.0:
 			fwd_speed = move_toward(fwd_speed, 0.0, braking * delta)
 		else:
 			fwd_speed = move_toward(fwd_speed, max_speed, acceleration * delta)
 	elif throttle < 0.0:
 		if fwd_speed > 0.5:
 			fwd_speed = move_toward(fwd_speed, 0.0, braking * delta)
+		elif current_fuel <= 0.0:
+			# Engine stalled out of fuel: cannot reverse
+			fwd_speed = move_toward(fwd_speed, 0.0, coast_deceleration * delta)
 		else:
 			fwd_speed = move_toward(fwd_speed, -reverse_max_speed, reverse_acceleration * delta)
 	else:
@@ -176,6 +222,41 @@ func _process_longitudinal(fwd_speed: float, delta: float) -> float:
 		fwd_speed = move_toward(fwd_speed, 0.0, drift_drag * delta)
 
 	return fwd_speed
+
+## Consumes fuel over time based on idle and throttle demand.
+func _process_fuel(delta: float) -> void:
+	if current_fuel <= 0.0:
+		return
+
+	var throttle := Input.get_axis("brake", "accelerate")
+	var throttle_ratio := clampf(throttle, 0.0, 1.0)
+	var consumption: float = fuel_consumption_idle + (fuel_consumption_throttle * throttle_ratio)
+	current_fuel = maxf(0.0, current_fuel - (consumption * delta))
+	fuel_changed.emit(current_fuel, max_fuel)
+
+	if current_fuel <= 0.0:
+		fuel_depleted.emit()
+
+## Tracks forward distance traveled and updates road kilometer progress.
+func _process_odometer(delta: float) -> void:
+	if forward_speed_state > 0.1:
+		distance_traveled_meters += forward_speed_state * delta
+		current_kilometer = maxf(target_kilometer, starting_kilometer - (distance_traveled_meters / 1000.0))
+		distance_updated.emit(distance_traveled_meters, current_kilometer)
+
+## Updates speed in km/h and tracks active drift state changes.
+func _process_telemetry() -> void:
+	var h_vel := Vector3(velocity.x, 0.0, velocity.z)
+	current_speed_kmh = h_vel.length() * 3.6
+	speed_updated.emit(current_speed_kmh)
+
+	var right_dir := transform.basis.x
+	var lat_speed := absf(h_vel.dot(right_dir))
+	var currently_drifting: bool = is_drifting and lat_speed > 1.2
+	if currently_drifting != _was_drifting:
+		_was_drifting = currently_drifting
+		is_actively_drifting = currently_drifting
+		drift_state_changed.emit(is_actively_drifting)
 
 ## Applies grip damping to lateral sliding velocity.
 func _process_lateral(lat_speed: float, delta: float) -> float:
