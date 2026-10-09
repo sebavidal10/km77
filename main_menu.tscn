@@ -1,0 +1,263 @@
+[gd_scene format=3 uid="uid://c8n4e9v1mainmenu"]
+
+[ext_resource type="Script" path="res://main_menu.gd" id="1_menu"]
+[ext_resource type="Script" path="res://storm_controller.gd" id="2_storm"]
+[ext_resource type="Script" path="res://post_process.gd" id="3_post"]
+[ext_resource type="Shader" path="res://shaders/psx_retro.gdshader" id="4_shader"]
+
+[sub_resource type="Environment" id="Environment_menu"]
+background_mode = 1
+background_color = Color(0.015, 0.018, 0.022, 1)
+ambient_light_source = 2
+ambient_light_color = Color(0.02, 0.025, 0.03, 1)
+ambient_light_energy = 0.2
+fog_enabled = true
+fog_light_color = Color(0.04, 0.045, 0.055, 1)
+fog_density = 0.032
+fog_depth_begin = 10.0
+fog_depth_end = 40.0
+volumetric_fog_enabled = true
+volumetric_fog_density = 0.06
+volumetric_fog_albedo = Color(0.05, 0.055, 0.065, 1)
+volumetric_fog_length = 45.0
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_road"]
+albedo_color = Color(0.1, 0.1, 0.12, 1)
+roughness = 0.18
+metallic = 0.08
+metallic_specular = 0.65
+
+[sub_resource type="BoxMesh" id="BoxMesh_road"]
+material = SubResource("StandardMaterial3D_road")
+size = Vector3(14, 1, 50)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_stripe"]
+albedo_color = Color(0.9, 0.72, 0.1, 1)
+emission_enabled = true
+emission = Color(0.9, 0.72, 0.1, 1)
+emission_energy_multiplier = 0.4
+roughness = 0.3
+
+[sub_resource type="BoxMesh" id="BoxMesh_stripe"]
+material = SubResource("StandardMaterial3D_stripe")
+size = Vector3(0.15, 1.02, 50)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_van"]
+albedo_color = Color(0.88, 0.88, 0.88, 1)
+roughness = 0.82
+metallic = 0.05
+
+[sub_resource type="BoxMesh" id="BoxMesh_van"]
+material = SubResource("StandardMaterial3D_van")
+size = Vector3(2, 1.5, 4)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_taillight"]
+albedo_color = Color(0.85, 0.05, 0.05, 1)
+emission_enabled = true
+emission = Color(0.95, 0.08, 0.08, 1)
+emission_energy_multiplier = 0.8
+
+[sub_resource type="BoxMesh" id="BoxMesh_taillight"]
+material = SubResource("StandardMaterial3D_taillight")
+size = Vector3(0.35, 0.22, 0.06)
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_psx"]
+shader = ExtResource("4_shader")
+shader_parameter/enable_pixelation = true
+shader_parameter/target_resolution = Vector2(640, 360)
+shader_parameter/color_depth = 32.0
+shader_parameter/dither_intensity = 0.42
+shader_parameter/grain_intensity = 0.016
+shader_parameter/scanline_intensity = 0.025
+shader_parameter/chromatic_aberration = 0.0008
+shader_parameter/static_glitch_intensity = 0.0
+shader_parameter/glitch_intensity = 0.0
+shader_parameter/saturation = 1.15
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_btn"]
+content_margin_left = 18.0
+content_margin_top = 10.0
+content_margin_right = 18.0
+content_margin_bottom = 10.0
+bg_color = Color(0.04, 0.055, 0.065, 0.88)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.2, 1, 0.4, 0.75)
+corner_radius_top_left = 2
+corner_radius_top_right = 2
+corner_radius_bottom_right = 2
+corner_radius_bottom_left = 2
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_btn_hover"]
+content_margin_left = 18.0
+content_margin_top = 10.0
+content_margin_right = 18.0
+content_margin_bottom = 10.0
+bg_color = Color(0.08, 0.12, 0.1, 0.95)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.2, 1, 0.4, 1)
+corner_radius_top_left = 2
+corner_radius_top_right = 2
+corner_radius_bottom_right = 2
+corner_radius_bottom_left = 2
+
+[node name="MainMenu" type="Node3D"]
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("Environment_menu")
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="."]
+transform = Transform3D(0.866025, -0.353553, 0.353553, 0, 0.707107, 0.707107, -0.5, -0.612372, 0.612372, 0, 0, 0)
+light_color = Color(0.85, 0.92, 1, 1)
+light_energy = 0.0
+
+[node name="Camera3D" type="Camera3D" parent="."]
+transform = Transform3D(0.838671, 0.0768656, -0.539223, 0, 0.990024, 0.1409, 0.544639, -0.118169, 0.830303, -2.6, 1.25, -4.8)
+
+[node name="RoadSurface" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
+mesh = SubResource("BoxMesh_road")
+
+[node name="CenterStripe" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.01, 0)
+mesh = SubResource("BoxMesh_stripe")
+
+[node name="Van" type="Node3D" parent="."]
+transform = Transform3D(0.996195, 0, 0.0871557, 0, 1, 0, -0.0871557, 0, 0.996195, 0, 1.0, 0)
+
+[node name="Chassis" type="MeshInstance3D" parent="Van"]
+mesh = SubResource("BoxMesh_van")
+
+[node name="HeadlightLeft" type="SpotLight3D" parent="Van"]
+transform = Transform3D(1, 0, 0, 0, 0.984808, 0.173648, 0, -0.173648, 0.984808, -0.8, 0.35, -2.1)
+light_color = Color(1, 0.949, 0.8, 1)
+light_energy = 8.0
+spot_range = 45.0
+spot_angle = 50.0
+
+[node name="HeadlightRight" type="SpotLight3D" parent="Van"]
+transform = Transform3D(1, 0, 0, 0, 0.984808, 0.173648, 0, -0.173648, 0.984808, 0.8, 0.35, -2.1)
+light_color = Color(1, 0.949, 0.8, 1)
+light_energy = 8.0
+spot_range = 45.0
+spot_angle = 50.0
+
+[node name="TaillightLeft" type="MeshInstance3D" parent="Van"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.75, 0.25, 2.01)
+mesh = SubResource("BoxMesh_taillight")
+
+[node name="TaillightRight" type="MeshInstance3D" parent="Van"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.75, 0.25, 2.01)
+mesh = SubResource("BoxMesh_taillight")
+
+[node name="StormController" type="Node3D" parent="." node_paths=PackedStringArray("target_vehicle", "lightning_light")]
+script = ExtResource("2_storm")
+target_vehicle = NodePath("../Van")
+lightning_light = NodePath("../DirectionalLight3D")
+
+[node name="PostProcessLayer" type="CanvasLayer" parent="."]
+layer = 1
+script = ExtResource("3_post")
+
+[node name="PostProcessOverlay" type="ColorRect" parent="PostProcessLayer"]
+material = SubResource("ShaderMaterial_psx")
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="UI" type="Control" parent="."]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_menu")
+
+[node name="MarginContainer" type="MarginContainer" parent="UI"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/margin_left = 64
+theme_override_constants/margin_top = 54
+theme_override_constants/margin_right = 64
+theme_override_constants/margin_bottom = 54
+
+[node name="VBoxContainer" type="VBoxContainer" parent="UI/MarginContainer"]
+layout_mode = 2
+size_flags_horizontal = 0
+size_flags_vertical = 4
+theme_override_constants/separation = 18
+
+[node name="Title" type="Label" parent="UI/MarginContainer/VBoxContainer"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.95, 0.96, 0.98, 1)
+theme_override_font_sizes/font_size = 38
+text = "KILÓMETRO 77"
+
+[node name="Subtitle" type="Label" parent="UI/MarginContainer/VBoxContainer"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.69, 0, 1)
+theme_override_font_sizes/font_size = 13
+text = "ROUTE 77 // ANOMALOUS TRANSIT INVESTIGATION"
+
+[node name="Spacer" type="Control" parent="UI/MarginContainer/VBoxContainer"]
+custom_minimum_size = Vector2(0, 24)
+layout_mode = 2
+
+[node name="StartButton" type="Button" parent="UI/MarginContainer/VBoxContainer"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(220, 42)
+layout_mode = 2
+focus_mode = 2
+theme_override_colors/font_color = Color(0.2, 1, 0.4, 1)
+theme_override_colors/font_hover_color = Color(0.4, 1, 0.6, 1)
+theme_override_font_sizes/font_size = 14
+theme_override_styles/normal = SubResource("StyleBoxFlat_btn")
+theme_override_styles/hover = SubResource("StyleBoxFlat_btn_hover")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_btn")
+text = "[ START PATROL ]"
+
+[node name="ExitButton" type="Button" parent="UI/MarginContainer/VBoxContainer"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(220, 42)
+layout_mode = 2
+focus_mode = 2
+theme_override_colors/font_color = Color(0.85, 0.85, 0.85, 1)
+theme_override_colors/font_hover_color = Color(1, 0.3, 0.3, 1)
+theme_override_font_sizes/font_size = 14
+theme_override_styles/normal = SubResource("StyleBoxFlat_btn")
+theme_override_styles/hover = SubResource("StyleBoxFlat_btn_hover")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_btn")
+text = "[ EXIT ]"
+
+[node name="VersionLabel" type="Label" parent="UI/MarginContainer"]
+layout_mode = 2
+size_flags_horizontal = 8
+size_flags_vertical = 8
+theme_override_colors/font_color = Color(0.4, 0.45, 0.5, 0.7)
+theme_override_font_sizes/font_size = 11
+text = "UNIT 77 PROTOCOL // VER 0.9.4"
+
+[node name="FadeRect" type="ColorRect" parent="UI"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+color = Color(0, 0, 0, 1)

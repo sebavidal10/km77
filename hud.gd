@@ -32,6 +32,10 @@ const COLOR_BLOOD_RED := Color(1.0, 0.2, 0.2, 1.0)       # #FF3333
 @onready var forensic_panel: PanelContainer = %ForensicPanel
 @onready var forensic_header: Label = %ForensicHeader
 @onready var forensic_text: Label = %ForensicText
+@onready var pause_overlay: ColorRect = %PauseOverlay
+@onready var resume_button: Button = %ResumeButton
+@onready var restart_button: Button = %RestartButton
+@onready var quit_menu_button: Button = %QuitMenuButton
 
 var _forensic_display_timer: float = 0.0
 var _forensic_hold_duration: float = 0.0
@@ -70,6 +74,54 @@ func _ready() -> void:
 		fade_overlay.modulate.a = 0.0
 	if interaction_panel:
 		interaction_panel.visible = false
+	if pause_overlay:
+		pause_overlay.visible = false
+	if resume_button:
+		resume_button.pressed.connect(resume_game)
+	if restart_button:
+		restart_button.pressed.connect(restart_patrol)
+	if quit_menu_button:
+		quit_menu_button.pressed.connect(quit_to_menu)
+
+func _unhandled_input(event: InputEvent) -> void:
+	if event.is_action_pressed("ui_cancel"):
+		toggle_pause()
+
+func toggle_pause() -> void:
+	if not pause_overlay:
+		return
+	if get_tree().paused:
+		resume_game()
+	else:
+		pause_game()
+
+func pause_game() -> void:
+	get_tree().paused = true
+	if pause_overlay:
+		pause_overlay.visible = true
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+
+func resume_game() -> void:
+	get_tree().paused = false
+	if pause_overlay:
+		pause_overlay.visible = false
+
+func restart_patrol() -> void:
+	get_tree().paused = false
+	if pause_overlay:
+		pause_overlay.visible = false
+	var root := get_tree().current_scene
+	if root:
+		var lrm := root.get_node_or_null("LoopResetManager")
+		if lrm and lrm.has_method("start_timeline_reboot"):
+			lrm.start_timeline_reboot("MANUAL LOOP RESTART")
+			return
+	if target_van:
+		target_van.reset_loop_state()
+
+func quit_to_menu() -> void:
+	get_tree().paused = false
+	get_tree().change_scene_to_file("res://main_menu.tscn")
 
 func _process(delta: float) -> void:
 	if not target_van:
