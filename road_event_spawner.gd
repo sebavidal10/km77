@@ -671,6 +671,7 @@ func _spawn_hitchhiker(segment: RoadSegment, slice_idx: int, rng: RandomNumberGe
 	torso_mesh.material = _get_silhouette_mat()
 
 	var torso_inst := MeshInstance3D.new()
+	torso_inst.name = "Torso"
 	torso_inst.mesh = torso_mesh
 	torso_inst.position = Vector3(0.0, 1.10, 0.0)
 	hitchhiker_root.add_child(torso_inst)
@@ -681,6 +682,7 @@ func _spawn_hitchhiker(segment: RoadSegment, slice_idx: int, rng: RandomNumberGe
 	head_mesh.material = _get_silhouette_mat()
 
 	var head_inst := MeshInstance3D.new()
+	head_inst.name = "Head"
 	head_inst.mesh = head_mesh
 	head_inst.position = Vector3(0.0, 1.59, 0.0)
 	hitchhiker_root.add_child(head_inst)
