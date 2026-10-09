@@ -17,8 +17,8 @@ const SupplyStopScene = preload("res://supply_stop.tscn")
 @export var max_segments_ahead: int = 6
 ## Longitudinal length of each chunk in meters.
 @export var segment_length: float = 80.0
-## Road surface width between guardrails in meters.
-@export var road_width: float = 16.0
+## Road surface width in meters (two 7.0m lanes).
+@export var road_width: float = 14.0
 ## Turning angle in degrees for curved segments.
 @export var curve_angle: float = 22.5
 ## Distance behind the vehicle after which old segments are recycled and freed.
@@ -56,7 +56,7 @@ const SupplyStopScene = preload("res://supply_stop.tscn")
 ## Chance (0.0 to 1.0) to spawn an oncoming vehicle once the chunk interval is reached.
 @export var oncoming_spawn_chance: float = 0.75
 ## Opposing lane center lateral offset from road center (meters).
-@export var opposing_lane_offset: float = 3.6
+@export var opposing_lane_offset: float = 3.5
 
 # Internal state
 var active_segments: Array[RoadSegment] = []
@@ -269,8 +269,8 @@ func _spawn_supply_stop(segment: RoadSegment) -> void:
 	var slice_tr: Transform3D = segment.get_slice_transform(slice_idx)
 
 	var stop_inst := SupplyStopScene.instantiate() as SupplyStop
-	# Positioned right along the visible right shoulder/berm at ground level
-	var local_offset := Vector3(6.2, 0.2, 0.0)
+	# Positioned right along the open right shoulder/berm at ground level
+	var local_offset := Vector3(8.0, 0.2, 0.0)
 	stop_inst.transform = slice_tr * Transform3D(Basis.IDENTITY, local_offset)
 	segment.add_child(stop_inst)
 

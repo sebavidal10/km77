@@ -12,8 +12,8 @@ enum SegmentType {
 @export var segment_type: SegmentType = SegmentType.STRAIGHT
 ## Total longitudinal depth/length of the segment in meters.
 @export var segment_length: float = 80.0
-## Total driveable road width between barriers in meters.
-@export var road_width: float = 16.0
+## Total driveable road width in meters (two 7.0m lanes).
+@export var road_width: float = 14.0
 ## Thickness of the road floor slab.
 @export var road_thickness: float = 1.0
 ## Total turning angle in degrees for curved segments.
@@ -21,8 +21,16 @@ enum SegmentType {
 ## Number of geometric primitive slices used to construct smooth curves.
 @export var slice_count: int = 8
 
+@export_group("Shoulders & Ditches")
+## Width in meters of the flat dirt/gravel shoulder on each side of the asphalt.
+@export var shoulder_width: float = 2.4
+## Depth in meters of the roadside drainage ditch channel.
+@export var ditch_depth: float = 1.2
+## Width in meters of each sloped bank of the drainage ditch channel.
+@export var ditch_slope_width: float = 1.8
+
 @export_group("Guardrails")
-## Height of lateral barrier guardrails to prevent falling off during drifts.
+## Height of lateral barrier guardrails on outer curves.
 @export var barrier_height: float = 3.0
 ## Thickness of the barrier guardrail boxes.
 @export var barrier_thickness: float = 1.0
@@ -34,6 +42,8 @@ var slice_transforms: Array[Transform3D] = []
 
 # Static shared materials to optimize draw calls and shader memory
 static var _road_material: StandardMaterial3D
+static var _shoulder_material: StandardMaterial3D
+static var _ditch_material: StandardMaterial3D
 static var _barrier_material: StandardMaterial3D
 static var _marking_material: StandardMaterial3D
 static var _reflector_amber_mat: StandardMaterial3D
@@ -47,6 +57,24 @@ static func get_road_material() -> StandardMaterial3D:
 		_road_material.roughness = 0.95
 		_road_material.metallic = 0.05
 	return _road_material
+
+static func get_shoulder_material() -> StandardMaterial3D:
+	if not _shoulder_material:
+		_shoulder_material = StandardMaterial3D.new()
+		# Compacted dark gravel and unpaved dirt shoulder
+		_shoulder_material.albedo_color = Color(0.18, 0.16, 0.14, 1.0)
+		_shoulder_material.roughness = 0.98
+		_shoulder_material.metallic = 0.0
+	return _shoulder_material
+
+static func get_ditch_material() -> StandardMaterial3D:
+	if not _ditch_material:
+		_ditch_material = StandardMaterial3D.new()
+		# Deep muddy roadside ditch soil
+		_ditch_material.albedo_color = Color(0.11, 0.10, 0.08, 1.0)
+		_ditch_material.roughness = 0.90
+		_ditch_material.metallic = 0.05
+	return _ditch_material
 
 static func get_barrier_material() -> StandardMaterial3D:
 	if not _barrier_material:
@@ -206,86 +234,246 @@ func build_segment() -> void:
 			stripe_right_inst.transform = Transform3D(slice_basis, slice_center + slice_basis * right_stripe_local)
 			static_body.add_child(stripe_right_inst)
 
-		# 3. Side Guardrails / Barriers
-		# Placed flush along road edges. Height extends well above road to contain drifts.
-		var lateral_offset: float = (road_width * 0.5) + (barrier_thickness * 0.5)
-		var vertical_offset: float = barrier_height * 0.5 # Centered so top is at barrier_height
+		var half_road: float = road_width * 0.5
 
-		# Left Guardrail
-		var left_local := Vector3(-lateral_offset, vertical_offset, 0.0)
-		var left_transform := Transform3D(slice_basis, slice_center + slice_basis * left_local)
+		# 3. Flat Compacted Dirt/Gravel Shoulders (Bermas) on both sides
+		var shoulder_mat := get_shoulder_material()
+		var shoulder_center_x: float = half_road + (shoulder_width * 0.5)
 
-		var left_mesh := BoxMesh.new()
-		left_mesh.size = Vector3(barrier_thickness, barrier_height, barrier_box_length)
-		left_mesh.material = barrier_mat
+		# Left Shoulder
+		var left_sh_mesh := BoxMesh.new()
+		left_sh_mesh.size = Vector3(shoulder_width, road_thickness, slice_box_length)
+		left_sh_mesh.material = shoulder_mat
 
-		var left_mesh_instance := MeshInstance3D.new()
-		left_mesh_instance.name = "BarrierLeftMesh_%d" % i
-		left_mesh_instance.mesh = left_mesh
-		left_mesh_instance.transform = left_transform
-		static_body.add_child(left_mesh_instance)
+		var left_sh_inst := MeshInstance3D.new()
+		left_sh_inst.name = "ShoulderLeftMesh_%d" % i
+		left_sh_inst.mesh = left_sh_mesh
+		var left_sh_local := Vector3(-shoulder_center_x, 0.0, 0.0)
+		left_sh_inst.transform = Transform3D(slice_basis, slice_center + slice_basis * left_sh_local)
+		static_body.add_child(left_sh_inst)
 
-		var left_col_shape := BoxShape3D.new()
-		left_col_shape.size = Vector3(barrier_thickness, barrier_height, barrier_box_length)
+		var left_sh_col := CollisionShape3D.new()
+		var left_sh_shape := BoxShape3D.new()
+		left_sh_shape.size = Vector3(shoulder_width, road_thickness, slice_box_length)
+		left_sh_col.name = "ShoulderLeftCol_%d" % i
+		left_sh_col.shape = left_sh_shape
+		left_sh_col.transform = Transform3D(slice_basis, slice_center + slice_basis * left_sh_local)
+		static_body.add_child(left_sh_col)
 
-		var left_col := CollisionShape3D.new()
-		left_col.name = "BarrierLeftCol_%d" % i
-		left_col.shape = left_col_shape
-		left_col.transform = left_transform
-		static_body.add_child(left_col)
+		# Right Shoulder
+		var right_sh_mesh := BoxMesh.new()
+		right_sh_mesh.size = Vector3(shoulder_width, road_thickness, slice_box_length)
+		right_sh_mesh.material = shoulder_mat
 
-		# Right Guardrail
-		var right_local := Vector3(lateral_offset, vertical_offset, 0.0)
-		var right_transform := Transform3D(slice_basis, slice_center + slice_basis * right_local)
+		var right_sh_inst := MeshInstance3D.new()
+		right_sh_inst.name = "ShoulderRightMesh_%d" % i
+		right_sh_inst.mesh = right_sh_mesh
+		var right_sh_local := Vector3(shoulder_center_x, 0.0, 0.0)
+		right_sh_inst.transform = Transform3D(slice_basis, slice_center + slice_basis * right_sh_local)
+		static_body.add_child(right_sh_inst)
 
-		var right_mesh := BoxMesh.new()
-		right_mesh.size = Vector3(barrier_thickness, barrier_height, barrier_box_length)
-		right_mesh.material = barrier_mat
+		var right_sh_col := CollisionShape3D.new()
+		var right_sh_shape := BoxShape3D.new()
+		right_sh_shape.size = Vector3(shoulder_width, road_thickness, slice_box_length)
+		right_sh_col.name = "ShoulderRightCol_%d" % i
+		right_sh_col.shape = right_sh_shape
+		right_sh_col.transform = Transform3D(slice_basis, slice_center + slice_basis * right_sh_local)
+		static_body.add_child(right_sh_col)
 
-		var right_mesh_instance := MeshInstance3D.new()
-		right_mesh_instance.name = "BarrierRightMesh_%d" % i
-		right_mesh_instance.mesh = right_mesh
-		right_mesh_instance.transform = right_transform
-		static_body.add_child(right_mesh_instance)
+		# 4. Roadside Ditches (Cunetas) with Mud Drag Hazard Areas
+		var ditch_mat := get_ditch_material()
+		var slope_hypot: float = sqrt(pow(ditch_slope_width, 2.0) + pow(ditch_depth, 2.0))
+		var slope_angle: float = atan2(ditch_depth, ditch_slope_width)
+		var down_center_y: float = -ditch_depth * 0.5
 
-		var right_col_shape := BoxShape3D.new()
-		right_col_shape.size = Vector3(barrier_thickness, barrier_height, barrier_box_length)
+		# Left Ditch
+		# Inner down-slope (slopes down from -9.4m to -11.2m)
+		var left_down_center_x: float = -(half_road + shoulder_width + (ditch_slope_width * 0.5))
+		var left_down_local := Vector3(left_down_center_x, down_center_y, 0.0)
+		var left_down_rot := Basis(Vector3.FORWARD, slope_angle)
+		var left_down_tr := Transform3D(slice_basis * left_down_rot, slice_center + slice_basis * left_down_local)
 
-		var right_col := CollisionShape3D.new()
-		right_col.name = "BarrierRightCol_%d" % i
-		right_col.shape = right_col_shape
-		right_col.transform = right_transform
-		static_body.add_child(right_col)
+		var left_down_mesh := BoxMesh.new()
+		left_down_mesh.size = Vector3(slope_hypot, 0.3, slice_box_length)
+		left_down_mesh.material = ditch_mat
+		var left_down_inst := MeshInstance3D.new()
+		left_down_inst.name = "DitchLeftDownMesh_%d" % i
+		left_down_inst.mesh = left_down_mesh
+		left_down_inst.transform = left_down_tr
+		static_body.add_child(left_down_inst)
 
-		# 4. Curve Warning Delineator Signs (Retro-reflective amber diamonds on outer barriers)
-		if segment_type != SegmentType.STRAIGHT and (i % 2 == 0):
-			var is_outer_right: bool = (segment_type == SegmentType.CURVE_LEFT)
-			var sign_side_x: float = lateral_offset if is_outer_right else -lateral_offset
-			var sign_y: float = barrier_height + 0.65
-			var sign_local := Vector3(sign_side_x, sign_y, 0.0)
+		var left_down_col := CollisionShape3D.new()
+		var left_down_shape := BoxShape3D.new()
+		left_down_shape.size = Vector3(slope_hypot, 0.3, slice_box_length)
+		left_down_col.name = "DitchLeftDownCol_%d" % i
+		left_down_col.shape = left_down_shape
+		left_down_col.transform = left_down_tr
+		static_body.add_child(left_down_col)
 
-			# Black iron mounting pole
-			var pole_mesh := BoxMesh.new()
-			pole_mesh.size = Vector3(0.12, 1.3, 0.12)
-			pole_mesh.material = get_sign_post_material()
+		# Outer up-slope (slopes up from -11.2m to -13.0m)
+		var left_up_center_x: float = -(half_road + shoulder_width + ditch_slope_width + (ditch_slope_width * 0.5))
+		var left_up_local := Vector3(left_up_center_x, down_center_y, 0.0)
+		var left_up_rot := Basis(Vector3.FORWARD, -slope_angle)
+		var left_up_tr := Transform3D(slice_basis * left_up_rot, slice_center + slice_basis * left_up_local)
 
-			var pole_inst := MeshInstance3D.new()
-			pole_inst.name = "WarningSignPole_%d" % i
-			pole_inst.mesh = pole_mesh
-			pole_inst.transform = Transform3D(slice_basis, slice_center + slice_basis * sign_local)
-			static_body.add_child(pole_inst)
+		var left_up_mesh := BoxMesh.new()
+		left_up_mesh.size = Vector3(slope_hypot, 0.3, slice_box_length)
+		left_up_mesh.material = ditch_mat
+		var left_up_inst := MeshInstance3D.new()
+		left_up_inst.name = "DitchLeftUpMesh_%d" % i
+		left_up_inst.mesh = left_up_mesh
+		left_up_inst.transform = left_up_tr
+		static_body.add_child(left_up_inst)
 
-			# Retro-reflective amber diamond plate (#FFA000)
-			var plate_mesh := BoxMesh.new()
-			plate_mesh.size = Vector3(0.55, 0.55, 0.05)
-			plate_mesh.material = get_reflector_amber_material()
+		var left_up_col := CollisionShape3D.new()
+		var left_up_shape := BoxShape3D.new()
+		left_up_shape.size = Vector3(slope_hypot, 0.3, slice_box_length)
+		left_up_col.name = "DitchLeftUpCol_%d" % i
+		left_up_col.shape = left_up_shape
+		left_up_col.transform = left_up_tr
+		static_body.add_child(left_up_col)
 
-			var plate_inst := MeshInstance3D.new()
-			plate_inst.name = "ReflectorDiamond_%d" % i
-			plate_inst.mesh = plate_mesh
-			var diamond_rot := slice_basis.rotated(slice_basis.z, deg_to_rad(45.0))
-			plate_inst.transform = Transform3D(diamond_rot, slice_center + slice_basis * (sign_local + Vector3(0.0, 0.45, 0.0)))
-			static_body.add_child(plate_inst)
+		# Right Ditch
+		# Inner down-slope (slopes down from +9.4m to +11.2m)
+		var right_down_center_x: float = half_road + shoulder_width + (ditch_slope_width * 0.5)
+		var right_down_local := Vector3(right_down_center_x, down_center_y, 0.0)
+		var right_down_rot := Basis(Vector3.FORWARD, -slope_angle)
+		var right_down_tr := Transform3D(slice_basis * right_down_rot, slice_center + slice_basis * right_down_local)
+
+		var right_down_mesh := BoxMesh.new()
+		right_down_mesh.size = Vector3(slope_hypot, 0.3, slice_box_length)
+		right_down_mesh.material = ditch_mat
+		var right_down_inst := MeshInstance3D.new()
+		right_down_inst.name = "DitchRightDownMesh_%d" % i
+		right_down_inst.mesh = right_down_mesh
+		right_down_inst.transform = right_down_tr
+		static_body.add_child(right_down_inst)
+
+		var right_down_col := CollisionShape3D.new()
+		var right_down_shape := BoxShape3D.new()
+		right_down_shape.size = Vector3(slope_hypot, 0.3, slice_box_length)
+		right_down_col.name = "DitchRightDownCol_%d" % i
+		right_down_col.shape = right_down_shape
+		right_down_col.transform = right_down_tr
+		static_body.add_child(right_down_col)
+
+		# Outer up-slope (slopes up from +11.2m to +13.0m)
+		var right_up_center_x: float = half_road + shoulder_width + ditch_slope_width + (ditch_slope_width * 0.5)
+		var right_up_local := Vector3(right_up_center_x, down_center_y, 0.0)
+		var right_up_rot := Basis(Vector3.FORWARD, slope_angle)
+		var right_up_tr := Transform3D(slice_basis * right_up_rot, slice_center + slice_basis * right_up_local)
+
+		var right_up_mesh := BoxMesh.new()
+		right_up_mesh.size = Vector3(slope_hypot, 0.3, slice_box_length)
+		right_up_mesh.material = ditch_mat
+		var right_up_inst := MeshInstance3D.new()
+		right_up_inst.name = "DitchRightUpMesh_%d" % i
+		right_up_inst.mesh = right_up_mesh
+		right_up_inst.transform = right_up_tr
+		static_body.add_child(right_up_inst)
+
+		var right_up_col := CollisionShape3D.new()
+		var right_up_shape := BoxShape3D.new()
+		right_up_shape.size = Vector3(slope_hypot, 0.3, slice_box_length)
+		right_up_col.name = "DitchRightUpCol_%d" % i
+		right_up_col.shape = right_up_shape
+		right_up_col.transform = right_up_tr
+		static_body.add_child(right_up_col)
+
+		# Ditch Mud Drag Trigger Area3D (Left & Right)
+		var ditch_area_w: float = ditch_slope_width * 2.0
+		var ditch_left_mud := Area3D.new()
+		ditch_left_mud.name = "DitchMudLeft_%d" % i
+		ditch_left_mud.collision_layer = 0
+		ditch_left_mud.collision_mask = 1
+		var ditch_left_mud_col := CollisionShape3D.new()
+		var ditch_left_mud_shape := BoxShape3D.new()
+		ditch_left_mud_shape.size = Vector3(ditch_area_w, 2.0, slice_box_length)
+		ditch_left_mud_col.shape = ditch_left_mud_shape
+		ditch_left_mud.add_child(ditch_left_mud_col)
+		var left_mud_local := Vector3(-(half_road + shoulder_width + ditch_slope_width), -0.5, 0.0)
+		ditch_left_mud.transform = Transform3D(slice_basis, slice_center + slice_basis * left_mud_local)
+		ditch_left_mud.body_entered.connect(_on_mud_area_entered)
+		ditch_left_mud.body_exited.connect(_on_mud_area_exited)
+		add_child(ditch_left_mud)
+
+		var ditch_right_mud := Area3D.new()
+		ditch_right_mud.name = "DitchMudRight_%d" % i
+		ditch_right_mud.collision_layer = 0
+		ditch_right_mud.collision_mask = 1
+		var ditch_right_mud_col := CollisionShape3D.new()
+		var ditch_right_mud_shape := BoxShape3D.new()
+		ditch_right_mud_shape.size = Vector3(ditch_area_w, 2.0, slice_box_length)
+		ditch_right_mud_col.shape = ditch_right_mud_shape
+		ditch_right_mud.add_child(ditch_right_mud_col)
+		var right_mud_local := Vector3(half_road + shoulder_width + ditch_slope_width, -0.5, 0.0)
+		ditch_right_mud.transform = Transform3D(slice_basis, slice_center + slice_basis * right_mud_local)
+		ditch_right_mud.body_entered.connect(_on_mud_area_entered)
+		ditch_right_mud.body_exited.connect(_on_mud_area_exited)
+		add_child(ditch_right_mud)
+
+		# 5. Selective Outer Curve Guardrails
+		# NO guardrails on straight chunks (open roads and shoulders).
+		# On curves, ONLY generate barrier on the outer edge:
+		# CURVE_LEFT -> outer edge is Right (+X)
+		# CURVE_RIGHT -> outer edge is Left (-X)
+		var has_left_barrier: bool = (segment_type == SegmentType.CURVE_RIGHT)
+		var has_right_barrier: bool = (segment_type == SegmentType.CURVE_LEFT)
+
+		var barrier_lateral_x: float = half_road + shoulder_width + (barrier_thickness * 0.5)
+		var barrier_y: float = barrier_height * 0.5
+
+		if has_left_barrier:
+			var left_local := Vector3(-barrier_lateral_x, barrier_y, 0.0)
+			var left_transform := Transform3D(slice_basis, slice_center + slice_basis * left_local)
+
+			var left_mesh := BoxMesh.new()
+			left_mesh.size = Vector3(barrier_thickness, barrier_height, barrier_box_length)
+			left_mesh.material = barrier_mat
+
+			var left_mesh_instance := MeshInstance3D.new()
+			left_mesh_instance.name = "BarrierLeftMesh_%d" % i
+			left_mesh_instance.mesh = left_mesh
+			left_mesh_instance.transform = left_transform
+			static_body.add_child(left_mesh_instance)
+
+			var left_col_shape := BoxShape3D.new()
+			left_col_shape.size = Vector3(barrier_thickness, barrier_height, barrier_box_length)
+
+			var left_col := CollisionShape3D.new()
+			left_col.name = "BarrierLeftCol_%d" % i
+			left_col.shape = left_col_shape
+			left_col.transform = left_transform
+			static_body.add_child(left_col)
+
+			if i % 2 == 0:
+				_build_warning_sign(i, slice_basis, slice_center, -barrier_lateral_x, barrier_height)
+
+		if has_right_barrier:
+			var right_local := Vector3(barrier_lateral_x, barrier_y, 0.0)
+			var right_transform := Transform3D(slice_basis, slice_center + slice_basis * right_local)
+
+			var right_mesh := BoxMesh.new()
+			right_mesh.size = Vector3(barrier_thickness, barrier_height, barrier_box_length)
+			right_mesh.material = barrier_mat
+
+			var right_mesh_instance := MeshInstance3D.new()
+			right_mesh_instance.name = "BarrierRightMesh_%d" % i
+			right_mesh_instance.mesh = right_mesh
+			right_mesh_instance.transform = right_transform
+			static_body.add_child(right_mesh_instance)
+
+			var right_col_shape := BoxShape3D.new()
+			right_col_shape.size = Vector3(barrier_thickness, barrier_height, barrier_box_length)
+
+			var right_col := CollisionShape3D.new()
+			right_col.name = "BarrierRightCol_%d" % i
+			right_col.shape = right_col_shape
+			right_col.transform = right_transform
+			static_body.add_child(right_col)
+
+			if i % 2 == 0:
+				_build_warning_sign(i, slice_basis, slice_center, barrier_lateral_x, barrier_height)
 
 		# Advance current trajectory to slice end
 		current_pos += mid_fwd * slice_length
@@ -329,3 +517,38 @@ func get_slice_transform(index: int) -> Transform3D:
 	if index >= 0 and index < slice_transforms.size():
 		return slice_transforms[index]
 	return Transform3D.IDENTITY
+
+func _on_mud_area_entered(body: Node3D) -> void:
+	if body.has_method("enter_mud_zone"):
+		body.enter_mud_zone()
+
+func _on_mud_area_exited(body: Node3D) -> void:
+	if body.has_method("exit_mud_zone"):
+		body.exit_mud_zone()
+
+func _build_warning_sign(i: int, slice_basis: Basis, slice_center: Vector3, sign_side_x: float, barrier_h: float) -> void:
+	var sign_y: float = barrier_h + 0.65
+	var sign_local := Vector3(sign_side_x, sign_y, 0.0)
+
+	# Black iron mounting pole
+	var pole_mesh := BoxMesh.new()
+	pole_mesh.size = Vector3(0.12, 1.3, 0.12)
+	pole_mesh.material = get_sign_post_material()
+
+	var pole_inst := MeshInstance3D.new()
+	pole_inst.name = "WarningSignPole_%d" % i
+	pole_inst.mesh = pole_mesh
+	pole_inst.transform = Transform3D(slice_basis, slice_center + slice_basis * sign_local)
+	static_body.add_child(pole_inst)
+
+	# Retro-reflective amber diamond plate (#FFA000)
+	var plate_mesh := BoxMesh.new()
+	plate_mesh.size = Vector3(0.55, 0.55, 0.05)
+	plate_mesh.material = get_reflector_amber_material()
+
+	var plate_inst := MeshInstance3D.new()
+	plate_inst.name = "ReflectorDiamond_%d" % i
+	plate_inst.mesh = plate_mesh
+	var diamond_rot := slice_basis.rotated(slice_basis.z, deg_to_rad(45.0))
+	plate_inst.transform = Transform3D(diamond_rot, slice_center + slice_basis * (sign_local + Vector3(0.0, 0.45, 0.0)))
+	static_body.add_child(plate_inst)

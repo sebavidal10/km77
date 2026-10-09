@@ -292,11 +292,11 @@ func spawn_events_for_segment(segment: RoadSegment, chunk_index: int, rng: Rando
 func _spawn_crashed_vehicle(segment: RoadSegment, slice_idx: int, rng: RandomNumberGenerator) -> void:
 	var slice_tr: Transform3D = segment.get_slice_transform(slice_idx)
 
-	# Pick either left lane (-3.8m) or right lane (+3.8m).
-	# With 16m road width, this leaves a generous 10m clear passage for drifting.
+	# Pick either left lane (-3.5m) or right lane (+3.5m).
+	# With 14m road width, this centers the obstruction in the chosen lane.
 	var is_left_lane: bool = rng.randf() < 0.5
-	var lateral_x: float = -3.8 if is_left_lane else 3.8
-	lateral_x += rng.randf_range(-0.6, 0.6)
+	var lateral_x: float = -3.5 if is_left_lane else 3.5
+	lateral_x += rng.randf_range(-0.5, 0.5)
 
 	var yaw_angle: float = rng.randf_range(deg_to_rad(20.0), deg_to_rad(45.0))
 	if rng.randf() < 0.5:
@@ -520,8 +520,8 @@ func _spawn_lamppost(segment: RoadSegment, slice_idx: int, rng: RandomNumberGene
 func _spawn_silhouette(segment: RoadSegment, slice_idx: int, rng: RandomNumberGenerator) -> void:
 	var slice_tr: Transform3D = segment.get_slice_transform(slice_idx)
 	var on_left_verge: bool = rng.randf() < 0.5
-	# Positioned right along the visible painted shoulder (X = ±7.7m)
-	var verge_x: float = -7.7 if on_left_verge else 7.7
+	# Positioned right along the open shoulder (X = ±7.8m)
+	var verge_x: float = -7.8 if on_left_verge else 7.8
 	verge_x += rng.randf_range(-0.15, 0.15) * (-1.0 if on_left_verge else 1.0)
 
 	var silhouette_root := Node3D.new()
@@ -590,7 +590,7 @@ func _spawn_silhouette(segment: RoadSegment, slice_idx: int, rng: RandomNumberGe
 ## Spawns a roadside milestone marker counting down toward Kilómetro 77.
 func _spawn_milestone_marker(segment: RoadSegment, slice_idx: int, km_value: int) -> void:
 	var slice_tr: Transform3D = segment.get_slice_transform(slice_idx)
-	var verge_x: float = 7.7 # Right shoulder milestone
+	var verge_x: float = 7.8 # Right shoulder milestone
 
 	var marker_root := Node3D.new()
 	marker_root.name = "MilestoneMarker_KM%d" % km_value
@@ -649,8 +649,8 @@ func _spawn_milestone_marker(segment: RoadSegment, slice_idx: int, km_value: int
 ## Spawns an eerie polygonal hitchhiker on the right verge with an outstretched thumb.
 func _spawn_hitchhiker(segment: RoadSegment, slice_idx: int, rng: RandomNumberGenerator) -> void:
 	var slice_tr: Transform3D = segment.get_slice_transform(slice_idx)
-	# Positioned right on the visible asphalt shoulder (X = 7.6m), perfectly in front of the barrier
-	var verge_x: float = 7.6 + rng.randf_range(-0.1, 0.1)
+	# Positioned right on the open gravel shoulder (X = 7.8m), completely accessible
+	var verge_x: float = 7.8 + rng.randf_range(-0.1, 0.1)
 
 	var hitchhiker_root := Hitchhiker.new()
 	hitchhiker_root.name = "Hitchhiker_%d" % slice_idx
@@ -884,15 +884,15 @@ func _spawn_woods_for_segment(segment: RoadSegment, rng: RandomNumberGenerator) 
 		var left_trees: int = rng.randi_range(2, 3)
 		var right_trees: int = rng.randi_range(2, 3)
 
-		# Left side woods: X between -26m and -12.5m
+		# Left side woods: X between -26m and -13.5m (beyond roadside ditch)
 		for t in range(left_trees):
-			var x_dist: float = rng.randf_range(-26.0, -12.5)
+			var x_dist: float = rng.randf_range(-26.0, -13.5)
 			var z_dist: float = rng.randf_range(-4.0, 4.0)
 			_spawn_tree(segment, slice_tr, Vector3(x_dist, 0.0, z_dist), bark_mat, foliage_mat, rng)
 
-		# Right side woods: X between +12.5m and +26m
+		# Right side woods: X between +13.5m and +26m (beyond roadside ditch)
 		for t in range(right_trees):
-			var x_dist: float = rng.randf_range(12.5, 26.0)
+			var x_dist: float = rng.randf_range(13.5, 26.0)
 			var z_dist: float = rng.randf_range(-4.0, 4.0)
 			_spawn_tree(segment, slice_tr, Vector3(x_dist, 0.0, z_dist), bark_mat, foliage_mat, rng)
 

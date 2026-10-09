@@ -133,6 +133,10 @@ var current_kilometer: float = 85.0
 var is_actively_drifting: bool = false
 var _was_drifting: bool = false
 
+# Roadside ditch / Mud zone state
+var in_mud_zone: bool = false
+var _mud_zones_count: int = 0
+
 # Durability & Headlight state
 var left_headlight_broken: bool = false
 var right_headlight_broken: bool = false
@@ -222,6 +226,11 @@ func _physics_process(delta: float) -> void:
 
 	# 4. Lateral grip damping & inertia preservation
 	lat_speed = _process_lateral(lat_speed, delta)
+
+	# 4b. Mud resistance & roadside ditch drag when off-road
+	if in_mud_zone:
+		fwd_speed = move_toward(fwd_speed, 0.0, 16.0 * delta)
+		lat_speed = move_toward(lat_speed, 0.0, 14.0 * delta)
 
 	# 5. Recompose horizontal velocity vector
 	var target_h_vel := (forward_dir * fwd_speed) + (right_dir * lat_speed)
@@ -339,9 +348,11 @@ func reset_loop_state() -> void:
 		brake_omni_light.visible = true
 		brake_omni_light.light_energy = 0.25
 
-	# 5. Clear stall state
+	# 5. Clear stall and mud drag state
 	is_stalled = false
 	_collapse_stage = 0
+	in_mud_zone = false
+	_mud_zones_count = 0
 
 	# 6. Reset odometer back to starting marker
 	starting_kilometer = 85.0
@@ -556,6 +567,24 @@ func repair_vehicle(health_amount: float = 40.0) -> void:
 		headlight_right.visible = true
 		headlight_right.light_energy = 10.0
 
+## Called when entering a roadside ditch mud zone.
+func enter_mud_zone() -> void:
+	_mud_zones_count += 1
+	in_mud_zone = _mud_zones_count > 0
+	if absf(forward_speed_state) > 10.0:
+		# Undercarriage thump / impact from plunging into roadside ditch
+		var bump_trauma := clampf((absf(forward_speed_state) / max_speed) * 0.85, 0.35, 1.0)
+		collision_impact.emit(bump_trauma)
+		_apply_camera_shake(bump_trauma)
+		var ditch_damage: float = (absf(forward_speed_state) - 10.0) * 1.0
+		current_engine_health = maxf(0.0, current_engine_health - ditch_damage)
+		engine_health_changed.emit(current_engine_health, max_engine_health)
+
+## Called when exiting a roadside ditch mud zone.
+func exit_mud_zone() -> void:
+	_mud_zones_count = maxi(0, _mud_zones_count - 1)
+	in_mud_zone = _mud_zones_count > 0
+
 ## Triggers erratic headlight strobing and camera shake when lingering dangerously in the dark.
 func trigger_threat_glitch() -> void:
 	_is_flickering_glitch = true
@@ -564,6 +593,8 @@ func trigger_threat_glitch() -> void:
 	_apply_camera_shake(0.85)
 
 func _apply_camera_shake(trauma: float) -> void:
+	if not is_inside_tree():
+		return
 	if not _chase_camera or not is_instance_valid(_chase_camera):
 		var tree := get_tree()
 		if tree:
