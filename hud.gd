@@ -20,9 +20,13 @@ const Van = preload("res://van.gd")
 @onready var dispatch_panel: PanelContainer = %DispatchPanel
 @onready var dispatch_label: Label = %DispatchText
 @onready var fade_overlay: ColorRect = %ScreenFadeOverlay
+@onready var interaction_panel: PanelContainer = %InteractionPanel
+@onready var interaction_prompt_label: Label = %InteractionPromptLabel
+@onready var scavenge_progress_bar: ProgressBar = %ScavengeProgressBar
 
 var _blink_timer: float = 0.0
 var _blink_visible: bool = true
+var _success_message_timer: float = 0.0
 
 # Radio dispatch typewriter & fade state
 var _target_dispatch_text: String = ""
@@ -52,6 +56,8 @@ func _ready() -> void:
 	if fade_overlay:
 		fade_overlay.visible = false
 		fade_overlay.modulate.a = 0.0
+	if interaction_panel:
+		interaction_panel.visible = false
 
 func _process(delta: float) -> void:
 	if not target_van:
@@ -68,8 +74,52 @@ func _process(delta: float) -> void:
 	# Handle screen fade to black / fade from black
 	_process_screen_fade(delta)
 
+	# Handle scavenge interaction message timer
+	_process_interaction_timer(delta)
+
 	# Direct sync fallback to ensure 100% visual responsiveness
 	_sync_van_state()
+
+func _process_interaction_timer(delta: float) -> void:
+	if _success_message_timer > 0.0:
+		_success_message_timer -= delta
+		if _success_message_timer <= 0.0:
+			_success_message_timer = 0.0
+			if interaction_panel:
+				interaction_panel.visible = false
+
+## Displays the scavenge interaction prompt and current progress ratio (0.0 to 1.0).
+func show_scavenge_prompt(prompt_text: String = "HOLD [E] TO SCAVENGE FUEL / REPAIR", progress_ratio: float = 0.0) -> void:
+	if not interaction_panel:
+		return
+	if _success_message_timer > 0.0:
+		return
+	interaction_panel.visible = true
+	if interaction_prompt_label:
+		interaction_prompt_label.text = prompt_text
+	if scavenge_progress_bar:
+		scavenge_progress_bar.visible = true
+		scavenge_progress_bar.value = clampf(progress_ratio * 100.0, 0.0, 100.0)
+
+## Hides the scavenge interaction prompt and resets progress bar.
+func hide_scavenge_prompt() -> void:
+	if _success_message_timer > 0.0:
+		return
+	if interaction_panel:
+		interaction_panel.visible = false
+	if scavenge_progress_bar:
+		scavenge_progress_bar.value = 0.0
+
+## Displays a confirmation message on the interaction panel after scavenging completes.
+func show_scavenge_success(message: String = "[ SUPPLIES SECURED: +35 FUEL | REPAIRED ]", duration: float = 2.5) -> void:
+	if not interaction_panel:
+		return
+	interaction_panel.visible = true
+	if interaction_prompt_label:
+		interaction_prompt_label.text = message
+	if scavenge_progress_bar:
+		scavenge_progress_bar.visible = false
+	_success_message_timer = duration
 
 ## Fades screen to full black over the specified duration in seconds.
 func fade_to_black(duration: float = 2.0) -> void:

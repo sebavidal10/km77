@@ -227,6 +227,46 @@ theme_override_font_sizes/font_size = 13
 text = "[DISPATCH 10-4] Unit 77, report status..."
 autowrap_mode = 3
 
+[node name="InteractionPanel" type="PanelContainer" parent="MarginContainer/Control" unique_id=74102938]
+unique_name_in_owner = true
+visible = false
+custom_minimum_size = Vector2(360, 52)
+layout_mode = 1
+anchors_preset = 7
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -180.0
+offset_top = -162.0
+offset_right = 180.0
+offset_bottom = -110.0
+grow_horizontal = 2
+grow_vertical = 0
+theme_override_styles/panel = SubResource("StyleBoxFlat_panel")
+
+[node name="VBoxContainer" type="VBoxContainer" parent="MarginContainer/Control/InteractionPanel" unique_id=83920145]
+layout_mode = 2
+theme_override_constants/separation = 6
+alignment = 1
+
+[node name="InteractionPromptLabel" type="Label" parent="MarginContainer/Control/InteractionPanel/VBoxContainer" unique_id=45920183]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.85, 0.35, 1)
+theme_override_font_sizes/font_size = 13
+text = "HOLD [E] TO SCAVENGE FUEL / REPAIR"
+horizontal_alignment = 1
+
+[node name="ScavengeProgressBar" type="ProgressBar" parent="MarginContainer/Control/InteractionPanel/VBoxContainer" unique_id=32019485]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 6)
+layout_mode = 2
+theme_override_styles/background = SubResource("StyleBoxFlat_bar_bg")
+theme_override_styles/fill = SubResource("StyleBoxFlat_bar_fill")
+value = 0.0
+show_percentage = false
+
 [node name="ScreenFadeOverlay" type="ColorRect" parent="." unique_id=98721345]
 unique_name_in_owner = true
 visible = false
