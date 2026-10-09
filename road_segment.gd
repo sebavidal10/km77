@@ -35,6 +35,7 @@ var slice_transforms: Array[Transform3D] = []
 # Static shared materials to optimize draw calls and shader memory
 static var _road_material: StandardMaterial3D
 static var _barrier_material: StandardMaterial3D
+static var _marking_material: StandardMaterial3D
 
 static func get_road_material() -> StandardMaterial3D:
 	if not _road_material:
@@ -53,6 +54,15 @@ static func get_barrier_material() -> StandardMaterial3D:
 		_barrier_material.roughness = 0.55
 		_barrier_material.metallic = 0.65
 	return _barrier_material
+
+static func get_marking_material() -> StandardMaterial3D:
+	if not _marking_material:
+		_marking_material = StandardMaterial3D.new()
+		# Worn highway traffic yellow with slight retro-reflectivity
+		_marking_material.albedo_color = Color(0.86, 0.72, 0.22, 1.0)
+		_marking_material.roughness = 0.65
+		_marking_material.metallic = 0.05
+	return _marking_material
 
 func _ready() -> void:
 	if not static_body:
@@ -127,7 +137,53 @@ func build_segment() -> void:
 		road_col.transform = slice_transform
 		static_body.add_child(road_col)
 
-		# 2. Side Guardrails / Barriers
+		# 2. Center Dividing Line (Two-lane road markings)
+		var marking_mat := get_marking_material()
+		var marking_y: float = (road_thickness * 0.5) + 0.015 # Slightly above asphalt to avoid z-fighting
+
+		if segment_type == SegmentType.STRAIGHT:
+			# Dashed yellow line on straights (e.g. 5.5m dash per 10m slice)
+			var dash_length: float = slice_length * 0.55
+			var dash_mesh := BoxMesh.new()
+			dash_mesh.size = Vector3(0.24, 0.02, dash_length)
+			dash_mesh.material = marking_mat
+
+			var dash_instance := MeshInstance3D.new()
+			dash_instance.name = "CenterLine_%d" % i
+			dash_instance.mesh = dash_mesh
+			var dash_local := Vector3(0.0, marking_y, 0.0)
+			dash_instance.transform = Transform3D(slice_basis, slice_center + slice_basis * dash_local)
+			static_body.add_child(dash_instance)
+		else:
+			# Double solid yellow lines on curves (highway no-passing zone)
+			var stripe_width: float = 0.16
+			var stripe_spacing: float = 0.22
+
+			# Left solid stripe
+			var stripe_left_mesh := BoxMesh.new()
+			stripe_left_mesh.size = Vector3(stripe_width, 0.02, slice_box_length)
+			stripe_left_mesh.material = marking_mat
+
+			var stripe_left_inst := MeshInstance3D.new()
+			stripe_left_inst.name = "CenterLineLeft_%d" % i
+			stripe_left_inst.mesh = stripe_left_mesh
+			var left_stripe_local := Vector3(-stripe_spacing * 0.5, marking_y, 0.0)
+			stripe_left_inst.transform = Transform3D(slice_basis, slice_center + slice_basis * left_stripe_local)
+			static_body.add_child(stripe_left_inst)
+
+			# Right solid stripe
+			var stripe_right_mesh := BoxMesh.new()
+			stripe_right_mesh.size = Vector3(stripe_width, 0.02, slice_box_length)
+			stripe_right_mesh.material = marking_mat
+
+			var stripe_right_inst := MeshInstance3D.new()
+			stripe_right_inst.name = "CenterLineRight_%d" % i
+			stripe_right_inst.mesh = stripe_right_mesh
+			var right_stripe_local := Vector3(stripe_spacing * 0.5, marking_y, 0.0)
+			stripe_right_inst.transform = Transform3D(slice_basis, slice_center + slice_basis * right_stripe_local)
+			static_body.add_child(stripe_right_inst)
+
+		# 3. Side Guardrails / Barriers
 		# Placed flush along road edges. Height extends well above road to contain drifts.
 		var lateral_offset: float = (road_width * 0.5) + (barrier_thickness * 0.5)
 		var vertical_offset: float = barrier_height * 0.5 # Centered so top is at barrier_height
