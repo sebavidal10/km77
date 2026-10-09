@@ -15,6 +15,7 @@ signal drift_state_changed(is_drifting_active: bool)
 signal engine_health_changed(current: float, max_val: float)
 signal engine_critical
 signal headlight_damaged(light_name: String)
+signal headlights_mode_changed(is_high_beams: bool)
 signal collision_impact(intensity: float)
 signal vehicle_collapsed
 signal loop_reset_triggered
@@ -72,6 +73,22 @@ signal paradox_anomaly_triggered
 @export var headlight_break_chance_heavy: float = 0.50
 ## Probability of breaking a headlight on medium impacts (5-14 m/s).
 @export var headlight_break_chance_light: float = 0.25
+
+@export_group("Headlight Beams")
+## Whether high beams are currently active.
+@export var is_high_beams_active: bool = false
+## Low beam spot range (meters).
+@export var low_beam_range: float = 40.0
+## Low beam cone angle (degrees).
+@export var low_beam_angle: float = 50.0
+## Low beam intensity energy.
+@export var low_beam_energy: float = 2.5
+## High beam spot range (meters).
+@export var high_beam_range: float = 85.0
+## High beam cone angle (degrees).
+@export var high_beam_angle: float = 35.0
+## High beam intensity energy.
+@export var high_beam_energy: float = 5.2
 
 @export_group("Reverse & Coasting")
 ## Maximum reverse speed in m/s (approx 36 km/h).
@@ -184,6 +201,13 @@ func _ready() -> void:
 	add_to_group("player")
 	collision_layer = 1
 	collision_mask = 1
+	_ensure_high_beams_action()
+	var tree := get_tree()
+	if tree and tree.current_scene:
+		_world_env = tree.current_scene.get_node_or_null("WorldEnvironment") as WorldEnvironment
+	_apply_headlight_mode_instant()
+	headlights_mode_changed.emit(is_high_beams_active)
+
 	current_kilometer = starting_kilometer
 	fuel_changed.emit(current_fuel, max_fuel)
 	engine_health_changed.emit(current_engine_health, max_engine_health)
@@ -209,6 +233,9 @@ func _ready() -> void:
 	_create_mud_particles()
 
 func _physics_process(delta: float) -> void:
+	if Input.is_action_just_pressed("toggle_high_beams"):
+		toggle_high_beams()
+
 	is_drifting = Input.is_action_pressed("handbrake")
 
 	# Check stall condition (fuel depleted or engine destroyed)
@@ -358,14 +385,15 @@ func reset_loop_state() -> void:
 	engine_health_changed.emit(current_engine_health, max_engine_health)
 
 	# 4. Restore headlights and taillights
-	if headlight_left:
-		headlight_left.visible = true
-		headlight_left.light_energy = 12.0
-	if headlight_right:
-		headlight_right.visible = true
-		headlight_right.light_energy = 12.0
+	is_high_beams_active = false
 	left_headlight_broken = false
 	right_headlight_broken = false
+	if headlight_left:
+		headlight_left.visible = true
+	if headlight_right:
+		headlight_right.visible = true
+	_apply_headlight_mode_instant()
+	headlights_mode_changed.emit(is_high_beams_active)
 
 	if _taillight_mat:
 		_taillight_mat.emission_energy_multiplier = 0.8
@@ -494,6 +522,67 @@ func _process_visual_effects(delta: float) -> void:
 				12.0 * delta
 			)
 
+	# Process headlight low/high beam transition & fog backscatter
+	_process_headlight_beams(delta)
+
+func _ensure_high_beams_action() -> void:
+	if not InputMap.has_action("toggle_high_beams"):
+		InputMap.add_action("toggle_high_beams")
+		var ev := InputEventKey.new()
+		ev.physical_keycode = KEY_F
+		InputMap.action_add_event("toggle_high_beams", ev)
+
+## Toggles between low beam and high beam headlights.
+func toggle_high_beams() -> void:
+	is_high_beams_active = not is_high_beams_active
+	headlights_mode_changed.emit(is_high_beams_active)
+
+## Instantly sets headlight parameters to current beam mode without smoothing.
+func _apply_headlight_mode_instant() -> void:
+	var target_range: float = high_beam_range if is_high_beams_active else low_beam_range
+	var target_angle: float = high_beam_angle if is_high_beams_active else low_beam_angle
+	var target_energy: float = high_beam_energy if is_high_beams_active else low_beam_energy
+	if headlight_left and not left_headlight_broken:
+		headlight_left.spot_range = target_range
+		headlight_left.spot_angle = target_angle
+		headlight_left.light_energy = target_energy
+	if headlight_right and not right_headlight_broken:
+		headlight_right.spot_range = target_range
+		headlight_right.spot_angle = target_angle
+		headlight_right.light_energy = target_energy
+
+## Smoothly interpolates beam range, angle, intensity, and atmospheric fog backscatter.
+func _process_headlight_beams(delta: float) -> void:
+	if not _world_env:
+		var tree := get_tree()
+		if tree and tree.current_scene:
+			_world_env = tree.current_scene.get_node_or_null("WorldEnvironment") as WorldEnvironment
+
+	var target_range: float = high_beam_range if is_high_beams_active else low_beam_range
+	var target_angle: float = high_beam_angle if is_high_beams_active else low_beam_angle
+	var target_energy: float = high_beam_energy if is_high_beams_active else low_beam_energy
+
+	if not is_stalled:
+		if headlight_left and not left_headlight_broken:
+			headlight_left.spot_range = move_toward(headlight_left.spot_range, target_range, 80.0 * delta)
+			headlight_left.spot_angle = move_toward(headlight_left.spot_angle, target_angle, 40.0 * delta)
+			if not _is_flickering_glitch:
+				headlight_left.light_energy = move_toward(headlight_left.light_energy, target_energy, 10.0 * delta)
+		if headlight_right and not right_headlight_broken:
+			headlight_right.spot_range = move_toward(headlight_right.spot_range, target_range, 80.0 * delta)
+			headlight_right.spot_angle = move_toward(headlight_right.spot_angle, target_angle, 40.0 * delta)
+			if not _is_flickering_glitch:
+				headlight_right.light_energy = move_toward(headlight_right.light_energy, target_energy, 10.0 * delta)
+
+	# Volumetric fog backscatter effect: high beams illuminate and scatter against heavy rain/fog
+	if _world_env and _world_env.environment and not _is_fog_anomaly:
+		var target_density: float = 0.088 if is_high_beams_active else 0.06
+		_world_env.environment.volumetric_fog_density = move_toward(
+			_world_env.environment.volumetric_fog_density,
+			target_density,
+			0.04 * delta
+		)
+
 ## Handles physical impacts with obstacles and vehicles: damage, speed scrub, shake, and headlight failure.
 func _process_collisions(forward_dir: Vector3, _delta: float) -> void:
 	var slide_count := get_slide_collision_count()
@@ -589,14 +678,15 @@ func repair_vehicle(health_amount: float = 40.0) -> void:
 		is_stalled = false
 	engine_health_changed.emit(current_engine_health, max_engine_health)
 
+	var current_energy: float = high_beam_energy if is_high_beams_active else low_beam_energy
 	if left_headlight_broken and headlight_left:
 		left_headlight_broken = false
 		headlight_left.visible = true
-		headlight_left.light_energy = 10.0
+		headlight_left.light_energy = current_energy
 	if right_headlight_broken and headlight_right:
 		right_headlight_broken = false
 		headlight_right.visible = true
-		headlight_right.light_energy = 10.0
+		headlight_right.light_energy = current_energy
 
 ## Called when entering a roadside ditch mud zone.
 func enter_mud_zone() -> void:

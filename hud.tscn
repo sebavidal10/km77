@@ -167,6 +167,13 @@ theme_override_colors/font_color = Color(1, 0.69, 0, 1)
 theme_override_font_sizes/font_size = 14
 text = "[ DRIFT ]"
 
+[node name="HeadlightBadge" type="Label" parent="MarginContainer/Control/BottomLeft" unique_id=12938476]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.2, 1, 0.4, 0.85)
+theme_override_font_sizes/font_size = 13
+text = "● LOW BEAM"
+
 [node name="BottomRight" type="VBoxContainer" parent="MarginContainer/Control" unique_id=58192034]
 layout_mode = 1
 anchors_preset = 3

@@ -14,9 +14,12 @@ const Van = preload("res://van.gd")
 const COLOR_PHOSPHOR_GREEN := Color(0.2, 1.0, 0.4, 1.0) # #33FF66
 const COLOR_ANALOG_AMBER := Color(1.0, 0.69, 0.0, 1.0)   # #FFB000
 const COLOR_BLOOD_RED := Color(1.0, 0.2, 0.2, 1.0)       # #FF3333
+const COLOR_HIGH_BEAM_BLUE := Color(0.35, 0.75, 1.0, 1.0)
+const COLOR_LOW_BEAM_GREEN := Color(0.2, 1.0, 0.4, 0.85)
 
 @onready var speed_value_label: Label = %SpeedValue
 @onready var drift_badge: Label = %DriftBadge
+@onready var headlight_badge: Label = %HeadlightBadge
 @onready var route_label: Label = %RouteLabel
 @onready var fuel_bar: ProgressBar = %FuelBar
 @onready var fuel_percent_label: Label = %FuelPercent
@@ -280,6 +283,8 @@ func _connect_van_signals() -> void:
 		target_van.drift_state_changed.connect(_on_drift_state_changed)
 	if not target_van.engine_health_changed.is_connected(_on_engine_health_changed):
 		target_van.engine_health_changed.connect(_on_engine_health_changed)
+	if not target_van.headlights_mode_changed.is_connected(_on_headlights_mode_changed):
+		target_van.headlights_mode_changed.connect(_on_headlights_mode_changed)
 
 func _connect_radio_manager() -> void:
 	if RadioManager.instance:
@@ -294,6 +299,7 @@ func _update_initial_display() -> void:
 		_on_fuel_changed(100.0, 100.0)
 		_on_distance_updated(0.0, 85.0)
 		_on_drift_state_changed(false)
+		_on_headlights_mode_changed(false)
 
 func _sync_van_state() -> void:
 	if not target_van:
@@ -302,6 +308,7 @@ func _sync_van_state() -> void:
 	_on_fuel_changed(target_van.current_fuel, target_van.max_fuel)
 	_on_distance_updated(target_van.distance_traveled_meters, target_van.current_kilometer)
 	_on_drift_state_changed(target_van.is_actively_drifting)
+	_on_headlights_mode_changed(target_van.is_high_beams_active)
 
 func _process_status_warnings(delta: float) -> void:
 	if not target_van or not low_fuel_warning:
@@ -437,3 +444,14 @@ func _on_drift_state_changed(is_active: bool) -> void:
 			drift_badge.modulate = COLOR_ANALOG_AMBER
 		else:
 			drift_badge.modulate = Color(0.4, 0.45, 0.48, 0.35)
+
+func _on_headlights_mode_changed(is_high: bool) -> void:
+	if not headlight_badge:
+		return
+	if is_high:
+		headlight_badge.text = "▲ HIGH BEAM"
+		headlight_badge.add_theme_color_override("font_color", COLOR_HIGH_BEAM_BLUE)
+	else:
+		headlight_badge.text = "● LOW BEAM"
+		headlight_badge.add_theme_color_override("font_color", COLOR_LOW_BEAM_GREEN)
+
