@@ -7,6 +7,7 @@ const SupplyStop = preload("res://supply_stop.gd")
 const SupplyStopScene = preload("res://supply_stop.tscn")
 const AbandonedCar = preload("res://abandoned_car.gd")
 const AbandonedCarScene = preload("res://abandoned_car.tscn")
+const RuralTurnoff = preload("res://rural_turnoff.gd")
 
 @export_group("Target Vehicle")
 ## Node representing the vehicle to track for spawning and recycling road segments.
@@ -56,6 +57,14 @@ const AbandonedCarScene = preload("res://abandoned_car.tscn")
 ## Maximum chunks generated between abandoned car occurrences.
 @export var abandoned_car_max_chunks: int = 8
 
+@export_group("Rural Turnoffs")
+## Enables procedural dead-end dirt turnoffs branching into the woods.
+@export var enable_turnoffs: bool = true
+## Minimum chunks between turnoff occurrences (12 to 15 chunks).
+@export var turnoff_min_chunks: int = 12
+## Maximum chunks between turnoff occurrences.
+@export var turnoff_max_chunks: int = 15
+
 @export_group("Doppelgänger / Oncoming Vehicle")
 ## Enables oncoming doppelgänger patrol vehicle encounters in the opposing lane.
 @export var enable_oncoming_vehicle: bool = true
@@ -85,6 +94,9 @@ var next_supply_stop_interval: int = 8
 var chunks_since_last_abandoned_car: int = 0
 var next_abandoned_car_interval: int = 7
 
+var chunks_since_last_turnoff: int = 0
+var next_turnoff_interval: int = 13
+
 func _ready() -> void:
 	_init_rng()
 	_init_event_spawner()
@@ -93,6 +105,8 @@ func _ready() -> void:
 	chunks_since_last_supply_stop = 0
 	next_abandoned_car_interval = rng.randi_range(abandoned_car_min_chunks, abandoned_car_max_chunks)
 	chunks_since_last_abandoned_car = 0
+	next_turnoff_interval = rng.randi_range(turnoff_min_chunks, turnoff_max_chunks)
+	chunks_since_last_turnoff = 0
 	_find_target_vehicle()
 	_spawn_initial_track()
 
@@ -159,6 +173,8 @@ func _spawn_initial_track() -> void:
 	next_supply_stop_interval = rng.randi_range(supply_stop_min_chunks, supply_stop_max_chunks)
 	chunks_since_last_abandoned_car = 0
 	next_abandoned_car_interval = rng.randi_range(abandoned_car_min_chunks, abandoned_car_max_chunks)
+	chunks_since_last_turnoff = 0
+	next_turnoff_interval = rng.randi_range(turnoff_min_chunks, turnoff_max_chunks)
 
 	# 1. Spawn a straight buffer segment behind the starting vehicle position (from Z = 80 to Z = 0)
 	var initial_rear_transform := Transform3D(Basis.IDENTITY, Vector3(0.0, 0.0, segment_length))
@@ -290,8 +306,19 @@ func _spawn_segment(type: RoadSegment.SegmentType) -> RoadSegment:
 			has_abandoned_car = true
 			_spawn_abandoned_car(segment)
 
+	# Check dead-end rural turnoff spawn eligibility (every 12-15 chunks)
+	var has_turnoff: bool = false
+	if enable_turnoffs and total_segments_spawned >= 4 and not has_supply_stop and not has_abandoned_car:
+		chunks_since_last_turnoff += 1
+		if chunks_since_last_turnoff >= next_turnoff_interval:
+			if segment.segment_type != RoadSegment.SegmentType.CURVE_LEFT:
+				chunks_since_last_turnoff = 0
+				next_turnoff_interval = rng.randi_range(turnoff_min_chunks, turnoff_max_chunks)
+				has_turnoff = true
+				_spawn_rural_turnoff(segment)
+
 	if enable_events and event_spawner:
-		event_spawner.spawn_events_for_segment(segment, total_segments_spawned, rng, has_supply_stop or has_abandoned_car)
+		event_spawner.spawn_events_for_segment(segment, total_segments_spawned, rng, has_supply_stop or has_abandoned_car or has_turnoff)
 
 	active_segments.append(segment)
 	total_segments_spawned += 1
@@ -299,6 +326,26 @@ func _spawn_segment(type: RoadSegment.SegmentType) -> RoadSegment:
 	_on_segment_spawned_check_oncoming()
 
 	return segment
+
+func _spawn_rural_turnoff(segment: RoadSegment) -> void:
+	var slice_count := segment.get_slice_count()
+	if slice_count < 3:
+		return
+
+	var slice_idx: int = clampi(slice_count / 3, 1, slice_count - 2)
+	var slice_tr: Transform3D = segment.get_slice_transform(slice_idx)
+
+	var turnoff := RuralTurnoff.new()
+	turnoff.name = "RuralTurnoff_%d" % total_segments_spawned
+
+	# Position at the right shoulder (X ≈ +8.5m) and yaw branch at ~30 degrees into the woods
+	var branch_yaw_deg: float = -30.0
+	var local_rot := Basis(Vector3.UP, deg_to_rad(branch_yaw_deg))
+	var local_offset := Vector3(8.5, 0.0, 0.0)
+
+	turnoff.transform = slice_tr * Transform3D(local_rot, local_offset)
+	segment.add_child(turnoff)
+	turnoff.build_turnoff(62.0, 4.2)
 
 func _spawn_supply_stop(segment: RoadSegment) -> void:
 	var slice_count := segment.get_slice_count()
