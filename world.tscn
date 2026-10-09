@@ -14,7 +14,20 @@ size = Vector3(2, 1.5, 4)
 albedo_color = Color(1, 0, 0, 1)
 
 [sub_resource type="Environment" id="Environment_ku5fm"]
-ambient_light_source = 3
+background_mode = 1
+background_color = Color(0.015, 0.018, 0.022, 1)
+ambient_light_source = 2
+ambient_light_color = Color(0.02, 0.025, 0.03, 1)
+ambient_light_energy = 0.2
+fog_enabled = true
+fog_light_color = Color(0.04, 0.045, 0.055, 1)
+fog_density = 0.03
+fog_depth_begin = 12.0
+fog_depth_end = 45.0
+volumetric_fog_enabled = true
+volumetric_fog_density = 0.06
+volumetric_fog_albedo = Color(0.05, 0.055, 0.065, 1)
+volumetric_fog_length = 48.0
 
 [node name="World" type="Node3D" unique_id=1065469961]
 
