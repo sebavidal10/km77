@@ -8,19 +8,50 @@ signal distance_updated(distance_traveled_meters: float, current_kilometer: floa
 signal speed_updated(speed_kmh: float)
 signal drift_state_changed(is_drifting_active: bool)
 
-@export_group("Engine & Speed")
-## Maximum forward speed in meters per second (approx 137 km/h).
-@export var max_speed: float = 38.0
-## Forward acceleration rate toward max_speed.
-@export var acceleration: float = 24.0
-## Deceleration rate when applying brakes.
-@export var braking: float = 32.0
-## Maximum reverse speed.
-@export var reverse_max_speed: float = 14.0
+@export_group("Handling Tuning")
+## Maximum forward speed in meters per second (30.5 m/s = approx 110 km/h).
+@export var max_speed: float = 30.5
+## Base forward acceleration rate in m/s^2 (weighted by launch inertia and aerodynamic drag).
+@export var acceleration_rate: float = 7.5
+## Deceleration rate applied when pressing the service brake (m/s^2).
+@export var braking_force: float = 14.0
+## Steering wheel turn speed in radians/s towards player input.
+@export var steer_speed: float = 3.2
+## Steering wheel auto-center speed in radians/s when steering input is released.
+@export var steer_return_speed: float = 4.8
+## Maximum front wheel steering angle in radians (approx 32 degrees).
+@export var max_steer_angle: float = deg_to_rad(32.0)
+## High-speed steering ratio (reduces max steer angle at top speed to avoid uncontrollable spins).
+@export var high_speed_steer_ratio: float = 0.35
+## Base vehicle wheelbase in meters used for bicycle steering geometry.
+@export var wheelbase: float = 3.3
+
+@export_group("Drift & Lateral Grip")
+## Normal lateral tire grip (higher = vehicle sticks firmly to heading).
+@export var lateral_grip: float = 16.0
+## Lateral tire grip while handbraking (lower = vehicle slides sideways with inertia).
+@export var drift_lateral_grip: float = 2.4
+## Multiplier applied to steering responsiveness while handbraking (promotes oversteer).
+@export var drift_oversteer_multiplier: float = 1.6
+## Extra steering authority when countersteering into the slide to catch and balance the drift.
+@export var countersteer_boost: float = 1.3
+## Longitudinal speed scrubbed per second due to tire friction while sliding sideways.
+@export var drift_drag: float = 3.5
+## Speed at which tire grip recovers when handbrake is released.
+@export var grip_recovery_speed: float = 12.0
+## Minimum speed (m/s) required to turn the vehicle.
+@export var min_steer_speed: float = 0.5
+## Backward compatibility aliases for friction factor.
+@export var drift_friction: float = 0.88
+@export var normal_friction: float = 0.98
+
+@export_group("Reverse & Coasting")
+## Maximum reverse speed in m/s (approx 36 km/h).
+@export var reverse_max_speed: float = 10.0
 ## Acceleration rate when reversing.
-@export var reverse_acceleration: float = 16.0
+@export var reverse_acceleration: float = 5.0
 ## Passive coasting slowdown rate when neither throttle nor brake is pressed.
-@export var coast_deceleration: float = 8.0
+@export var coast_deceleration: float = 3.5
 
 @export_group("Fuel Economy")
 ## Maximum fuel capacity in units/liters.
@@ -38,42 +69,33 @@ signal drift_state_changed(is_drifting_active: bool)
 ## Destination kilometer goal.
 @export var target_kilometer: float = 77.0
 
-@export_group("Steering & Oversteer")
-## Base turning rate in radians per second during normal driving.
-@export var steer_speed: float = 2.6
-## Multiplier applied to steering speed while handbrake is pressed (promotes aggressive oversteer).
-@export var drift_oversteer_multiplier: float = 1.75
-## Extra steering authority when countersteering into the slide to catch and balance the drift.
-@export var countersteer_boost: float = 1.3
-## Minimum speed (m/s) required to turn the vehicle.
-@export var min_steer_speed: float = 0.5
-
-@export_group("Drift & Lateral Grip")
-## Lateral grip rate when driving normally (higher = car sticks firmly to heading).
-@export var normal_lateral_grip: float = 16.0
-## Lateral grip rate while handbraking (lower = vehicle slides sideways with inertia).
-@export var drift_lateral_grip: float = 2.2
-## Longitudinal speed scrubbed per second due to tire friction while sliding sideways.
-@export var drift_drag: float = 3.5
-## Speed at which tire grip recovers when handbrake is released.
-@export var grip_recovery_speed: float = 12.0
-## Backward compatibility aliases for friction factor.
-@export var drift_friction: float = 0.88
-@export var normal_friction: float = 0.98
-
 @export_group("Visual Chassis Roll")
-## Enables subtle body roll on the MeshInstance3D to convey weight shift during drifts.
+## Enables subtle body roll on the MeshInstance3D to convey weight shift during turns and drifts.
 @export var enable_body_roll: bool = true
 ## Maximum roll angle in degrees during hard cornering.
-@export var max_body_roll_deg: float = 3.5
+@export var max_body_roll_deg: float = 3.8
 ## Speed of roll smoothing.
-@export var body_roll_speed: float = 10.0
+@export var body_roll_speed: float = 8.5
 
 @export_group("Environment & Gravity")
 ## Downward gravity acceleration.
 @export var gravity: float = 22.0
 
+# Backward compatibility property accessors
+var acceleration: float:
+	get: return acceleration_rate
+	set(val): acceleration_rate = val
+
+var braking: float:
+	get: return braking_force
+	set(val): braking_force = val
+
+var normal_lateral_grip: float:
+	get: return lateral_grip
+	set(val): lateral_grip = val
+
 # Runtime state
+var current_steer_angle: float = 0.0
 var current_grip: float = 16.0
 var is_drifting: bool = false
 var forward_speed_state: float = 0.0
@@ -96,7 +118,7 @@ func _ready() -> void:
 func _physics_process(delta: float) -> void:
 	is_drifting = Input.is_action_pressed("handbrake")
 
-	# 1. Steering & vehicle yaw rotation
+	# 1. Progressive steering with speed-sensitive limits & auto-centering
 	_process_steering(delta)
 
 	# 2. Decompose existing horizontal velocity along new heading
@@ -107,7 +129,7 @@ func _physics_process(delta: float) -> void:
 	var fwd_speed := current_h_vel.dot(forward_dir)
 	var lat_speed := current_h_vel.dot(right_dir)
 
-	# 3. Acceleration, braking, and coasting
+	# 3. Acceleration, braking, and coasting with realistic van inertia
 	fwd_speed = _process_longitudinal(fwd_speed, delta)
 
 	# 4. Lateral grip damping & inertia preservation
@@ -126,7 +148,7 @@ func _physics_process(delta: float) -> void:
 
 	move_and_slide()
 
-	# 7. Record post-collision forward speed for steering and roll calculations
+	# 7. Record post-collision forward speed for telemetry and roll calculations
 	var post_h_vel := Vector3(velocity.x, 0.0, velocity.z)
 	forward_speed_state = post_h_vel.dot(forward_dir)
 
@@ -138,7 +160,7 @@ func _physics_process(delta: float) -> void:
 	_process_odometer(delta)
 	_process_telemetry()
 
-	# 10. Visual chassis roll animation
+	# 10. Visual chassis roll animation linked to smoothed steering angle
 	_process_visual_roll(delta, forward_speed_state)
 
 ## Handles physical impacts with heavy obstacles (heavy deceleration) and pushes debris RigidBodies.
@@ -168,7 +190,7 @@ func _process_collisions(forward_dir: Vector3, _delta: float) -> void:
 			var torque := Vector3(randf_range(-6.0, 6.0), randf_range(6.0, 12.0), randf_range(-6.0, 6.0))
 			collider.apply_torque_impulse(torque)
 
-## Handles steering yaw with drift oversteer and countersteer responsiveness.
+## Handles smooth progressive steering with speed-sensitive angle limits and drift oversteer.
 func _process_steering(delta: float) -> void:
 	var steer_input := Input.get_axis("steer_right", "steer_left")
 	var forward_dir := -transform.basis.z
@@ -177,25 +199,47 @@ func _process_steering(delta: float) -> void:
 
 	var fwd_speed := current_h_vel.dot(forward_dir)
 	var lat_speed := current_h_vel.dot(right_dir)
+	var abs_fwd_speed := absf(fwd_speed)
 
-	if abs(fwd_speed) > min_steer_speed or abs(lat_speed) > min_steer_speed:
-		var effective_steer := steer_speed
+	# 1. Speed-sensitive steering: scale down max steer angle at high speeds to prevent violent snap spins
+	var speed_ratio: float = clampf(abs_fwd_speed / max_speed, 0.0, 1.0)
+	var base_max_angle: float = deg_to_rad(max_steer_angle) if max_steer_angle > 1.5 else max_steer_angle
+	var dynamic_max_angle: float = base_max_angle * lerpf(1.0, high_speed_steer_ratio, speed_ratio)
 
-		if is_drifting:
-			effective_steer *= drift_oversteer_multiplier
+	# 2. Smooth steering accumulator: progressive turn in and natural self-centering
+	var target_steer_angle: float = steer_input * dynamic_max_angle
+	if absf(steer_input) > 0.01:
+		current_steer_angle = move_toward(current_steer_angle, target_steer_angle, steer_speed * delta)
+	else:
+		current_steer_angle = move_toward(current_steer_angle, 0.0, steer_return_speed * delta)
 
-			# Countersteering detection: sliding right (lat_speed > 0) while steering left (steer_input > 0)
-			# or sliding left (lat_speed < 0) while steering right (steer_input < 0)
-			var is_countersteering: bool = (lat_speed > 0.5 and steer_input > 0.0) or \
-										   (lat_speed < -0.5 and steer_input < 0.0)
-			if is_countersteering:
-				effective_steer *= countersteer_boost
+	# 3. Minimum motion threshold: vehicles cannot pivot in place when stationary
+	var motion_speed := abs_fwd_speed
+	if is_drifting:
+		# During a drift, lateral inertia allows the chassis to continue swinging
+		motion_speed = maxf(motion_speed, absf(lat_speed) * 0.85)
 
-		var direction_sign: float = signf(fwd_speed) if abs(fwd_speed) > 0.1 else 1.0
-		var turn_angle: float = steer_input * effective_steer * delta * direction_sign
-		rotate_y(turn_angle)
+	if motion_speed < min_steer_speed:
+		return
 
-## Updates forward/reverse speed based on throttle, fuel availability, and handbrake scrub.
+	# 4. Turn rate calculation based on bicycle geometry (v / L) and steering angle
+	var turn_factor := clampf(motion_speed / wheelbase, 0.0, 7.0)
+	var effective_oversteer: float = 1.0
+
+	if is_drifting:
+		effective_oversteer *= drift_oversteer_multiplier
+
+		# Countersteering detection: sliding right while steering left, or sliding left while steering right
+		var is_countersteering: bool = (lat_speed > 0.4 and current_steer_angle > 0.0) or \
+									   (lat_speed < -0.4 and current_steer_angle < 0.0)
+		if is_countersteering:
+			effective_oversteer *= countersteer_boost
+
+	var direction_sign: float = signf(fwd_speed) if abs_fwd_speed > 0.2 else 1.0
+	var delta_yaw: float = current_steer_angle * turn_factor * effective_oversteer * direction_sign * delta
+	rotate_y(delta_yaw)
+
+## Updates forward/reverse speed based on throttle, heavy engine torque, fuel, and drag curves.
 func _process_longitudinal(fwd_speed: float, delta: float) -> float:
 	var throttle := Input.get_axis("brake", "accelerate")
 
@@ -203,23 +247,34 @@ func _process_longitudinal(fwd_speed: float, delta: float) -> float:
 		if current_fuel <= 0.0:
 			# Engine stalled out of fuel: coast to stop
 			fwd_speed = move_toward(fwd_speed, 0.0, coast_deceleration * delta)
-		elif fwd_speed < 0.0:
-			fwd_speed = move_toward(fwd_speed, 0.0, braking * delta)
+		elif fwd_speed < -0.5:
+			# Traveling in reverse while throttle pressed: apply service brake to halt reverse
+			fwd_speed = move_toward(fwd_speed, 0.0, braking_force * delta)
 		else:
-			fwd_speed = move_toward(fwd_speed, max_speed, acceleration * delta)
+			# Progressive acceleration curve with heavy inertia:
+			# - Heavy launch resistance at low speeds (0-15 km/h)
+			var launch_factor: float = lerpf(0.70, 1.0, clampf(fwd_speed / 4.5, 0.0, 1.0))
+			# - Drag taper approaching cruising (80-90 km/h) and top speed (~110 km/h)
+			var speed_ratio: float = clampf(fwd_speed / max_speed, 0.0, 1.0)
+			var drag_taper: float = clampf(1.0 - (speed_ratio * speed_ratio * 0.82), 0.18, 1.0)
+			var effective_accel: float = acceleration_rate * launch_factor * drag_taper * throttle
+			fwd_speed = move_toward(fwd_speed, max_speed, effective_accel * delta)
 	elif throttle < 0.0:
 		if fwd_speed > 0.5:
-			fwd_speed = move_toward(fwd_speed, 0.0, braking * delta)
+			# Service braking from forward motion: realistic stopping distance
+			fwd_speed = move_toward(fwd_speed, 0.0, braking_force * delta)
 		elif current_fuel <= 0.0:
 			# Engine stalled out of fuel: cannot reverse
 			fwd_speed = move_toward(fwd_speed, 0.0, coast_deceleration * delta)
 		else:
+			# Reversing with heavy vehicle torque
 			fwd_speed = move_toward(fwd_speed, -reverse_max_speed, reverse_acceleration * delta)
 	else:
+		# Passive coasting: vehicle inertia carries momentum
 		fwd_speed = move_toward(fwd_speed, 0.0, coast_deceleration * delta)
 
 	# Tire friction scrub during high-angle drift
-	if is_drifting and abs(fwd_speed) > 1.0:
+	if is_drifting and absf(fwd_speed) > 1.0:
 		fwd_speed = move_toward(fwd_speed, 0.0, drift_drag * delta)
 
 	return fwd_speed
@@ -261,18 +316,19 @@ func _process_telemetry() -> void:
 
 ## Applies grip damping to lateral sliding velocity.
 func _process_lateral(lat_speed: float, delta: float) -> float:
-	var target_grip: float = drift_lateral_grip if is_drifting else normal_lateral_grip
+	var target_grip: float = drift_lateral_grip if is_drifting else lateral_grip
 	current_grip = move_toward(current_grip, target_grip, grip_recovery_speed * delta)
-	return lerp(lat_speed, 0.0, 1.0 - exp(-current_grip * delta))
+	return lerpf(lat_speed, 0.0, 1.0 - exp(-current_grip * delta))
 
 ## Applies subtle body roll to MeshInstance3D to convey weight transfer.
 func _process_visual_roll(delta: float, fwd_speed: float) -> void:
 	if not enable_body_roll or not visual_mesh:
 		return
 
-	var steer_input := Input.get_axis("steer_right", "steer_left")
-	var speed_ratio := clampf(abs(fwd_speed) / max_speed, 0.0, 1.0)
-	var drift_extra: float = 1.4 if is_drifting else 1.0
+	var base_max_angle: float = deg_to_rad(max_steer_angle) if max_steer_angle > 1.5 else max_steer_angle
+	var steer_ratio: float = clampf(current_steer_angle / maxf(base_max_angle, 0.001), -1.0, 1.0)
+	var speed_ratio: float = clampf(absf(fwd_speed) / max_speed, 0.0, 1.0)
+	var drift_extra: float = 1.35 if is_drifting else 1.0
 
-	var target_roll: float = -steer_input * deg_to_rad(max_body_roll_deg) * speed_ratio * drift_extra
-	visual_mesh.rotation.z = lerp(visual_mesh.rotation.z, target_roll, body_roll_speed * delta)
+	var target_roll: float = -steer_ratio * deg_to_rad(max_body_roll_deg) * speed_ratio * drift_extra
+	visual_mesh.rotation.z = lerpf(visual_mesh.rotation.z, target_roll, body_roll_speed * delta)
