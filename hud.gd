@@ -449,9 +449,9 @@ func _on_headlights_mode_changed(is_high: bool) -> void:
 	if not headlight_badge:
 		return
 	if is_high:
-		headlight_badge.text = "▲ HIGH BEAM"
+		headlight_badge.text = "▲ HIGH BEAM [F/H]"
 		headlight_badge.add_theme_color_override("font_color", COLOR_HIGH_BEAM_BLUE)
 	else:
-		headlight_badge.text = "● LOW BEAM"
+		headlight_badge.text = "● LOW BEAM [F/H]"
 		headlight_badge.add_theme_color_override("font_color", COLOR_LOW_BEAM_GREEN)
 

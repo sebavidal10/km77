@@ -7,19 +7,19 @@
 
 [sub_resource type="Environment" id="Environment_menu"]
 background_mode = 1
-background_color = Color(0.015, 0.018, 0.022, 1)
+background_color = Color(0.012, 0.016, 0.024, 1)
 ambient_light_source = 2
-ambient_light_color = Color(0.02, 0.025, 0.03, 1)
-ambient_light_energy = 0.2
+ambient_light_color = Color(0.12, 0.16, 0.24, 1)
+ambient_light_energy = 0.72
 fog_enabled = true
-fog_light_color = Color(0.04, 0.045, 0.055, 1)
-fog_density = 0.032
-fog_depth_begin = 10.0
-fog_depth_end = 40.0
+fog_light_color = Color(0.05, 0.07, 0.10, 1)
+fog_density = 0.018
+fog_depth_begin = 12.0
+fog_depth_end = 50.0
 volumetric_fog_enabled = true
-volumetric_fog_density = 0.06
-volumetric_fog_albedo = Color(0.05, 0.055, 0.065, 1)
-volumetric_fog_length = 45.0
+volumetric_fog_density = 0.04
+volumetric_fog_albedo = Color(0.06, 0.08, 0.12, 1)
+volumetric_fog_length = 50.0
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_road"]
 albedo_color = Color(0.1, 0.1, 0.12, 1)
@@ -66,13 +66,13 @@ shader = ExtResource("4_shader")
 shader_parameter/enable_pixelation = true
 shader_parameter/target_resolution = Vector2(640, 360)
 shader_parameter/color_depth = 32.0
-shader_parameter/dither_intensity = 0.42
-shader_parameter/grain_intensity = 0.016
-shader_parameter/scanline_intensity = 0.025
-shader_parameter/chromatic_aberration = 0.0008
+shader_parameter/dither_intensity = 0.26
+shader_parameter/grain_intensity = 0.012
+shader_parameter/scanline_intensity = 0.018
+shader_parameter/chromatic_aberration = 0.0003
 shader_parameter/static_glitch_intensity = 0.0
 shader_parameter/glitch_intensity = 0.0
-shader_parameter/saturation = 1.15
+shader_parameter/saturation = 1.12
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_btn"]
 content_margin_left = 18.0
@@ -241,6 +241,17 @@ theme_override_styles/normal = SubResource("StyleBoxFlat_btn")
 theme_override_styles/hover = SubResource("StyleBoxFlat_btn_hover")
 theme_override_styles/pressed = SubResource("StyleBoxFlat_btn")
 text = "[ EXIT ]"
+
+[node name="ControlsLabel" type="Label" parent="UI/MarginContainer/VBoxContainer"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.48, 0.55, 0.62, 0.8)
+theme_override_font_sizes/font_size = 11
+text = "CONTROLS:
+• W/S / ARROWS: Drive / Brake
+• A/D: Progressive Steer
+• SPACE: Handbrake
+• F / H / L: Toggle High Beams
+• E: Interact & Scavenge"
 
 [node name="VersionLabel" type="Label" parent="UI/MarginContainer"]
 layout_mode = 2

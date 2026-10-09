@@ -54,15 +54,17 @@ func _create_rain_particles() -> void:
 	_rain_particles.local_coords = false
 	_rain_particles.visibility_aabb = AABB(Vector3(-25.0, -20.0, -25.0), Vector3(50.0, 40.0, 50.0))
 
-	# Particle mesh: elongated translucent droplet primitive
+	# Particle mesh: thin, atmospheric translucent raindrop streak
 	var drop_mesh := BoxMesh.new()
-	drop_mesh.size = Vector3(0.02, 0.65, 0.02)
+	drop_mesh.size = Vector3(0.005, 0.42, 0.005)
 
 	var drop_mat := StandardMaterial3D.new()
 	drop_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	drop_mat.albedo_color = Color(0.82, 0.88, 1.0, 0.38)
+	drop_mat.albedo_color = Color(0.68, 0.76, 0.88, 0.16)
 	drop_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	drop_mesh.material = drop_mat
+	drop_mat.distance_fade_mode = BaseMaterial3D.DISTANCE_FADE_PIXEL_ALPHA
+	drop_mat.distance_fade_min_distance = 2.2
+	drop_mat.distance_fade_max_distance = 4.2
 	_rain_particles.draw_pass_1 = drop_mesh
 
 	# Particle process material
@@ -74,7 +76,7 @@ func _create_rain_particles() -> void:
 	proc_mat.initial_velocity_min = rain_fall_speed * 0.9
 	proc_mat.initial_velocity_max = rain_fall_speed * 1.1
 	proc_mat.gravity = Vector3(0.0, -12.0, 0.0)
-	proc_mat.color = Color(0.85, 0.9, 1.0, 0.42)
+	proc_mat.color = Color(0.75, 0.82, 0.92, 0.22)
 	_rain_particles.process_material = proc_mat
 
 	add_child(_rain_particles)
@@ -89,9 +91,9 @@ func _update_rain_position() -> void:
 	if not target_vehicle:
 		_find_vehicle()
 	if target_vehicle and is_instance_valid(target_vehicle):
-		# Position emitter overhead slightly ahead in vehicle heading
+		# Position emitter overhead ahead along vehicle heading so camera rear zone stays unobstructed
 		var fwd := -target_vehicle.global_transform.basis.z
-		_rain_particles.global_position = target_vehicle.global_position + (Vector3.UP * 9.5) + (fwd * 3.5)
+		_rain_particles.global_position = target_vehicle.global_position + (Vector3.UP * 9.5) + (fwd * 6.5)
 
 func _find_vehicle() -> void:
 	var tree := get_tree()

@@ -52,19 +52,19 @@ static var _sign_post_mat: StandardMaterial3D
 static func get_road_material() -> StandardMaterial3D:
 	if not _road_material:
 		_road_material = StandardMaterial3D.new()
-		# Wet lead-gray asphalt with glossy rain sheen reflections
-		_road_material.albedo_color = Color(0.10, 0.10, 0.12, 1.0)
-		_road_material.roughness = 0.18
+		# Weathered rural asphalt with readable tone and wet rain sheen
+		_road_material.albedo_color = Color(0.24, 0.25, 0.28, 1.0)
+		_road_material.roughness = 0.38
 		_road_material.metallic = 0.08
-		_road_material.metallic_specular = 0.65
+		_road_material.metallic_specular = 0.75
 	return _road_material
 
 static func get_shoulder_material() -> StandardMaterial3D:
 	if not _shoulder_material:
 		_shoulder_material = StandardMaterial3D.new()
 		# Compacted dark gravel and unpaved dirt shoulder
-		_shoulder_material.albedo_color = Color(0.18, 0.16, 0.14, 1.0)
-		_shoulder_material.roughness = 0.98
+		_shoulder_material.albedo_color = Color(0.20, 0.18, 0.15, 1.0)
+		_shoulder_material.roughness = 0.90
 		_shoulder_material.metallic = 0.0
 	return _shoulder_material
 
@@ -89,13 +89,13 @@ static func get_barrier_material() -> StandardMaterial3D:
 static func get_marking_material() -> StandardMaterial3D:
 	if not _marking_material:
 		_marking_material = StandardMaterial3D.new()
-		# High-visibility wet highway traffic yellow (#FFCC00) with retro-reflectivity
-		_marking_material.albedo_color = Color(1.0, 0.8, 0.0, 1.0)
-		_marking_material.roughness = 0.22
+		# High-visibility retro-reflective yellow markings
+		_marking_material.albedo_color = Color(1.0, 0.85, 0.05, 1.0)
+		_marking_material.roughness = 0.25
 		_marking_material.metallic = 0.05
 		_marking_material.emission_enabled = true
-		_marking_material.emission = Color(1.0, 0.8, 0.0, 1.0)
-		_marking_material.emission_energy_multiplier = 0.35
+		_marking_material.emission = Color(1.0, 0.85, 0.05, 1.0)
+		_marking_material.emission_energy_multiplier = 0.85
 	return _marking_material
 
 static func get_reflector_amber_material() -> StandardMaterial3D:
@@ -149,9 +149,10 @@ func build_segment() -> void:
 	var slice_length: float = segment_length / float(slices)
 	var delta_yaw: float = total_yaw_rad / float(slices)
 
-	# Slight overlap on primitive boxes to ensure zero gaps between adjacent slices
+	# Slight overlap on primitive visual meshes to ensure zero visual gaps between adjacent slices
 	var overlap: float = 0.35
 	var slice_box_length: float = slice_length + overlap
+	var col_box_length: float = slice_length + 0.02
 	var barrier_box_length: float = slice_length + overlap * 1.5
 
 	var current_pos := Vector3.ZERO
@@ -181,7 +182,7 @@ func build_segment() -> void:
 		static_body.add_child(road_mesh_instance)
 
 		var road_shape := BoxShape3D.new()
-		road_shape.size = Vector3(road_width, road_thickness, slice_box_length)
+		road_shape.size = Vector3(road_width, road_thickness, col_box_length)
 
 		var road_col := CollisionShape3D.new()
 		road_col.name = "RoadCol_%d" % i
@@ -255,7 +256,7 @@ func build_segment() -> void:
 
 		var left_sh_col := CollisionShape3D.new()
 		var left_sh_shape := BoxShape3D.new()
-		left_sh_shape.size = Vector3(shoulder_width, road_thickness, slice_box_length)
+		left_sh_shape.size = Vector3(shoulder_width, road_thickness, col_box_length)
 		left_sh_col.name = "ShoulderLeftCol_%d" % i
 		left_sh_col.shape = left_sh_shape
 		left_sh_col.transform = Transform3D(slice_basis, slice_center + slice_basis * left_sh_local)
@@ -275,7 +276,7 @@ func build_segment() -> void:
 
 		var right_sh_col := CollisionShape3D.new()
 		var right_sh_shape := BoxShape3D.new()
-		right_sh_shape.size = Vector3(shoulder_width, road_thickness, slice_box_length)
+		right_sh_shape.size = Vector3(shoulder_width, road_thickness, col_box_length)
 		right_sh_col.name = "ShoulderRightCol_%d" % i
 		right_sh_col.shape = right_sh_shape
 		right_sh_col.transform = Transform3D(slice_basis, slice_center + slice_basis * right_sh_local)
