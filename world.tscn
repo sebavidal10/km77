@@ -2,18 +2,7 @@
 
 [ext_resource type="Script" uid="uid://sqcs05103pki" path="res://van.gd" id="1_f3sb7"]
 [ext_resource type="Script" uid="uid://dvsjh1krtwsni" path="res://chase_camera.gd" id="1_fj7yv"]
-
-[sub_resource type="BoxShape3D" id="BoxShape3D_r8maq"]
-size = Vector3(16, 1, 500)
-
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_fj7yv"]
-albedo_color = Color(0.13333334, 0.13333334, 0.14509805, 1)
-
-[sub_resource type="BoxMesh" id="BoxMesh_ku5fm"]
-size = Vector3(16, 1, 500)
-
-[sub_resource type="BoxShape3D" id="BoxShape3D_ku5fm"]
-size = Vector3(1, 4, 500)
+[ext_resource type="Script" uid="uid://cuqv112f85gvi" path="res://road_manager.gd" id="2_rmgr"]
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_amspa"]
 size = Vector3(2, 1.5, 4)
@@ -34,22 +23,9 @@ transform = Transform3D(1, 0, 0, 0, 0.9659259, 0.25881907, 0, -0.25881907, 0.965
 script = ExtResource("1_fj7yv")
 target_node = NodePath("../Van/CameraTarget")
 
-[node name="Track" type="StaticBody3D" parent="." unique_id=1806123561]
-
-[node name="CollisionShape3D" type="CollisionShape3D" parent="Track" unique_id=1586087272]
-shape = SubResource("BoxShape3D_r8maq")
-
-[node name="MeshInstance3D" type="MeshInstance3D" parent="Track" unique_id=538535376]
-material_override = SubResource("StandardMaterial3D_fj7yv")
-mesh = SubResource("BoxMesh_ku5fm")
-
-[node name="WallLeft" type="CollisionShape3D" parent="Track" unique_id=649872629]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8.5, 2, 0)
-shape = SubResource("BoxShape3D_ku5fm")
-
-[node name="WallRight" type="CollisionShape3D" parent="Track" unique_id=1063121002]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8.5, 2, 0)
-shape = SubResource("BoxShape3D_ku5fm")
+[node name="RoadManager" type="Node3D" parent="." unique_id=1806123561 node_paths=PackedStringArray("target_vehicle")]
+script = ExtResource("2_rmgr")
+target_vehicle = NodePath("../Van")
 
 [node name="Van" type="CharacterBody3D" parent="." unique_id=686971467]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.5, 0)
