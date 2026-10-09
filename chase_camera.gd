@@ -23,10 +23,10 @@ func _physics_process(delta: float) -> void:
 	# 1. Smoothly follow the CameraTarget position
 	global_position = global_position.lerp(target_node.global_position, follow_speed * delta)
 
-	# 2. Orient camera towards vehicle heading
+	# 2. Orient camera towards vehicle heading and upcoming road
 	var van_node := target_node.get_parent() as Node3D
 	if van_node:
-		var look_target: Vector3 = van_node.global_position + Vector3.UP * 1.0
+		var look_target: Vector3 = van_node.global_position + (Vector3.UP * 0.5) - (van_node.global_transform.basis.z * 6.0)
 		var target_transform: Transform3D = transform.looking_at(look_target, Vector3.UP)
 		transform.basis = transform.basis.slerp(target_transform.basis, rotation_speed * delta)
 

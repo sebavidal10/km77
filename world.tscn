@@ -15,7 +15,9 @@ size = Vector3(2, 1.5, 4)
 size = Vector3(2, 1.5, 4)
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_f3sb7"]
-albedo_color = Color(1, 0, 0, 1)
+albedo_color = Color(0.88, 0.88, 0.88, 1)
+roughness = 0.82
+metallic = 0.05
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_taillight"]
 albedo_color = Color(0.85, 0.05, 0.05, 1)
@@ -46,12 +48,12 @@ volumetric_fog_length = 48.0
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_psx"]
 shader = ExtResource("6_shader")
 shader_parameter/enable_pixelation = true
-shader_parameter/target_resolution = Vector2(480, 270)
+shader_parameter/target_resolution = Vector2(640, 360)
 shader_parameter/color_depth = 32.0
-shader_parameter/dither_intensity = 0.85
-shader_parameter/grain_intensity = 0.035
-shader_parameter/scanline_intensity = 0.06
-shader_parameter/chromatic_aberration = 0.0015
+shader_parameter/dither_intensity = 0.42
+shader_parameter/grain_intensity = 0.016
+shader_parameter/scanline_intensity = 0.025
+shader_parameter/chromatic_aberration = 0.0008
 shader_parameter/static_glitch_intensity = 0.0
 shader_parameter/saturation = 1.15
 
@@ -80,19 +82,19 @@ surface_material_override/0 = SubResource("StandardMaterial3D_f3sb7")
 [node name="HeadlightLeft" type="SpotLight3D" parent="Van" unique_id=615601642]
 transform = Transform3D(1, 0, 0, 0, 0.9781476, 0.2079117, 0, -0.2079117, 0.9781476, -0.8, 0.6, -2.2)
 light_color = Color(1, 0.9490196, 0.8, 1)
-light_energy = 10.0
-spot_range = 45.0
-spot_angle = 32.0
+light_energy = 12.0
+spot_range = 58.0
+spot_angle = 58.0
 
 [node name="HeadlighRight" type="SpotLight3D" parent="Van" unique_id=608761848]
 transform = Transform3D(1, 0, 0, 0, 0.9781476, 0.2079117, 0, -0.2079117, 0.9781476, 0.8, 0.6, -2.2)
 light_color = Color(1, 0.9490196, 0.8, 1)
-light_energy = 10.0
-spot_range = 45.0
-spot_angle = 32.0
+light_energy = 12.0
+spot_range = 58.0
+spot_angle = 58.0
 
 [node name="CameraTarget" type="Node3D" parent="Van" unique_id=615025000]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3.2, 6.5)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3.8, 7.0)
 
 [node name="TaillightLeft" type="MeshInstance3D" parent="Van" unique_id=615601650]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.75, 0.45, 2.01)

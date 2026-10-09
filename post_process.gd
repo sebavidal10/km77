@@ -4,8 +4,8 @@ extends CanvasLayer
 const Van = preload("res://van.gd")
 
 @export_group("Retro Shader Settings")
-## Target pixelation resolution. Defaults to 480x270 for authentic PSX ratio.
-@export var target_resolution: Vector2 = Vector2(480.0, 270.0):
+## Target pixelation resolution. Defaults to 640x360 for crisp retro widescreen.
+@export var target_resolution: Vector2 = Vector2(640.0, 360.0):
 	set(val):
 		target_resolution = val
 		_update_uniform("target_resolution", val)
@@ -17,25 +17,25 @@ const Van = preload("res://van.gd")
 		_update_uniform("color_depth", val)
 
 ## Intensity of 8x8 Bayer matrix ordered dithering.
-@export var dither_intensity: float = 0.85:
+@export var dither_intensity: float = 0.42:
 	set(val):
 		dither_intensity = val
 		_update_uniform("dither_intensity", val)
 
 ## Intensity of analog noise/grain.
-@export var grain_intensity: float = 0.035:
+@export var grain_intensity: float = 0.016:
 	set(val):
 		grain_intensity = val
 		_update_uniform("grain_intensity", val)
 
 ## Intensity of CRT scanlines.
-@export var scanline_intensity: float = 0.06:
+@export var scanline_intensity: float = 0.025:
 	set(val):
 		scanline_intensity = val
 		_update_uniform("scanline_intensity", val)
 
 ## Base chromatic aberration lens distortion.
-@export var base_chromatic_aberration: float = 0.0015:
+@export var base_chromatic_aberration: float = 0.0008:
 	set(val):
 		base_chromatic_aberration = val
 		_update_uniform("chromatic_aberration", val)

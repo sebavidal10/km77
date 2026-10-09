@@ -3,12 +3,12 @@ shader_type canvas_item;
 uniform sampler2D screen_texture : hint_screen_texture, repeat_disable, filter_linear;
 
 uniform bool enable_pixelation = true;
-uniform vec2 target_resolution = vec2(480.0, 270.0);
+uniform vec2 target_resolution = vec2(640.0, 360.0);
 uniform float color_depth : hint_range(4.0, 64.0, 1.0) = 32.0;
-uniform float dither_intensity : hint_range(0.0, 2.0, 0.05) = 0.85;
-uniform float grain_intensity : hint_range(0.0, 0.2, 0.005) = 0.035;
-uniform float scanline_intensity : hint_range(0.0, 0.5, 0.01) = 0.06;
-uniform float chromatic_aberration : hint_range(0.0, 0.05, 0.0005) = 0.0015;
+uniform float dither_intensity : hint_range(0.0, 2.0, 0.05) = 0.42;
+uniform float grain_intensity : hint_range(0.0, 0.2, 0.005) = 0.016;
+uniform float scanline_intensity : hint_range(0.0, 0.5, 0.01) = 0.025;
+uniform float chromatic_aberration : hint_range(0.0, 0.05, 0.0005) = 0.0008;
 uniform float static_glitch_intensity : hint_range(0.0, 1.0, 0.01) = 0.0;
 uniform float saturation : hint_range(0.5, 2.0, 0.05) = 1.15;
 

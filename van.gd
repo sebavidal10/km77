@@ -27,14 +27,14 @@ signal paradox_anomaly_triggered
 @export var acceleration_rate: float = 7.5
 ## Deceleration rate applied when pressing the service brake (m/s^2).
 @export var braking_force: float = 14.0
-## Steering wheel turn speed in radians/s towards player input.
-@export var steer_speed: float = 3.2
+## Steering wheel turn speed in radians/s towards player input (smooth progressive rate).
+@export var steer_speed: float = 1.8
 ## Steering wheel auto-center speed in radians/s when steering input is released.
-@export var steer_return_speed: float = 4.8
-## Maximum front wheel steering angle in radians (approx 32 degrees).
-@export var max_steer_angle: float = deg_to_rad(32.0)
-## High-speed steering ratio (reduces max steer angle at top speed to avoid uncontrollable spins).
-@export var high_speed_steer_ratio: float = 0.35
+@export var steer_return_speed: float = 2.6
+## Maximum front wheel steering angle in radians (approx 28 degrees).
+@export var max_steer_angle: float = deg_to_rad(28.0)
+## High-speed steering ratio (reduces max steer angle at top speed to avoid violent snaps).
+@export var high_speed_steer_ratio: float = 0.20
 ## Base vehicle wheelbase in meters used for bicycle steering geometry.
 @export var wheelbase: float = 3.3
 
@@ -186,6 +186,14 @@ func _ready() -> void:
 		if taillight_right:
 			taillight_right.material_override = _taillight_mat
 
+	# Ensure van body is weathered commercial white (#E0E0E0)
+	if visual_mesh and visual_mesh.get_surface_override_material(0) == null:
+		var white_mat := StandardMaterial3D.new()
+		white_mat.albedo_color = Color(0.88, 0.88, 0.88, 1.0)
+		white_mat.roughness = 0.82
+		white_mat.metallic = 0.05
+		visual_mesh.set_surface_override_material(0, white_mat)
+
 func _physics_process(delta: float) -> void:
 	is_drifting = Input.is_action_pressed("handbrake")
 
@@ -316,10 +324,10 @@ func reset_loop_state() -> void:
 	# 4. Restore headlights and taillights
 	if headlight_left:
 		headlight_left.visible = true
-		headlight_left.light_energy = 10.0
+		headlight_left.light_energy = 12.0
 	if headlight_right:
 		headlight_right.visible = true
-		headlight_right.light_energy = 10.0
+		headlight_right.light_energy = 12.0
 	left_headlight_broken = false
 	right_headlight_broken = false
 
@@ -595,9 +603,11 @@ func _process_steering(delta: float) -> void:
 	# 1. Speed-sensitive steering: scale down max steer angle at high speeds to prevent violent snap spins
 	var speed_ratio: float = clampf(abs_fwd_speed / max_speed, 0.0, 1.0)
 	var base_max_angle: float = deg_to_rad(max_steer_angle) if max_steer_angle > 1.5 else max_steer_angle
-	var dynamic_max_angle: float = base_max_angle * lerpf(1.0, high_speed_steer_ratio, speed_ratio)
+	# Nonlinear progressive curve: high stability at highway speed, nimble at parking/low speeds
+	var speed_steer_factor: float = lerpf(1.0, high_speed_steer_ratio, pow(speed_ratio, 0.75))
+	var dynamic_max_angle: float = base_max_angle * speed_steer_factor
 
-	# 2. Smooth steering accumulator: progressive turn in and natural self-centering
+	# 2. Smooth steering accumulator: progressive turn in with heavy van inertia and natural return
 	var target_steer_angle: float = steer_input * dynamic_max_angle
 	if absf(steer_input) > 0.01:
 		current_steer_angle = move_toward(current_steer_angle, target_steer_angle, steer_speed * delta)
@@ -613,8 +623,8 @@ func _process_steering(delta: float) -> void:
 	if motion_speed < min_steer_speed:
 		return
 
-	# 4. Turn rate calculation based on bicycle geometry (v / L) and steering angle
-	var turn_factor := clampf(motion_speed / wheelbase, 0.0, 7.0)
+	# 4. Turn rate calculation based on bicycle geometry (v / L) with damped high-speed yaw
+	var turn_factor := clampf(motion_speed / wheelbase, 0.0, 2.8)
 	var effective_oversteer: float = 1.0
 
 	if is_drifting:
