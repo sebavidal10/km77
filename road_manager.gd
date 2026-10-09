@@ -1,6 +1,8 @@
 class_name RoadManager
 extends Node3D
 
+const RoadEventSpawner = preload("res://road_event_spawner.gd")
+
 @export_group("Target Vehicle")
 ## Node representing the vehicle to track for spawning and recycling road segments.
 @export var target_vehicle: Node3D
@@ -27,6 +29,12 @@ extends Node3D
 ## Probability weight (0.0 to 1.0) of spawning a curved chunk after a straight chunk.
 @export var curve_probability: float = 0.65
 
+@export_group("Events & Obstacles")
+## Enables procedural obstacle and roadside props spawning.
+@export var enable_events: bool = true
+## Optional custom event spawner node. If null, a default RoadEventSpawner is created automatically.
+@export var event_spawner: RoadEventSpawner
+
 # Internal state
 var active_segments: Array[RoadSegment] = []
 var rng: RandomNumberGenerator = RandomNumberGenerator.new()
@@ -36,8 +44,15 @@ var total_segments_spawned: int = 0
 
 func _ready() -> void:
 	_init_rng()
+	_init_event_spawner()
 	_find_target_vehicle()
 	_spawn_initial_track()
+
+func _init_event_spawner() -> void:
+	if enable_events and not event_spawner:
+		event_spawner = RoadEventSpawner.new()
+		event_spawner.name = "RoadEventSpawner"
+		add_child(event_spawner)
 
 func _physics_process(_delta: float) -> void:
 	if not target_vehicle:
@@ -180,6 +195,8 @@ func _spawn_segment(type: RoadSegment.SegmentType) -> RoadSegment:
 	add_child(segment)
 	segment.global_transform = target_transform
 	segment.build_segment()
+	if enable_events and event_spawner:
+		event_spawner.spawn_events_for_segment(segment, total_segments_spawned, rng)
 	active_segments.append(segment)
 	total_segments_spawned += 1
 	return segment

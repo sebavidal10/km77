@@ -30,6 +30,7 @@ enum SegmentType {
 # Node references
 var static_body: StaticBody3D
 var exit_marker: Marker3D
+var slice_transforms: Array[Transform3D] = []
 
 # Static shared materials to optimize draw calls and shader memory
 static var _road_material: StandardMaterial3D
@@ -59,6 +60,7 @@ func _ready() -> void:
 
 ## Builds all road slices, collision shapes, and guardrails from Box primitives.
 func build_segment() -> void:
+	slice_transforms.clear()
 	# Clear any previous child nodes if re-building
 	for child in get_children():
 		child.queue_free()
@@ -103,6 +105,7 @@ func build_segment() -> void:
 
 		var slice_basis := Basis(Vector3.UP, mid_yaw)
 		var slice_transform := Transform3D(slice_basis, slice_center)
+		slice_transforms.append(slice_transform)
 
 		# 1. Road surface box (primitive MeshInstance3D & CollisionShape3D)
 		var road_mesh := BoxMesh.new()
@@ -207,3 +210,13 @@ func is_behind_position(target_global_pos: Vector3, threshold_distance: float) -
 	var to_target := target_global_pos - exit_pos
 	var forward_progress := to_target.dot(exit_fwd)
 	return forward_progress > threshold_distance
+
+## Returns total generated geometric slices for this chunk.
+func get_slice_count() -> int:
+	return slice_transforms.size()
+
+## Returns the local transform of a specific slice along this chunk's curvature.
+func get_slice_transform(index: int) -> Transform3D:
+	if index >= 0 and index < slice_transforms.size():
+		return slice_transforms[index]
+	return Transform3D.IDENTITY
