@@ -7,6 +7,10 @@ signal fuel_depleted
 signal distance_updated(distance_traveled_meters: float, current_kilometer: float)
 signal speed_updated(speed_kmh: float)
 signal drift_state_changed(is_drifting_active: bool)
+signal engine_health_changed(current: float, max_val: float)
+signal engine_critical
+signal headlight_damaged(light_name: String)
+signal collision_impact(intensity: float)
 
 @export_group("Handling Tuning")
 ## Maximum forward speed in meters per second (30.5 m/s = approx 110 km/h).
@@ -77,6 +81,22 @@ signal drift_state_changed(is_drifting_active: bool)
 ## Speed of roll smoothing.
 @export var body_roll_speed: float = 8.5
 
+@export_group("Durability & Damage")
+## Maximum condition/health of the vehicle engine.
+@export var max_engine_health: float = 100.0
+## Current engine condition/health.
+@export var current_engine_health: float = 100.0
+## Minimum forward collision speed (m/s) required to trigger damage and heavy deceleration.
+@export var impact_speed_threshold: float = 5.0
+## Multiplier translating impact speed into engine health damage.
+@export var collision_damage_factor: float = 1.8
+## Trauma intensity multiplier passed to chase camera shake.
+@export var camera_shake_intensity: float = 0.85
+## Probability of breaking a headlight on high-speed impacts (> 14 m/s).
+@export var headlight_break_chance_heavy: float = 0.50
+## Probability of breaking a headlight on medium impacts (5-14 m/s).
+@export var headlight_break_chance_light: float = 0.25
+
 @export_group("Environment & Gravity")
 ## Downward gravity acceleration.
 @export var gravity: float = 22.0
@@ -105,12 +125,26 @@ var current_kilometer: float = 85.0
 var is_actively_drifting: bool = false
 var _was_drifting: bool = false
 
+# Headlight and camera state
+var left_headlight_broken: bool = false
+var right_headlight_broken: bool = false
+var _chase_camera: Camera3D = null
+
 @onready var visual_mesh: MeshInstance3D = get_node_or_null("MeshInstance3D") as MeshInstance3D
+@onready var headlight_left: SpotLight3D = get_node_or_null("HeadlightLeft") as SpotLight3D
+@onready var headlight_right: SpotLight3D = _find_headlight_right()
+
+func _find_headlight_right() -> SpotLight3D:
+	var light := get_node_or_null("HeadlightRight") as SpotLight3D
+	if not light:
+		light = get_node_or_null("HeadlighRight") as SpotLight3D
+	return light
 
 func _ready() -> void:
 	add_to_group("player")
 	current_kilometer = starting_kilometer
 	fuel_changed.emit(current_fuel, max_fuel)
+	engine_health_changed.emit(current_engine_health, max_engine_health)
 	distance_updated.emit(distance_traveled_meters, current_kilometer)
 	speed_updated.emit(0.0)
 	drift_state_changed.emit(false)
@@ -163,7 +197,7 @@ func _physics_process(delta: float) -> void:
 	# 10. Visual chassis roll animation linked to smoothed steering angle
 	_process_visual_roll(delta, forward_speed_state)
 
-## Handles physical impacts with heavy obstacles (heavy deceleration) and pushes debris RigidBodies.
+## Handles physical impacts with obstacles and vehicles: damage, speed scrub, shake, and headlight failure.
 func _process_collisions(forward_dir: Vector3, _delta: float) -> void:
 	var slide_count := get_slide_collision_count()
 	for i in range(slide_count):
@@ -172,16 +206,42 @@ func _process_collisions(forward_dir: Vector3, _delta: float) -> void:
 		if not collider:
 			continue
 
-		# 1. Collision with heavy obstacles (e.g. wrecked vehicles)
-		if collider.is_in_group("heavy_obstacle"):
+		var col_normal := collision.get_normal()
+		var frontal_alignment := maxf(0.0, -forward_dir.dot(col_normal))
+		var impact_speed := absf(forward_speed_state) * frontal_alignment
+
+		# 1. Collision with solid barriers, heavy obstacles, or vehicles
+		var is_heavy: bool = collider.is_in_group("heavy_obstacle") or collider is StaticBody3D or collider is CharacterBody3D
+
+		if is_heavy and impact_speed > impact_speed_threshold:
+			# Damage calculation based on impact velocity
+			var damage: float = (impact_speed - impact_speed_threshold) * collision_damage_factor
+			if collider.is_in_group("heavy_obstacle"):
+				damage *= 1.5
+			current_engine_health = maxf(0.0, current_engine_health - damage)
+			engine_health_changed.emit(current_engine_health, max_engine_health)
+
 			# Severely scrub forward momentum upon direct impact
-			if forward_speed_state > 2.0:
-				velocity = velocity * 0.25
-				forward_speed_state *= 0.25
+			velocity *= 0.35
+			forward_speed_state *= 0.35
+
+			# Trigger camera trauma on ChaseCamera
+			var shake_trauma := clampf((impact_speed / max_speed) * camera_shake_intensity, 0.25, 1.4)
+			collision_impact.emit(shake_trauma)
+			_apply_camera_shake(shake_trauma)
+
+			# Probabilistic headlight damage
+			var roll_chance := headlight_break_chance_heavy if impact_speed > 14.0 else headlight_break_chance_light
+			if randf() < roll_chance:
+				_damage_random_headlight()
+
+			# Check critical engine condition
+			if current_engine_health <= 0.0:
+				engine_critical.emit()
 
 		# 2. Collision with lightweight dynamic debris (RigidBody3D)
 		if collider is RigidBody3D:
-			var push_dir: Vector3 = -collision.get_normal()
+			var push_dir: Vector3 = -col_normal
 			push_dir.y = 0.0
 			push_dir = push_dir.normalized()
 			var speed_magnitude := clampf(abs(forward_speed_state), 8.0, max_speed)
@@ -189,6 +249,39 @@ func _process_collisions(forward_dir: Vector3, _delta: float) -> void:
 			collider.apply_central_impulse(impulse)
 			var torque := Vector3(randf_range(-6.0, 6.0), randf_range(6.0, 12.0), randf_range(-6.0, 6.0))
 			collider.apply_torque_impulse(torque)
+
+func _damage_random_headlight() -> void:
+	var available: Array[SpotLight3D] = []
+	if headlight_left and not left_headlight_broken:
+		available.append(headlight_left)
+	if headlight_right and not right_headlight_broken:
+		available.append(headlight_right)
+
+	if available.is_empty():
+		return
+
+	var victim: SpotLight3D = available[randi() % available.size()]
+	if victim == headlight_left:
+		left_headlight_broken = true
+	else:
+		right_headlight_broken = true
+
+	# Disable light with flicker blackout
+	victim.light_energy = 0.0
+	victim.visible = false
+	headlight_damaged.emit(victim.name)
+
+func _apply_camera_shake(trauma: float) -> void:
+	if not _chase_camera or not is_instance_valid(_chase_camera):
+		var tree := get_tree()
+		if tree:
+			var cam_nodes := tree.get_nodes_in_group("chase_camera")
+			if not cam_nodes.is_empty():
+				_chase_camera = cam_nodes[0] as Camera3D
+			elif get_viewport() and get_viewport().get_camera_3d():
+				_chase_camera = get_viewport().get_camera_3d()
+	if _chase_camera and _chase_camera.has_method("apply_shake"):
+		_chase_camera.apply_shake(trauma)
 
 ## Handles smooth progressive steering with speed-sensitive angle limits and drift oversteer.
 func _process_steering(delta: float) -> void:
