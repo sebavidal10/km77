@@ -25,6 +25,7 @@ const COLOR_BLOOD_RED := Color(1.0, 0.2, 0.2, 1.0)       # #FF3333
 @onready var dispatch_header: Label = %DispatchHeader
 @onready var dispatch_label: Label = %DispatchText
 @onready var fade_overlay: ColorRect = %ScreenFadeOverlay
+@onready var reboot_label: Label = %RebootLabel
 @onready var interaction_panel: PanelContainer = %InteractionPanel
 @onready var interaction_prompt_label: Label = %InteractionPromptLabel
 @onready var scavenge_progress_bar: ProgressBar = %ScavengeProgressBar
@@ -128,6 +129,12 @@ func show_scavenge_success(message: String = "[ SUPPLIES SECURED: +35 FUEL | REP
 		scavenge_progress_bar.visible = false
 	_success_message_timer = duration
 
+## Displays monospace timeline reboot failure message over the fade overlay.
+func show_reboot_message(show: bool, text: String = "UNIT 77 CRITICAL SIGNAL FAILURE... REBOOTING TIMELINE...") -> void:
+	if reboot_label:
+		reboot_label.text = text
+		reboot_label.visible = show
+
 ## Fades screen to full black over the specified duration in seconds.
 func fade_to_black(duration: float = 2.0) -> void:
 	if not fade_overlay:
@@ -139,6 +146,8 @@ func fade_to_black(duration: float = 2.0) -> void:
 
 ## Fades screen from full black back to normal vision over the specified duration.
 func fade_from_black(duration: float = 2.0) -> void:
+	if reboot_label:
+		reboot_label.visible = false
 	if not fade_overlay:
 		return
 	_fade_target_alpha = 0.0

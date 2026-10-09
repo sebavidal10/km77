@@ -283,6 +283,13 @@ func _physics_process(delta: float) -> void:
 
 ## Starts the vehicle shutdown and blackout sequence.
 func _start_collapse() -> void:
+	var root := get_tree().current_scene if get_tree() else null
+	if root:
+		var lrm := root.get_node_or_null("LoopResetManager")
+		if lrm and lrm.has_method("start_timeline_reboot"):
+			lrm.start_timeline_reboot("CRITICAL VEHICLE SHUTDOWN")
+			return
+
 	is_stalled = true
 	_collapse_stage = 1
 	_collapse_timer = 0.0

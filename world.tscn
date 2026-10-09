@@ -8,6 +8,7 @@
 [ext_resource type="Script" path="res://post_process.gd" id="5_post"]
 [ext_resource type="Shader" path="res://shaders/psx_retro.gdshader" id="6_shader"]
 [ext_resource type="Script" path="res://storm_controller.gd" id="7_storm"]
+[ext_resource type="Script" path="res://loop_reset_manager.gd" id="8_loop"]
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_amspa"]
 size = Vector3(2, 1.5, 4)
@@ -145,3 +146,10 @@ target_van = NodePath("../Van")
 
 [node name="RadioManager" type="Node" parent="." unique_id=1928475012]
 script = ExtResource("4_radio")
+
+[node name="LoopResetManager" type="Node" parent="." unique_id=1928475013 node_paths=PackedStringArray("target_van", "road_manager", "hud", "post_process")]
+script = ExtResource("8_loop")
+target_van = NodePath("../Van")
+road_manager = NodePath("../RoadManager")
+hud = NodePath("../HUD")
+post_process = NodePath("../PostProcessLayer")
