@@ -1,6 +1,9 @@
 class_name HUD
 extends CanvasLayer
 
+signal screen_faded_to_black
+signal screen_faded_from_black
+
 const RadioManager = preload("res://radio_manager.gd")
 const Van = preload("res://van.gd")
 
@@ -16,6 +19,7 @@ const Van = preload("res://van.gd")
 @onready var low_fuel_warning: Label = %LowFuelWarning
 @onready var dispatch_panel: PanelContainer = %DispatchPanel
 @onready var dispatch_label: Label = %DispatchText
+@onready var fade_overlay: ColorRect = %ScreenFadeOverlay
 
 var _blink_timer: float = 0.0
 var _blink_visible: bool = true
@@ -31,7 +35,13 @@ var _dispatch_hold_duration: float = 0.0
 var _cursor_blink_timer: float = 0.0
 var _cursor_visible: bool = true
 
+# Screen fade to black state
+var _fade_target_alpha: float = 0.0
+var _fade_speed: float = 0.5
+var _is_fading: bool = false
+
 func _ready() -> void:
+	add_to_group("hud")
 	_find_van()
 	_connect_van_signals()
 	_connect_radio_manager()
@@ -39,6 +49,9 @@ func _ready() -> void:
 	if dispatch_panel:
 		dispatch_panel.visible = false
 		dispatch_panel.modulate.a = 0.0
+	if fade_overlay:
+		fade_overlay.visible = false
+		fade_overlay.modulate.a = 0.0
 
 func _process(delta: float) -> void:
 	if not target_van:
@@ -46,14 +59,48 @@ func _process(delta: float) -> void:
 		if target_van:
 			_connect_van_signals()
 
-	# Handle low fuel warning blinking
-	_process_low_fuel_warning(delta)
+	# Handle status and warning blinking
+	_process_status_warnings(delta)
 
 	# Handle radio dispatch typewriter effect and smooth fade
 	_process_radio_dispatch(delta)
 
+	# Handle screen fade to black / fade from black
+	_process_screen_fade(delta)
+
 	# Direct sync fallback to ensure 100% visual responsiveness
 	_sync_van_state()
+
+## Fades screen to full black over the specified duration in seconds.
+func fade_to_black(duration: float = 2.0) -> void:
+	if not fade_overlay:
+		return
+	_fade_target_alpha = 1.0
+	_fade_speed = 1.0 / maxf(0.05, duration)
+	_is_fading = true
+	fade_overlay.visible = true
+
+## Fades screen from full black back to normal vision over the specified duration.
+func fade_from_black(duration: float = 2.0) -> void:
+	if not fade_overlay:
+		return
+	_fade_target_alpha = 0.0
+	_fade_speed = 1.0 / maxf(0.05, duration)
+	_is_fading = true
+	fade_overlay.visible = true
+
+func _process_screen_fade(delta: float) -> void:
+	if not _is_fading or not fade_overlay:
+		return
+
+	fade_overlay.modulate.a = move_toward(fade_overlay.modulate.a, _fade_target_alpha, _fade_speed * delta)
+	if is_equal_approx(fade_overlay.modulate.a, _fade_target_alpha):
+		_is_fading = false
+		if _fade_target_alpha <= 0.01:
+			fade_overlay.visible = false
+			screen_faded_from_black.emit()
+		else:
+			screen_faded_to_black.emit()
 
 func _find_van() -> void:
 	if target_van:
@@ -81,6 +128,8 @@ func _connect_van_signals() -> void:
 		target_van.distance_updated.connect(_on_distance_updated)
 	if not target_van.drift_state_changed.is_connected(_on_drift_state_changed):
 		target_van.drift_state_changed.connect(_on_drift_state_changed)
+	if not target_van.engine_health_changed.is_connected(_on_engine_health_changed):
+		target_van.engine_health_changed.connect(_on_engine_health_changed)
 
 func _connect_radio_manager() -> void:
 	if RadioManager.instance:
@@ -104,11 +153,15 @@ func _sync_van_state() -> void:
 	_on_distance_updated(target_van.distance_traveled_meters, target_van.current_kilometer)
 	_on_drift_state_changed(target_van.is_actively_drifting)
 
-func _process_low_fuel_warning(delta: float) -> void:
+func _process_status_warnings(delta: float) -> void:
 	if not target_van or not low_fuel_warning:
 		return
 
-	if target_van.current_fuel <= 0.0:
+	if target_van.current_engine_health <= 0.0:
+		low_fuel_warning.visible = true
+		low_fuel_warning.text = "[ CRITICAL ENGINE FAILURE ]"
+		low_fuel_warning.modulate = Color(1.0, 0.15, 0.15, 1.0)
+	elif target_van.current_fuel <= 0.0:
 		low_fuel_warning.visible = true
 		low_fuel_warning.text = "[ NO FUEL - ENGINE STALLED ]"
 		low_fuel_warning.modulate = Color(1.0, 0.2, 0.2, 1.0)
@@ -120,6 +173,14 @@ func _process_low_fuel_warning(delta: float) -> void:
 			low_fuel_warning.visible = _blink_visible
 		low_fuel_warning.text = "[ ! LOW FUEL ! ]"
 		low_fuel_warning.modulate = Color(1.0, 0.35, 0.2, 1.0)
+	elif target_van.current_engine_health < 30.0:
+		_blink_timer += delta
+		if _blink_timer >= 0.35:
+			_blink_timer = 0.0
+			_blink_visible = !_blink_visible
+			low_fuel_warning.visible = _blink_visible
+		low_fuel_warning.text = "[ ! ENGINE DAMAGED ! ]"
+		low_fuel_warning.modulate = Color(1.0, 0.5, 0.15, 1.0)
 	else:
 		low_fuel_warning.visible = false
 
@@ -182,6 +243,9 @@ func _on_fuel_changed(current: float, max_val: float) -> void:
 		fuel_bar.value = current
 	if fuel_percent_label:
 		fuel_percent_label.text = "%3.0f%%" % percent
+
+func _on_engine_health_changed(_current: float, _max_val: float) -> void:
+	pass
 
 func _on_distance_updated(_meters: float, current_km: float) -> void:
 	if route_label:

@@ -226,3 +226,15 @@ theme_override_colors/font_color = Color(0.95, 0.88, 0.52, 1)
 theme_override_font_sizes/font_size = 13
 text = "[DISPATCH 10-4] Unit 77, report status..."
 autowrap_mode = 3
+
+[node name="ScreenFadeOverlay" type="ColorRect" parent="." unique_id=98721345]
+unique_name_in_owner = true
+visible = false
+modulate = Color(1, 1, 1, 0)
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+color = Color(0, 0, 0, 1)

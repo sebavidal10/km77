@@ -105,6 +105,13 @@ func _find_target_vehicle() -> void:
 		if not nodes.is_empty():
 			target_vehicle = nodes[0] as Node3D
 
+## Clears all existing chunks and obstacles, and rebuilds the initial runway starting at origin.
+func reset_road() -> void:
+	if is_instance_valid(active_oncoming_vehicle):
+		active_oncoming_vehicle.queue_free()
+		active_oncoming_vehicle = null
+	_spawn_initial_track()
+
 func _spawn_initial_track() -> void:
 	# Clear any pre-existing children
 	for child in get_children():

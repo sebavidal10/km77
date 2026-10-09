@@ -25,6 +25,11 @@ var _milestones_fired: Dictionary = {
 	77: false
 }
 
+## Resets all narrative milestone triggers so dispatches can fire on subsequent loop iterations.
+func reset_milestones() -> void:
+	for k in _milestones_fired.keys():
+		_milestones_fired[k] = false
+
 func _init() -> void:
 	instance = self
 

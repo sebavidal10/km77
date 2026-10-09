@@ -1,6 +1,11 @@
 class_name Van
 extends CharacterBody3D
 
+const RadioManager = preload("res://radio_manager.gd")
+const RoadManager = preload("res://road_manager.gd")
+const HUD = preload("res://hud.gd")
+const ChaseCamera = preload("res://chase_camera.gd")
+
 # Telemetry signals
 signal fuel_changed(current_fuel: float, max_fuel: float)
 signal fuel_depleted
@@ -11,6 +16,9 @@ signal engine_health_changed(current: float, max_val: float)
 signal engine_critical
 signal headlight_damaged(light_name: String)
 signal collision_impact(intensity: float)
+signal vehicle_collapsed
+signal loop_reset_triggered
+signal paradox_anomaly_triggered
 
 @export_group("Handling Tuning")
 ## Maximum forward speed in meters per second (30.5 m/s = approx 110 km/h).
@@ -49,6 +57,22 @@ signal collision_impact(intensity: float)
 @export var drift_friction: float = 0.88
 @export var normal_friction: float = 0.98
 
+@export_group("Durability & Damage")
+## Maximum condition/health of the vehicle engine.
+@export var max_engine_health: float = 100.0
+## Current engine condition/health.
+@export var current_engine_health: float = 100.0
+## Minimum forward collision speed (m/s) required to trigger damage and heavy deceleration.
+@export var impact_speed_threshold: float = 5.0
+## Multiplier translating impact speed into engine health damage.
+@export var collision_damage_factor: float = 1.8
+## Trauma intensity multiplier passed to chase camera shake.
+@export var camera_shake_intensity: float = 0.85
+## Probability of breaking a headlight on high-speed impacts (> 14 m/s).
+@export var headlight_break_chance_heavy: float = 0.50
+## Probability of breaking a headlight on medium impacts (5-14 m/s).
+@export var headlight_break_chance_light: float = 0.25
+
 @export_group("Reverse & Coasting")
 ## Maximum reverse speed in m/s (approx 36 km/h).
 @export var reverse_max_speed: float = 10.0
@@ -81,22 +105,6 @@ signal collision_impact(intensity: float)
 ## Speed of roll smoothing.
 @export var body_roll_speed: float = 8.5
 
-@export_group("Durability & Damage")
-## Maximum condition/health of the vehicle engine.
-@export var max_engine_health: float = 100.0
-## Current engine condition/health.
-@export var current_engine_health: float = 100.0
-## Minimum forward collision speed (m/s) required to trigger damage and heavy deceleration.
-@export var impact_speed_threshold: float = 5.0
-## Multiplier translating impact speed into engine health damage.
-@export var collision_damage_factor: float = 1.8
-## Trauma intensity multiplier passed to chase camera shake.
-@export var camera_shake_intensity: float = 0.85
-## Probability of breaking a headlight on high-speed impacts (> 14 m/s).
-@export var headlight_break_chance_heavy: float = 0.50
-## Probability of breaking a headlight on medium impacts (5-14 m/s).
-@export var headlight_break_chance_light: float = 0.25
-
 @export_group("Environment & Gravity")
 ## Downward gravity acceleration.
 @export var gravity: float = 22.0
@@ -125,10 +133,27 @@ var current_kilometer: float = 85.0
 var is_actively_drifting: bool = false
 var _was_drifting: bool = false
 
-# Headlight and camera state
+# Durability & Headlight state
 var left_headlight_broken: bool = false
 var right_headlight_broken: bool = false
 var _chase_camera: Camera3D = null
+
+# Collapse / stall state
+var is_stalled: bool = false
+var _collapse_stage: int = 0 # 0 = normal, 1 = fading lights & blacking out, 2 = 3s silence pause
+var _collapse_timer: float = 0.0
+
+# KM 77 Paradox Anomaly state
+var _is_fog_anomaly: bool = false
+var _fog_anomaly_timer: float = 0.0
+var _world_env: WorldEnvironment = null
+var _orig_fog_light_color := Color(0.04, 0.045, 0.055, 1.0)
+var _orig_volumetric_fog_albedo := Color(0.05, 0.055, 0.065, 1.0)
+var _anomaly_fog_color := Color(0.38, 0.05, 0.08, 1.0) # Deep ominous crimson void
+
+var _is_flickering_glitch: bool = false
+var _glitch_timer: float = 0.0
+var _glitch_toggle_timer: float = 0.0
 
 @onready var visual_mesh: MeshInstance3D = get_node_or_null("MeshInstance3D") as MeshInstance3D
 @onready var headlight_left: SpotLight3D = get_node_or_null("HeadlightLeft") as SpotLight3D
@@ -151,6 +176,13 @@ func _ready() -> void:
 
 func _physics_process(delta: float) -> void:
 	is_drifting = Input.is_action_pressed("handbrake")
+
+	# Check stall condition (fuel depleted or engine destroyed)
+	if not is_stalled and (current_fuel <= 0.0 or current_engine_health <= 0.0):
+		_start_collapse()
+
+	if is_stalled:
+		_process_collapse(delta)
 
 	# 1. Progressive steering with speed-sensitive limits & auto-centering
 	_process_steering(delta)
@@ -194,8 +226,179 @@ func _physics_process(delta: float) -> void:
 	_process_odometer(delta)
 	_process_telemetry()
 
-	# 10. Visual chassis roll animation linked to smoothed steering angle
+	# 10. Process visual anomalies and glitches (Fog pulse & headlight strobing)
+	_process_visual_effects(delta)
+
+	# 11. Visual chassis roll animation linked to smoothed steering angle
 	_process_visual_roll(delta, forward_speed_state)
+
+## Starts the vehicle shutdown and blackout sequence.
+func _start_collapse() -> void:
+	is_stalled = true
+	_collapse_stage = 1
+	_collapse_timer = 0.0
+	vehicle_collapsed.emit()
+
+	var hud := _find_hud()
+	if hud:
+		hud.fade_to_black(2.0)
+
+	if RadioManager.instance:
+		RadioManager.instance.broadcast_dispatch(
+			"[RADIO CRITICAL] ...vehicle telemetry flatlined... carrier signal cutting out...",
+			3.5,
+			true
+		)
+
+## Drives headlight fade, blackout pause, and loop reset.
+func _process_collapse(delta: float) -> void:
+	if _collapse_stage == 1:
+		# Gradually extinguish surviving headlights
+		if headlight_left and not left_headlight_broken:
+			headlight_left.light_energy = move_toward(headlight_left.light_energy, 0.0, 6.0 * delta)
+		if headlight_right and not right_headlight_broken:
+			headlight_right.light_energy = move_toward(headlight_right.light_energy, 0.0, 6.0 * delta)
+
+		_collapse_timer += delta
+		if _collapse_timer >= 2.2:
+			_collapse_stage = 2
+			_collapse_timer = 0.0
+			if headlight_left:
+				headlight_left.visible = false
+			if headlight_right:
+				headlight_right.visible = false
+	elif _collapse_stage == 2:
+		# Silence and static in the pitch dark
+		_collapse_timer += delta
+		if _collapse_timer >= 3.0:
+			_collapse_stage = 0
+			_collapse_timer = 0.0
+			reset_loop_state()
+
+## Resets vehicle position, restores partial fuel/health, rebuilds road, and awakens in the loop.
+func reset_loop_state() -> void:
+	# 1. Reposition vehicle in right lane facing forward
+	global_position = Vector3(3.5, 1.5, 0.0)
+	rotation = Vector3.ZERO
+	velocity = Vector3.ZERO
+	forward_speed_state = 0.0
+	current_steer_angle = 0.0
+
+	# 2. Rebuild the procedural road from origin
+	var rm := _find_road_manager()
+	if rm:
+		rm.reset_road()
+
+	# 3. Restore partial fuel and engine health
+	current_fuel = max_fuel * 0.65
+	current_engine_health = max_engine_health * 0.75
+	fuel_changed.emit(current_fuel, max_fuel)
+	engine_health_changed.emit(current_engine_health, max_engine_health)
+
+	# 4. Restore headlights
+	if headlight_left:
+		headlight_left.visible = true
+		headlight_left.light_energy = 10.0
+	if headlight_right:
+		headlight_right.visible = true
+		headlight_right.light_energy = 10.0
+	left_headlight_broken = false
+	right_headlight_broken = false
+
+	# 5. Clear stall state
+	is_stalled = false
+	_collapse_stage = 0
+
+	# 6. Reset odometer back to starting marker
+	starting_kilometer = 85.0
+	distance_traveled_meters = 0.0
+	current_kilometer = 85.0
+	distance_updated.emit(distance_traveled_meters, current_kilometer)
+
+	# 7. Reset narrative milestones
+	if RadioManager.instance:
+		RadioManager.instance.reset_milestones()
+
+	# 8. Fade screen in from black
+	var hud := _find_hud()
+	if hud:
+		hud.fade_from_black(2.5)
+
+	# 9. Broadcast loop reset wake-up radio message
+	if RadioManager.instance:
+		RadioManager.instance.broadcast_dispatch(
+			"[DISPATCH 10-0] ...Unit 77, carrier restored at Milepost 85... did you black out at the wheel? Confirm status.",
+			7.5,
+			true
+		)
+
+	loop_reset_triggered.emit()
+
+## Triggers the paradoxical loop reset when the vehicle reaches Kilómetro 77.
+func _trigger_km77_paradox() -> void:
+	# 1. Reset odometer back to 85.0 without interrupting driving or forward momentum!
+	starting_kilometer = 85.0
+	distance_traveled_meters = 0.0
+	current_kilometer = 85.0
+	distance_updated.emit(distance_traveled_meters, current_kilometer)
+
+	# 2. Reset radio milestones and emit cryptic recursive broadcast
+	if RadioManager.instance:
+		RadioManager.instance.reset_milestones()
+		RadioManager.instance.broadcast_dispatch(
+			"[RADIO CORRUPT] <<! TEMPORAL RECURSION DETECTED !>> ...MILEPOST 77 BREACHED... LOOP VECTOR RE-INDEXED TO KM 85...",
+			8.0,
+			true
+		)
+
+	# 3. Trigger headlight strobe glitch
+	_is_flickering_glitch = true
+	_glitch_timer = 1.6
+	_glitch_toggle_timer = 0.0
+
+	# 4. Trigger atmospheric fog color shift anomaly
+	_trigger_fog_anomaly()
+
+	paradox_anomaly_triggered.emit()
+
+func _trigger_fog_anomaly() -> void:
+	var tree := get_tree()
+	if tree and tree.current_scene:
+		_world_env = tree.current_scene.get_node_or_null("WorldEnvironment") as WorldEnvironment
+	if _world_env and _world_env.environment:
+		_is_fog_anomaly = true
+		_fog_anomaly_timer = 2.5
+		_world_env.environment.fog_light_color = _anomaly_fog_color
+		_world_env.environment.volumetric_fog_albedo = _anomaly_fog_color
+
+func _process_visual_effects(delta: float) -> void:
+	# Anomaly fog color pulse decay
+	if _is_fog_anomaly:
+		_fog_anomaly_timer = move_toward(_fog_anomaly_timer, 0.0, delta)
+		var progress: float = _fog_anomaly_timer / 2.5
+		if _world_env and _world_env.environment:
+			_world_env.environment.fog_light_color = _orig_fog_light_color.lerp(_anomaly_fog_color, progress)
+			_world_env.environment.volumetric_fog_albedo = _orig_volumetric_fog_albedo.lerp(_anomaly_fog_color, progress)
+		if _fog_anomaly_timer <= 0.0:
+			_is_fog_anomaly = false
+
+	# Headlight glitch strobing
+	if _is_flickering_glitch:
+		_glitch_timer -= delta
+		_glitch_toggle_timer += delta
+		if _glitch_toggle_timer >= 0.08:
+			_glitch_toggle_timer = 0.0
+			if headlight_left and not left_headlight_broken:
+				headlight_left.visible = not headlight_left.visible
+			if headlight_right and not right_headlight_broken:
+				headlight_right.visible = not headlight_right.visible
+
+		if _glitch_timer <= 0.0:
+			_is_flickering_glitch = false
+			if headlight_left and not left_headlight_broken:
+				headlight_left.visible = true
+			if headlight_right and not right_headlight_broken:
+				headlight_right.visible = true
 
 ## Handles physical impacts with obstacles and vehicles: damage, speed scrub, shake, and headlight failure.
 func _process_collisions(forward_dir: Vector3, _delta: float) -> void:
@@ -283,6 +486,29 @@ func _apply_camera_shake(trauma: float) -> void:
 	if _chase_camera and _chase_camera.has_method("apply_shake"):
 		_chase_camera.apply_shake(trauma)
 
+func _find_hud() -> HUD:
+	var tree := get_tree()
+	if not tree:
+		return null
+	var nodes := tree.get_nodes_in_group("hud")
+	if not nodes.is_empty() and nodes[0] is HUD:
+		return nodes[0] as HUD
+	if tree.current_scene:
+		var hud_candidate := tree.current_scene.get_node_or_null("HUD") as HUD
+		if hud_candidate:
+			return hud_candidate
+	return null
+
+func _find_road_manager() -> RoadManager:
+	var tree := get_tree()
+	if not tree:
+		return null
+	if tree.current_scene:
+		var rm := tree.current_scene.get_node_or_null("RoadManager") as RoadManager
+		if rm:
+			return rm
+	return null
+
 ## Handles smooth progressive steering with speed-sensitive angle limits and drift oversteer.
 func _process_steering(delta: float) -> void:
 	var steer_input := Input.get_axis("steer_right", "steer_left")
@@ -336,6 +562,10 @@ func _process_steering(delta: float) -> void:
 func _process_longitudinal(fwd_speed: float, delta: float) -> float:
 	var throttle := Input.get_axis("brake", "accelerate")
 
+	if is_stalled:
+		# Engine failed or out of fuel: coast down to stop
+		return move_toward(fwd_speed, 0.0, coast_deceleration * delta)
+
 	if throttle > 0.0:
 		if current_fuel <= 0.0:
 			# Engine stalled out of fuel: coast to stop
@@ -386,12 +616,18 @@ func _process_fuel(delta: float) -> void:
 	if current_fuel <= 0.0:
 		fuel_depleted.emit()
 
-## Tracks forward distance traveled and updates road kilometer progress.
+## Tracks forward distance traveled and updates road kilometer progress with paradox loop check.
 func _process_odometer(delta: float) -> void:
 	if forward_speed_state > 0.1:
 		distance_traveled_meters += forward_speed_state * delta
-		current_kilometer = maxf(target_kilometer, starting_kilometer - (distance_traveled_meters / 1000.0))
-		distance_updated.emit(distance_traveled_meters, current_kilometer)
+		var calculated_km: float = starting_kilometer - (distance_traveled_meters / 1000.0)
+
+		# Check the Kilómetro 77 paradox trigger
+		if calculated_km <= target_kilometer:
+			_trigger_km77_paradox()
+		else:
+			current_kilometer = calculated_km
+			distance_updated.emit(distance_traveled_meters, current_kilometer)
 
 ## Updates speed in km/h and tracks active drift state changes.
 func _process_telemetry() -> void:
