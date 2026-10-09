@@ -41,10 +41,10 @@ const SupplyStopScene = preload("res://supply_stop.tscn")
 @export_group("Supply Stops")
 ## Enables roadside supply stops on the shoulder for refueling and vehicle repairs.
 @export var enable_supply_stops: bool = true
-## Minimum chunks between supply stop occurrences (8 to 10 chunks).
-@export var supply_stop_min_chunks: int = 8
+## Minimum chunks between supply stop occurrences (3 to 5 chunks).
+@export var supply_stop_min_chunks: int = 3
 ## Maximum chunks between supply stop occurrences.
-@export var supply_stop_max_chunks: int = 10
+@export var supply_stop_max_chunks: int = 5
 
 @export_group("Doppelgänger / Oncoming Vehicle")
 ## Enables oncoming doppelgänger patrol vehicle encounters in the opposing lane.
@@ -241,9 +241,9 @@ func _spawn_segment(type: RoadSegment.SegmentType) -> RoadSegment:
 	segment.global_transform = target_transform
 	segment.build_segment()
 
-	# Check supply stop spawn eligibility
+	# Check supply stop spawn eligibility (guaranteed regular appearance)
 	var has_supply_stop: bool = false
-	if enable_supply_stops and total_segments_spawned > 3:
+	if enable_supply_stops and total_segments_spawned >= 3:
 		chunks_since_last_supply_stop += 1
 		if chunks_since_last_supply_stop >= next_supply_stop_interval:
 			chunks_since_last_supply_stop = 0
@@ -269,7 +269,8 @@ func _spawn_supply_stop(segment: RoadSegment) -> void:
 	var slice_tr: Transform3D = segment.get_slice_transform(slice_idx)
 
 	var stop_inst := SupplyStopScene.instantiate() as SupplyStop
-	var local_offset := Vector3(5.8, 0.0, 0.0)
+	# Positioned right along the visible right shoulder/berm at ground level
+	var local_offset := Vector3(6.2, 0.2, 0.0)
 	stop_inst.transform = slice_tr * Transform3D(Basis.IDENTITY, local_offset)
 	segment.add_child(stop_inst)
 

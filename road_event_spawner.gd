@@ -15,9 +15,9 @@ const Van = preload("res://van.gd")
 
 @export_group("Roadside Anomalies Probabilities")
 ## Chance (0.0 to 1.0) to spawn a rustic lamppost on a chunk.
-@export var lamppost_probability: float = 0.50
+@export var lamppost_probability: float = 0.55
 ## Chance (0.0 to 1.0) to spawn a mysterious dark silhouette on a chunk.
-@export var silhouette_probability: float = 0.25
+@export var silhouette_probability: float = 0.35
 ## Starting kilometer marker descending toward 77.
 @export var starting_kilometer: int = 85
 ## How many chunks between each kilometer marker milestone.
@@ -25,9 +25,9 @@ const Van = preload("res://van.gd")
 
 @export_group("Liminal Scenery Probabilities")
 ## Chance (0.0 to 1.0) to spawn a tracking roadside hitchhiker on the right verge.
-@export var hitchhiker_probability: float = 0.25
+@export var hitchhiker_probability: float = 0.45
 ## Chance (0.0 to 1.0) to spawn a rustic bus stop shelter.
-@export var bus_stop_probability: float = 0.20
+@export var bus_stop_probability: float = 0.40
 ## Chance (0.0 to 1.0) to spawn a distant cabin with an unreachable glowing window.
 @export var distant_cabin_probability: float = 0.25
 ## Enables continuous dense pine treeline along both road margins.
@@ -36,6 +36,7 @@ const Van = preload("res://van.gd")
 # Internal state
 var current_kilometer: int = 85
 var milestone_counter: int = 0
+var chunks_since_roadside_event: int = 0
 
 # Shared cached materials for performance
 static var _rust_metal_mat: StandardMaterial3D
@@ -61,6 +62,7 @@ static var _taillight_red_mat: StandardMaterial3D
 func _ready() -> void:
 	current_kilometer = starting_kilometer
 	milestone_counter = 0
+	chunks_since_roadside_event = 0
 
 static func _get_blood_crimson_mat() -> StandardMaterial3D:
 	if not _blood_crimson_mat:
@@ -256,14 +258,30 @@ func spawn_events_for_segment(segment: RoadSegment, chunk_index: int, rng: Rando
 		_spawn_woods_for_segment(segment, rng)
 
 	# 7. Roadside Hitchhiker with vehicle tracking rotation
+	var has_roadside_event: bool = false
 	if not has_supply_stop and rng.randf() < hitchhiker_probability:
 		var slice_idx: int = rng.randi_range(1, slice_count - 2)
 		_spawn_hitchhiker(segment, slice_idx, rng)
+		has_roadside_event = true
 
 	# 8. Rural Bus Stop Shelter with optional silhouette and sickly bulb
 	if not has_supply_stop and rng.randf() < bus_stop_probability:
 		var slice_idx: int = rng.randi_range(1, slice_count - 2)
 		_spawn_bus_stop(segment, slice_idx, rng)
+		has_roadside_event = true
+
+	# Pacing Guarantee: ensure at least one roadside event (supply stop, hitchhiker, bus stop) every 3-4 chunks
+	if has_supply_stop or has_roadside_event:
+		chunks_since_roadside_event = 0
+	else:
+		chunks_since_roadside_event += 1
+		if chunks_since_roadside_event >= 3 and chunk_index > 1:
+			chunks_since_roadside_event = 0
+			var slice_idx: int = rng.randi_range(1, slice_count - 2)
+			if rng.randf() < 0.5:
+				_spawn_hitchhiker(segment, slice_idx, rng)
+			else:
+				_spawn_bus_stop(segment, slice_idx, rng)
 
 	# 9. Distant Unreachable Cabin Window Light in the dark woods
 	if rng.randf() < distant_cabin_probability:
@@ -485,30 +503,31 @@ func _spawn_lamppost(segment: RoadSegment, slice_idx: int, rng: RandomNumberGene
 func _spawn_silhouette(segment: RoadSegment, slice_idx: int, rng: RandomNumberGenerator) -> void:
 	var slice_tr: Transform3D = segment.get_slice_transform(slice_idx)
 	var on_left_verge: bool = rng.randf() < 0.5
-	var verge_x: float = -8.7 if on_left_verge else 8.7
-	verge_x += rng.randf_range(-0.2, 0.4) * (-1.0 if on_left_verge else 1.0)
+	# Positioned right along the visible painted shoulder (X = ±7.7m)
+	var verge_x: float = -7.7 if on_left_verge else 7.7
+	verge_x += rng.randf_range(-0.15, 0.15) * (-1.0 if on_left_verge else 1.0)
 
 	var silhouette_root := Node3D.new()
 	silhouette_root.name = "Silhouette_%d" % slice_idx
 
-	# Body box
+	# Body box (1.4m height, human proportions)
 	var body_mesh := BoxMesh.new()
-	body_mesh.size = Vector3(0.42, 2.2, 0.32)
+	body_mesh.size = Vector3(0.44, 1.4, 0.32)
 	body_mesh.material = _get_silhouette_mat()
 
 	var body_inst := MeshInstance3D.new()
 	body_inst.mesh = body_mesh
-	body_inst.position = Vector3(0.0, 1.1, 0.0)
+	body_inst.position = Vector3(0.0, 0.7, 0.0)
 	silhouette_root.add_child(body_inst)
 
-	# Head box
+	# Head box (0.32m height) - total humanoid height ~1.8m
 	var head_mesh := BoxMesh.new()
-	head_mesh.size = Vector3(0.3, 0.32, 0.3)
+	head_mesh.size = Vector3(0.28, 0.32, 0.28)
 	head_mesh.material = _get_silhouette_mat()
 
 	var head_inst := MeshInstance3D.new()
 	head_inst.mesh = head_mesh
-	head_inst.position = Vector3(0.0, 2.35, 0.0)
+	head_inst.position = Vector3(0.0, 1.56, 0.0)
 	silhouette_root.add_child(head_inst)
 
 	# Detection area for narrative radio trigger
@@ -534,14 +553,14 @@ func _spawn_silhouette(segment: RoadSegment, slice_idx: int, rng: RandomNumberGe
 	puddle_inst.position = Vector3(0.0, 0.012, 0.0)
 	silhouette_root.add_child(puddle_inst)
 
-	var local_offset := Vector3(verge_x, 0.5, 0.0)
+	var local_offset := Vector3(verge_x, 0.2, 0.0)
 	silhouette_root.transform = slice_tr * Transform3D(Basis.IDENTITY, local_offset)
 	segment.add_child(silhouette_root)
 
 ## Spawns a roadside milestone marker counting down toward Kilómetro 77.
 func _spawn_milestone_marker(segment: RoadSegment, slice_idx: int, km_value: int) -> void:
 	var slice_tr: Transform3D = segment.get_slice_transform(slice_idx)
-	var verge_x: float = 8.6 # Right shoulder milestone
+	var verge_x: float = 7.7 # Right shoulder milestone
 
 	var marker_root := Node3D.new()
 	marker_root.name = "MilestoneMarker_KM%d" % km_value
@@ -578,66 +597,78 @@ func _spawn_milestone_marker(segment: RoadSegment, slice_idx: int, km_value: int
 	label.rotation.y = 0.0
 	marker_root.add_child(label)
 
-	var local_offset := Vector3(verge_x, 0.5, 0.0)
+	var local_offset := Vector3(verge_x, 0.2, 0.0)
 	marker_root.transform = slice_tr * Transform3D(Basis.IDENTITY, local_offset)
 	segment.add_child(marker_root)
 
 ## Spawns an eerie polygonal hitchhiker on the right verge with an outstretched thumb.
 func _spawn_hitchhiker(segment: RoadSegment, slice_idx: int, rng: RandomNumberGenerator) -> void:
 	var slice_tr: Transform3D = segment.get_slice_transform(slice_idx)
-	var verge_x: float = 9.2 + rng.randf_range(0.0, 0.4)
+	# Positioned right on the visible asphalt shoulder (X = 7.6m), perfectly in front of the barrier
+	var verge_x: float = 7.6 + rng.randf_range(-0.1, 0.1)
 
 	var hitchhiker_root := Hitchhiker.new()
 	hitchhiker_root.name = "Hitchhiker_%d" % slice_idx
 
-	# Body torso (BoxMesh)
+	# Legs (BoxMesh) - 0.76m height
+	var legs_mesh := BoxMesh.new()
+	legs_mesh.size = Vector3(0.36, 0.76, 0.28)
+	legs_mesh.material = _get_silhouette_mat()
+
+	var legs_inst := MeshInstance3D.new()
+	legs_inst.mesh = legs_mesh
+	legs_inst.position = Vector3(0.0, 0.38, 0.0)
+	hitchhiker_root.add_child(legs_inst)
+
+	# Torso (BoxMesh) - 0.68m height
 	var torso_mesh := BoxMesh.new()
-	torso_mesh.size = Vector3(0.42, 1.25, 0.32)
+	torso_mesh.size = Vector3(0.46, 0.68, 0.32)
 	torso_mesh.material = _get_silhouette_mat()
 
 	var torso_inst := MeshInstance3D.new()
 	torso_inst.mesh = torso_mesh
-	torso_inst.position = Vector3(0.0, 0.625, 0.0)
+	torso_inst.position = Vector3(0.0, 1.10, 0.0)
 	hitchhiker_root.add_child(torso_inst)
 
-	# Head (BoxMesh)
+	# Head (BoxMesh) - 0.30m height (total humanoid height ~1.8m)
 	var head_mesh := BoxMesh.new()
-	head_mesh.size = Vector3(0.28, 0.3, 0.28)
+	head_mesh.size = Vector3(0.28, 0.30, 0.28)
 	head_mesh.material = _get_silhouette_mat()
 
 	var head_inst := MeshInstance3D.new()
 	head_inst.mesh = head_mesh
-	head_inst.position = Vector3(0.0, 1.4, 0.0)
+	head_inst.position = Vector3(0.0, 1.59, 0.0)
 	hitchhiker_root.add_child(head_inst)
 
 	# Outstretched hitchhiking arm (BoxMesh) pointing towards road / oncoming traffic
 	var arm_mesh := BoxMesh.new()
-	arm_mesh.size = Vector3(0.65, 0.14, 0.14)
+	arm_mesh.size = Vector3(0.70, 0.14, 0.14)
 	arm_mesh.material = _get_silhouette_mat()
 
 	var arm_inst := MeshInstance3D.new()
 	arm_inst.mesh = arm_mesh
-	arm_inst.position = Vector3(-0.42, 1.05, 0.15)
+	arm_inst.position = Vector3(-0.46, 1.20, 0.15)
 	hitchhiker_root.add_child(arm_inst)
 
-	# Thumb sticking up (PrismMesh / BoxMesh)
+	# Thumb sticking up (BoxMesh)
 	var thumb_mesh := BoxMesh.new()
-	thumb_mesh.size = Vector3(0.08, 0.16, 0.08)
+	thumb_mesh.size = Vector3(0.10, 0.18, 0.10)
 	thumb_mesh.material = _get_silhouette_mat()
 
 	var thumb_inst := MeshInstance3D.new()
 	thumb_inst.mesh = thumb_mesh
-	thumb_inst.position = Vector3(-0.7, 1.16, 0.15)
+	thumb_inst.position = Vector3(-0.76, 1.32, 0.15)
 	hitchhiker_root.add_child(thumb_inst)
 
-	var local_offset := Vector3(verge_x, 0.5, 0.0)
+	var local_offset := Vector3(verge_x, 0.2, 0.0)
 	hitchhiker_root.transform = slice_tr * Transform3D(Basis.IDENTITY, local_offset)
 	segment.add_child(hitchhiker_root)
 
 ## Spawns an open rural bus stop shelter with 3 walls, slanted roof, and optional interior presence.
 func _spawn_bus_stop(segment: RoadSegment, slice_idx: int, rng: RandomNumberGenerator) -> void:
 	var slice_tr: Transform3D = segment.get_slice_transform(slice_idx)
-	var verge_x: float = 11.2 # Set back on the right roadside
+	# Positioned right along the road shoulder edge (X = 8.0m)
+	var verge_x: float = 8.0
 
 	var shelter_root := Node3D.new()
 	shelter_root.name = "BusStop_%d" % slice_idx
@@ -706,24 +737,25 @@ func _spawn_bus_stop(segment: RoadSegment, slice_idx: int, rng: RandomNumberGene
 	bench_inst.position = Vector3(0.0, 0.55, 0.7)
 	shelter_root.add_child(bench_inst)
 
-	# 7. Chance of motionless figure waiting inside under a sickly bulb
-	if rng.randf() < 0.55:
+	# 7. Sickly light bulb casting illumination across the shoulder
+	var bulb := FlickerLight.new()
+	bulb.name = "ShelterBulb"
+	bulb.position = Vector3(0.0, 2.3, 0.0)
+	bulb.light_color = Color(0.85, 0.9, 0.7, 1.0)
+	bulb.base_energy = 2.5
+	bulb.omni_range = 14.0
+	bulb.is_flickering = rng.randf() < 0.7
+	shelter_root.add_child(bulb)
+
+	# 8. Chance of motionless 1.8m figure waiting inside under the bulb
+	if rng.randf() < 0.65:
 		var figure_inst := MeshInstance3D.new()
 		var figure_mesh := BoxMesh.new()
-		figure_mesh.size = Vector3(0.38, 1.7, 0.35)
+		figure_mesh.size = Vector3(0.42, 1.80, 0.36)
 		figure_mesh.material = _get_silhouette_mat()
 		figure_inst.mesh = figure_mesh
-		figure_inst.position = Vector3(0.0, 0.95, 0.5)
+		figure_inst.position = Vector3(0.0, 1.0, 0.5)
 		shelter_root.add_child(figure_inst)
-
-		var bulb := FlickerLight.new()
-		bulb.name = "ShelterBulb"
-		bulb.position = Vector3(0.0, 2.3, 0.0)
-		bulb.light_color = Color(0.85, 0.9, 0.7, 1.0)
-		bulb.base_energy = 1.2
-		bulb.omni_range = 7.0
-		bulb.is_flickering = rng.randf() < 0.7
-		shelter_root.add_child(bulb)
 
 	# Detection area for narrative radio trigger
 	var det_area := Area3D.new()
@@ -739,7 +771,7 @@ func _spawn_bus_stop(segment: RoadSegment, slice_idx: int, rng: RandomNumberGene
 	)
 	shelter_root.add_child(det_area)
 
-	var local_offset := Vector3(verge_x, 0.5, 0.0)
+	var local_offset := Vector3(verge_x, 0.2, 0.0)
 	shelter_root.transform = slice_tr * Transform3D(Basis.IDENTITY, local_offset)
 	segment.add_child(shelter_root)
 
