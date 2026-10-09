@@ -29,6 +29,12 @@ const COLOR_BLOOD_RED := Color(1.0, 0.2, 0.2, 1.0)       # #FF3333
 @onready var interaction_panel: PanelContainer = %InteractionPanel
 @onready var interaction_prompt_label: Label = %InteractionPromptLabel
 @onready var scavenge_progress_bar: ProgressBar = %ScavengeProgressBar
+@onready var forensic_panel: PanelContainer = %ForensicPanel
+@onready var forensic_header: Label = %ForensicHeader
+@onready var forensic_text: Label = %ForensicText
+
+var _forensic_display_timer: float = 0.0
+var _forensic_hold_duration: float = 0.0
 
 var _blink_timer: float = 0.0
 var _blink_visible: bool = true
@@ -83,8 +89,34 @@ func _process(delta: float) -> void:
 	# Handle scavenge interaction message timer
 	_process_interaction_timer(delta)
 
+	# Handle roadside abandoned car forensic log display and fade
+	_process_forensic_log(delta)
+
 	# Direct sync fallback to ensure 100% visual responsiveness
 	_sync_van_state()
+
+func _process_forensic_log(delta: float) -> void:
+	if not forensic_panel or not forensic_panel.visible:
+		return
+	if _forensic_hold_duration > 0.0:
+		_forensic_display_timer += delta
+		if _forensic_display_timer >= _forensic_hold_duration:
+			forensic_panel.modulate.a = move_toward(forensic_panel.modulate.a, 0.0, 1.2 * delta)
+			if forensic_panel.modulate.a <= 0.01:
+				forensic_panel.visible = false
+				_forensic_hold_duration = 0.0
+
+## Displays an atmospheric forensic police log card on the HUD for duration seconds.
+func show_forensic_log(log_text: String, duration: float = 6.0, header: String = "■ FORENSIC FIELD LOG // RECOVERED EVIDENCE") -> void:
+	if not forensic_panel or not forensic_text:
+		return
+	if forensic_header:
+		forensic_header.text = header
+	forensic_text.text = log_text
+	forensic_panel.visible = true
+	forensic_panel.modulate.a = 1.0
+	_forensic_display_timer = 0.0
+	_forensic_hold_duration = duration
 
 func _process_interaction_timer(delta: float) -> void:
 	if _success_message_timer > 0.0:

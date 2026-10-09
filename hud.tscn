@@ -94,6 +94,38 @@ theme_override_font_sizes/font_size = 14
 text = "ROUTE 77  |  KM 85.0 ──> 77.0"
 horizontal_alignment = 1
 
+[node name="ForensicPanel" type="PanelContainer" parent="MarginContainer/Control" unique_id=78234190]
+unique_name_in_owner = true
+visible = false
+custom_minimum_size = Vector2(360, 68)
+layout_mode = 1
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -380.0
+offset_bottom = 76.0
+grow_horizontal = 0
+theme_override_styles/panel = SubResource("StyleBoxFlat_dispatch")
+
+[node name="VBoxContainer" type="VBoxContainer" parent="MarginContainer/Control/ForensicPanel" unique_id=89234191]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="ForensicHeader" type="Label" parent="MarginContainer/Control/ForensicPanel/VBoxContainer" unique_id=90234192]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.2, 1, 0.4, 1)
+theme_override_font_sizes/font_size = 11
+text = "■ FORENSIC FIELD LOG // RECOVERED EVIDENCE"
+
+[node name="ForensicText" type="Label" parent="MarginContainer/Control/ForensicPanel/VBoxContainer" unique_id=91234193]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.69, 0, 1)
+theme_override_font_sizes/font_size = 12
+text = "Report #04: Officer found car idling in rain..."
+autowrap_mode = 3
+
 [node name="BottomLeft" type="VBoxContainer" parent="MarginContainer/Control" unique_id=45192031]
 layout_mode = 1
 anchors_preset = 2
