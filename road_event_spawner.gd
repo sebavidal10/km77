@@ -3,6 +3,7 @@ extends Node
 
 const FlickerLight = preload("res://flicker_light.gd")
 const RoadSegment = preload("res://road_segment.gd")
+const Hitchhiker = preload("res://hitchhiker.gd")
 
 @export_group("Obstacle Probabilities")
 ## Chance (0.0 to 1.0) to spawn a wrecked/crashed vehicle on a chunk.
@@ -20,6 +21,16 @@ const RoadSegment = preload("res://road_segment.gd")
 ## How many chunks between each kilometer marker milestone.
 @export var chunks_per_milestone: int = 2
 
+@export_group("Liminal Scenery Probabilities")
+## Chance (0.0 to 1.0) to spawn a tracking roadside hitchhiker on the right verge.
+@export var hitchhiker_probability: float = 0.25
+## Chance (0.0 to 1.0) to spawn a rustic bus stop shelter.
+@export var bus_stop_probability: float = 0.20
+## Chance (0.0 to 1.0) to spawn a distant cabin with an unreachable glowing window.
+@export var distant_cabin_probability: float = 0.25
+## Enables continuous dense pine treeline along both road margins.
+@export var enable_woods: bool = true
+
 # Internal state
 var current_kilometer: int = 85
 var milestone_counter: int = 0
@@ -35,6 +46,13 @@ static var _lantern_emission_mat: StandardMaterial3D
 static var _silhouette_mat: StandardMaterial3D
 static var _milestone_concrete_mat: StandardMaterial3D
 static var _milestone_red_mat: StandardMaterial3D
+static var _tree_bark_mat: StandardMaterial3D
+static var _tree_foliage_mat: StandardMaterial3D
+static var _bus_stop_mat: StandardMaterial3D
+static var _bus_stop_wood_mat: StandardMaterial3D
+static var _cabin_wall_mat: StandardMaterial3D
+static var _cabin_roof_mat: StandardMaterial3D
+static var _window_emission_mat: StandardMaterial3D
 
 func _ready() -> void:
 	current_kilometer = starting_kilometer
@@ -115,6 +133,57 @@ static func _get_milestone_red_mat() -> StandardMaterial3D:
 		_milestone_red_mat.roughness = 0.8
 	return _milestone_red_mat
 
+static func _get_tree_bark_mat() -> StandardMaterial3D:
+	if not _tree_bark_mat:
+		_tree_bark_mat = StandardMaterial3D.new()
+		_tree_bark_mat.albedo_color = Color(0.12, 0.1, 0.08, 1.0) # Dark forest pine bark
+		_tree_bark_mat.roughness = 0.95
+	return _tree_bark_mat
+
+static func _get_tree_foliage_mat() -> StandardMaterial3D:
+	if not _tree_foliage_mat:
+		_tree_foliage_mat = StandardMaterial3D.new()
+		_tree_foliage_mat.albedo_color = Color(0.035, 0.06, 0.04, 1.0) # Deep blackish green needles
+		_tree_foliage_mat.roughness = 0.95
+	return _tree_foliage_mat
+
+static func _get_bus_stop_mat() -> StandardMaterial3D:
+	if not _bus_stop_mat:
+		_bus_stop_mat = StandardMaterial3D.new()
+		_bus_stop_mat.albedo_color = Color(0.35, 0.38, 0.36, 1.0) # Weathered rural concrete
+		_bus_stop_mat.roughness = 0.95
+	return _bus_stop_mat
+
+static func _get_bus_stop_wood_mat() -> StandardMaterial3D:
+	if not _bus_stop_wood_mat:
+		_bus_stop_wood_mat = StandardMaterial3D.new()
+		_bus_stop_wood_mat.albedo_color = Color(0.2, 0.16, 0.12, 1.0) # Aged dark bench wood
+		_bus_stop_wood_mat.roughness = 0.9
+	return _bus_stop_wood_mat
+
+static func _get_cabin_wall_mat() -> StandardMaterial3D:
+	if not _cabin_wall_mat:
+		_cabin_wall_mat = StandardMaterial3D.new()
+		_cabin_wall_mat.albedo_color = Color(0.08, 0.07, 0.06, 1.0) # Distant dark log cabin
+		_cabin_wall_mat.roughness = 0.95
+	return _cabin_wall_mat
+
+static func _get_cabin_roof_mat() -> StandardMaterial3D:
+	if not _cabin_roof_mat:
+		_cabin_roof_mat = StandardMaterial3D.new()
+		_cabin_roof_mat.albedo_color = Color(0.04, 0.04, 0.04, 1.0) # Dark pitched roof
+		_cabin_roof_mat.roughness = 0.9
+	return _cabin_roof_mat
+
+static func _get_window_emission_mat() -> StandardMaterial3D:
+	if not _window_emission_mat:
+		_window_emission_mat = StandardMaterial3D.new()
+		_window_emission_mat.albedo_color = Color(1.0, 0.82, 0.35, 1.0)
+		_window_emission_mat.emission_enabled = true
+		_window_emission_mat.emission = Color(1.0, 0.8, 0.3, 1.0)
+		_window_emission_mat.emission_energy_multiplier = 3.0
+	return _window_emission_mat
+
 ## Populates a newly spawned RoadSegment with obstacles, roadside props, and milestone markers.
 func spawn_events_for_segment(segment: RoadSegment, chunk_index: int, rng: RandomNumberGenerator) -> void:
 	if not segment:
@@ -159,6 +228,25 @@ func spawn_events_for_segment(segment: RoadSegment, chunk_index: int, rng: Rando
 		var slice_idx: int = slice_count / 2
 		_spawn_milestone_marker(segment, slice_idx, current_kilometer)
 		current_kilometer -= 1
+
+	# 6. Continuous dense pine woods treeline along outer margins
+	if enable_woods:
+		_spawn_woods_for_segment(segment, rng)
+
+	# 7. Roadside Hitchhiker with vehicle tracking rotation
+	if rng.randf() < hitchhiker_probability:
+		var slice_idx: int = rng.randi_range(1, slice_count - 2)
+		_spawn_hitchhiker(segment, slice_idx, rng)
+
+	# 8. Rural Bus Stop Shelter with optional silhouette and sickly bulb
+	if rng.randf() < bus_stop_probability:
+		var slice_idx: int = rng.randi_range(1, slice_count - 2)
+		_spawn_bus_stop(segment, slice_idx, rng)
+
+	# 9. Distant Unreachable Cabin Window Light in the dark woods
+	if rng.randf() < distant_cabin_probability:
+		var slice_idx: int = rng.randi_range(1, slice_count - 2)
+		_spawn_distant_cabin(segment, slice_idx, rng)
 
 ## Spawns an abandoned/crashed car blocking one lane with heavy collision.
 func _spawn_crashed_vehicle(segment: RoadSegment, slice_idx: int, rng: RandomNumberGenerator) -> void:
@@ -416,3 +504,262 @@ func _spawn_milestone_marker(segment: RoadSegment, slice_idx: int, km_value: int
 	var local_offset := Vector3(verge_x, 0.5, 0.0)
 	marker_root.transform = slice_tr * Transform3D(Basis.IDENTITY, local_offset)
 	segment.add_child(marker_root)
+
+## Spawns an eerie polygonal hitchhiker on the right verge with an outstretched thumb.
+func _spawn_hitchhiker(segment: RoadSegment, slice_idx: int, rng: RandomNumberGenerator) -> void:
+	var slice_tr: Transform3D = segment.get_slice_transform(slice_idx)
+	var verge_x: float = 9.2 + rng.randf_range(0.0, 0.4)
+
+	var hitchhiker_root := Hitchhiker.new()
+	hitchhiker_root.name = "Hitchhiker_%d" % slice_idx
+
+	# Body torso (BoxMesh)
+	var torso_mesh := BoxMesh.new()
+	torso_mesh.size = Vector3(0.42, 1.25, 0.32)
+	torso_mesh.material = _get_silhouette_mat()
+
+	var torso_inst := MeshInstance3D.new()
+	torso_inst.mesh = torso_mesh
+	torso_inst.position = Vector3(0.0, 0.625, 0.0)
+	hitchhiker_root.add_child(torso_inst)
+
+	# Head (BoxMesh)
+	var head_mesh := BoxMesh.new()
+	head_mesh.size = Vector3(0.28, 0.3, 0.28)
+	head_mesh.material = _get_silhouette_mat()
+
+	var head_inst := MeshInstance3D.new()
+	head_inst.mesh = head_mesh
+	head_inst.position = Vector3(0.0, 1.4, 0.0)
+	hitchhiker_root.add_child(head_inst)
+
+	# Outstretched hitchhiking arm (BoxMesh) pointing towards road / oncoming traffic
+	var arm_mesh := BoxMesh.new()
+	arm_mesh.size = Vector3(0.65, 0.14, 0.14)
+	arm_mesh.material = _get_silhouette_mat()
+
+	var arm_inst := MeshInstance3D.new()
+	arm_inst.mesh = arm_mesh
+	arm_inst.position = Vector3(-0.42, 1.05, 0.15)
+	hitchhiker_root.add_child(arm_inst)
+
+	# Thumb sticking up (PrismMesh / BoxMesh)
+	var thumb_mesh := BoxMesh.new()
+	thumb_mesh.size = Vector3(0.08, 0.16, 0.08)
+	thumb_mesh.material = _get_silhouette_mat()
+
+	var thumb_inst := MeshInstance3D.new()
+	thumb_inst.mesh = thumb_mesh
+	thumb_inst.position = Vector3(-0.7, 1.16, 0.15)
+	hitchhiker_root.add_child(thumb_inst)
+
+	var local_offset := Vector3(verge_x, 0.5, 0.0)
+	hitchhiker_root.transform = slice_tr * Transform3D(Basis.IDENTITY, local_offset)
+	segment.add_child(hitchhiker_root)
+
+## Spawns an open rural bus stop shelter with 3 walls, slanted roof, and optional interior presence.
+func _spawn_bus_stop(segment: RoadSegment, slice_idx: int, rng: RandomNumberGenerator) -> void:
+	var slice_tr: Transform3D = segment.get_slice_transform(slice_idx)
+	var verge_x: float = 11.2 # Set back on the right roadside
+
+	var shelter_root := Node3D.new()
+	shelter_root.name = "BusStop_%d" % slice_idx
+
+	var concrete_mat := _get_bus_stop_mat()
+	var wood_mat := _get_bus_stop_wood_mat()
+
+	# 1. Base floor slab (BoxMesh)
+	var floor_mesh := BoxMesh.new()
+	floor_mesh.size = Vector3(4.2, 0.2, 2.6)
+	floor_mesh.material = concrete_mat
+
+	var floor_inst := MeshInstance3D.new()
+	floor_inst.mesh = floor_mesh
+	floor_inst.position = Vector3(0.0, 0.1, 0.0)
+	shelter_root.add_child(floor_inst)
+
+	# 2. Back wall (BoxMesh)
+	var back_wall_mesh := BoxMesh.new()
+	back_wall_mesh.size = Vector3(4.2, 2.5, 0.2)
+	back_wall_mesh.material = concrete_mat
+
+	var back_inst := MeshInstance3D.new()
+	back_inst.mesh = back_wall_mesh
+	back_inst.position = Vector3(0.0, 1.35, 1.2)
+	shelter_root.add_child(back_inst)
+
+	# 3. Left side wall (BoxMesh)
+	var left_wall_mesh := BoxMesh.new()
+	left_wall_mesh.size = Vector3(0.2, 2.5, 2.4)
+	left_wall_mesh.material = concrete_mat
+
+	var left_inst := MeshInstance3D.new()
+	left_inst.mesh = left_wall_mesh
+	left_inst.position = Vector3(-2.0, 1.35, 0.0)
+	shelter_root.add_child(left_inst)
+
+	# 4. Right side wall (BoxMesh)
+	var right_wall_mesh := BoxMesh.new()
+	right_wall_mesh.size = Vector3(0.2, 2.5, 2.4)
+	right_wall_mesh.material = concrete_mat
+
+	var right_inst := MeshInstance3D.new()
+	right_inst.mesh = right_wall_mesh
+	right_inst.position = Vector3(2.0, 1.35, 0.0)
+	shelter_root.add_child(right_inst)
+
+	# 5. Slanted roof (BoxMesh angled forward)
+	var roof_mesh := BoxMesh.new()
+	roof_mesh.size = Vector3(4.6, 0.15, 2.9)
+	roof_mesh.material = concrete_mat
+
+	var roof_inst := MeshInstance3D.new()
+	roof_inst.mesh = roof_mesh
+	roof_inst.position = Vector3(0.0, 2.65, 0.0)
+	roof_inst.rotation.x = deg_to_rad(-8.0)
+	shelter_root.add_child(roof_inst)
+
+	# 6. Interior bench (BoxMesh)
+	var bench_mesh := BoxMesh.new()
+	bench_mesh.size = Vector3(2.6, 0.12, 0.5)
+	bench_mesh.material = wood_mat
+
+	var bench_inst := MeshInstance3D.new()
+	bench_inst.mesh = bench_mesh
+	bench_inst.position = Vector3(0.0, 0.55, 0.7)
+	shelter_root.add_child(bench_inst)
+
+	# 7. Chance of motionless figure waiting inside under a sickly bulb
+	if rng.randf() < 0.55:
+		var figure_inst := MeshInstance3D.new()
+		var figure_mesh := BoxMesh.new()
+		figure_mesh.size = Vector3(0.38, 1.7, 0.35)
+		figure_mesh.material = _get_silhouette_mat()
+		figure_inst.mesh = figure_mesh
+		figure_inst.position = Vector3(0.0, 0.95, 0.5)
+		shelter_root.add_child(figure_inst)
+
+		var bulb := FlickerLight.new()
+		bulb.name = "ShelterBulb"
+		bulb.position = Vector3(0.0, 2.3, 0.0)
+		bulb.light_color = Color(0.85, 0.9, 0.7, 1.0)
+		bulb.base_energy = 1.2
+		bulb.omni_range = 7.0
+		bulb.is_flickering = rng.randf() < 0.7
+		shelter_root.add_child(bulb)
+
+	var local_offset := Vector3(verge_x, 0.5, 0.0)
+	shelter_root.transform = slice_tr * Transform3D(Basis.IDENTITY, local_offset)
+	segment.add_child(shelter_root)
+
+## Spawns dense pine forest tree silhouettes along outer road margins.
+func _spawn_woods_for_segment(segment: RoadSegment, rng: RandomNumberGenerator) -> void:
+	var slice_count: int = segment.get_slice_count()
+	var bark_mat := _get_tree_bark_mat()
+	var foliage_mat := _get_tree_foliage_mat()
+
+	for i in range(slice_count):
+		var slice_tr: Transform3D = segment.get_slice_transform(i)
+
+		# Spawn 2-3 trees on left verge and 2-3 trees on right verge
+		var left_trees: int = rng.randi_range(2, 3)
+		var right_trees: int = rng.randi_range(2, 3)
+
+		# Left side woods: X between -26m and -12.5m
+		for t in range(left_trees):
+			var x_dist: float = rng.randf_range(-26.0, -12.5)
+			var z_dist: float = rng.randf_range(-4.0, 4.0)
+			_spawn_tree(segment, slice_tr, Vector3(x_dist, 0.0, z_dist), bark_mat, foliage_mat, rng)
+
+		# Right side woods: X between +12.5m and +26m
+		for t in range(right_trees):
+			var x_dist: float = rng.randf_range(12.5, 26.0)
+			var z_dist: float = rng.randf_range(-4.0, 4.0)
+			_spawn_tree(segment, slice_tr, Vector3(x_dist, 0.0, z_dist), bark_mat, foliage_mat, rng)
+
+## Helper to build an individual pine tree from CylinderMesh primitives.
+func _spawn_tree(segment: RoadSegment, slice_tr: Transform3D, local_offset: Vector3, bark_mat: StandardMaterial3D, foliage_mat: StandardMaterial3D, rng: RandomNumberGenerator) -> void:
+	var tree_root := Node3D.new()
+	var height: float = rng.randf_range(6.5, 9.5)
+	var trunk_h: float = height * 0.45
+
+	# Trunk (CylinderMesh)
+	var trunk_mesh := CylinderMesh.new()
+	trunk_mesh.top_radius = 0.2
+	trunk_mesh.bottom_radius = 0.32
+	trunk_mesh.height = trunk_h
+	trunk_mesh.material = bark_mat
+
+	var trunk_inst := MeshInstance3D.new()
+	trunk_inst.mesh = trunk_mesh
+	trunk_inst.position = Vector3(0.0, trunk_h * 0.5, 0.0)
+	tree_root.add_child(trunk_inst)
+
+	# Foliage cone (CylinderMesh with top_radius = 0)
+	var foliage_h: float = height * 0.7
+	var foliage_mesh := CylinderMesh.new()
+	foliage_mesh.top_radius = 0.0
+	foliage_mesh.bottom_radius = rng.randf_range(1.6, 2.4)
+	foliage_mesh.height = foliage_h
+	foliage_mesh.material = foliage_mat
+
+	var foliage_inst := MeshInstance3D.new()
+	foliage_inst.mesh = foliage_mesh
+	foliage_inst.position = Vector3(0.0, trunk_h + (foliage_h * 0.45), 0.0)
+	tree_root.add_child(foliage_inst)
+
+	tree_root.transform = slice_tr * Transform3D(Basis.IDENTITY, local_offset)
+	segment.add_child(tree_root)
+
+## Spawns a distant, unreachable cabin in the dark woods with an illuminated window and eerie light.
+func _spawn_distant_cabin(segment: RoadSegment, slice_idx: int, rng: RandomNumberGenerator) -> void:
+	var slice_tr: Transform3D = segment.get_slice_transform(slice_idx)
+	var on_left: bool = rng.randf() < 0.5
+	var distance_x: float = rng.randf_range(-34.0, -26.0) if on_left else rng.randf_range(26.0, 34.0)
+
+	var cabin_root := Node3D.new()
+	cabin_root.name = "DistantCabin_%d" % slice_idx
+
+	# Cabin body (BoxMesh)
+	var cabin_mesh := BoxMesh.new()
+	cabin_mesh.size = Vector3(5.2, 3.4, 5.8)
+	cabin_mesh.material = _get_cabin_wall_mat()
+
+	var cabin_inst := MeshInstance3D.new()
+	cabin_inst.mesh = cabin_mesh
+	cabin_inst.position = Vector3(0.0, 1.7, 0.0)
+	cabin_root.add_child(cabin_inst)
+
+	# Pitched Roof (PrismMesh)
+	var roof_mesh := PrismMesh.new()
+	roof_mesh.size = Vector3(5.6, 1.8, 6.2)
+	roof_mesh.material = _get_cabin_roof_mat()
+
+	var roof_inst := MeshInstance3D.new()
+	roof_inst.mesh = roof_mesh
+	roof_inst.position = Vector3(0.0, 4.3, 0.0)
+	cabin_root.add_child(roof_inst)
+
+	# Eerie glowing yellow window (BoxMesh with warm emission)
+	var window_mesh := BoxMesh.new()
+	window_mesh.size = Vector3(0.9, 0.9, 0.1)
+	window_mesh.material = _get_window_emission_mat()
+
+	var window_inst := MeshInstance3D.new()
+	window_inst.mesh = window_mesh
+	var window_x: float = 1.2 if on_left else -1.2
+	window_inst.position = Vector3(window_x, 1.8, -2.95)
+	cabin_root.add_child(window_inst)
+
+	# Distant warm OmniLight3D emanating from the window
+	var light := OmniLight3D.new()
+	light.position = Vector3(window_x, 1.8, -3.2)
+	light.light_color = Color(1.0, 0.78, 0.3, 1.0)
+	light.light_energy = 1.8
+	light.omni_range = 14.0
+	light.omni_attenuation = 1.2
+	cabin_root.add_child(light)
+
+	var local_offset := Vector3(distance_x, 0.0, 0.0)
+	cabin_root.transform = slice_tr * Transform3D(Basis.IDENTITY, local_offset)
+	segment.add_child(cabin_root)
