@@ -4,6 +4,7 @@
 [ext_resource type="Script" uid="uid://dvsjh1krtwsni" path="res://chase_camera.gd" id="1_fj7yv"]
 [ext_resource type="Script" uid="uid://cuqv112f85gvi" path="res://road_manager.gd" id="2_rmgr"]
 [ext_resource type="PackedScene" path="res://hud.tscn" id="3_hud"]
+[ext_resource type="Script" path="res://radio_manager.gd" id="4_radio"]
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_amspa"]
 size = Vector3(2, 1.5, 4)
@@ -78,3 +79,6 @@ environment = SubResource("Environment_ku5fm")
 
 [node name="HUD" parent="." unique_id=2085714920 instance=ExtResource("3_hud") node_paths=PackedStringArray("target_van")]
 target_van = NodePath("../Van")
+
+[node name="RadioManager" type="Node" parent="." unique_id=1928475012]
+script = ExtResource("4_radio")

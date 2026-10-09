@@ -37,6 +37,22 @@ corner_radius_top_right = 1
 corner_radius_bottom_right = 1
 corner_radius_bottom_left = 1
 
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_dispatch"]
+content_margin_left = 16.0
+content_margin_top = 10.0
+content_margin_right = 16.0
+content_margin_bottom = 10.0
+bg_color = Color(0.02, 0.035, 0.03, 0.88)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.2, 0.65, 0.38, 0.75)
+corner_radius_top_left = 2
+corner_radius_top_right = 2
+corner_radius_bottom_right = 2
+corner_radius_bottom_left = 2
+
 [node name="HUD" type="CanvasLayer" unique_id=2085714920]
 script = ExtResource("1_hud")
 
@@ -174,3 +190,39 @@ theme_override_styles/background = SubResource("StyleBoxFlat_bar_bg")
 theme_override_styles/fill = SubResource("StyleBoxFlat_bar_fill")
 value = 100.0
 show_percentage = false
+
+[node name="DispatchPanel" type="PanelContainer" parent="MarginContainer/Control" unique_id=89230145]
+unique_name_in_owner = true
+visible = false
+custom_minimum_size = Vector2(520, 68)
+layout_mode = 1
+anchors_preset = 7
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -260.0
+offset_top = -94.0
+offset_right = 260.0
+offset_bottom = -20.0
+grow_horizontal = 2
+grow_vertical = 0
+theme_override_styles/panel = SubResource("StyleBoxFlat_dispatch")
+
+[node name="VBoxContainer" type="VBoxContainer" parent="MarginContainer/Control/DispatchPanel" unique_id=98341029]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="DispatchHeader" type="Label" parent="MarginContainer/Control/DispatchPanel/VBoxContainer" unique_id=12948192]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.3, 0.85, 0.45, 1)
+theme_override_font_sizes/font_size = 11
+text = "● RX // POLICE DISPATCH FREQ 142.8 MHz"
+
+[node name="DispatchText" type="Label" parent="MarginContainer/Control/DispatchPanel/VBoxContainer" unique_id=34019284]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.95, 0.88, 0.52, 1)
+theme_override_font_sizes/font_size = 13
+text = "[DISPATCH 10-4] Unit 77, report status..."
+autowrap_mode = 3

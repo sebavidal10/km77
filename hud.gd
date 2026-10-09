@@ -1,6 +1,9 @@
 class_name HUD
 extends CanvasLayer
 
+const RadioManager = preload("res://radio_manager.gd")
+const Van = preload("res://van.gd")
+
 @export_group("Target")
 ## The vehicle node to observe for telemetry, fuel, and trip metrics.
 @export var target_van: Van
@@ -11,24 +14,43 @@ extends CanvasLayer
 @onready var fuel_bar: ProgressBar = %FuelBar
 @onready var fuel_percent_label: Label = %FuelPercent
 @onready var low_fuel_warning: Label = %LowFuelWarning
+@onready var dispatch_panel: PanelContainer = %DispatchPanel
+@onready var dispatch_label: Label = %DispatchText
 
 var _blink_timer: float = 0.0
 var _blink_visible: bool = true
 
+# Radio dispatch typewriter & fade state
+var _target_dispatch_text: String = ""
+var _displayed_chars: int = 0
+var _typewriter_timer: float = 0.0
+var _is_typing: bool = false
+var _is_displaying_dispatch: bool = false
+var _dispatch_display_timer: float = 0.0
+var _dispatch_hold_duration: float = 0.0
+var _cursor_blink_timer: float = 0.0
+var _cursor_visible: bool = true
+
 func _ready() -> void:
 	_find_van()
 	_connect_van_signals()
+	_connect_radio_manager()
 	_update_initial_display()
+	if dispatch_panel:
+		dispatch_panel.visible = false
+		dispatch_panel.modulate.a = 0.0
 
 func _process(delta: float) -> void:
 	if not target_van:
 		_find_van()
 		if target_van:
 			_connect_van_signals()
-		return
 
 	# Handle low fuel warning blinking
 	_process_low_fuel_warning(delta)
+
+	# Handle radio dispatch typewriter effect and smooth fade
+	_process_radio_dispatch(delta)
 
 	# Direct sync fallback to ensure 100% visual responsiveness
 	_sync_van_state()
@@ -42,9 +64,11 @@ func _find_van() -> void:
 		if van_candidate:
 			target_van = van_candidate
 			return
-	var nodes := get_tree().get_nodes_in_group("player")
-	if not nodes.is_empty() and nodes[0] is Van:
-		target_van = nodes[0] as Van
+	var tree := get_tree()
+	if tree:
+		var nodes := tree.get_nodes_in_group("player")
+		if not nodes.is_empty() and nodes[0] is Van:
+			target_van = nodes[0] as Van
 
 func _connect_van_signals() -> void:
 	if not target_van:
@@ -57,6 +81,11 @@ func _connect_van_signals() -> void:
 		target_van.distance_updated.connect(_on_distance_updated)
 	if not target_van.drift_state_changed.is_connected(_on_drift_state_changed):
 		target_van.drift_state_changed.connect(_on_drift_state_changed)
+
+func _connect_radio_manager() -> void:
+	if RadioManager.instance:
+		if not RadioManager.instance.dispatch_received.is_connected(_on_dispatch_received):
+			RadioManager.instance.dispatch_received.connect(_on_dispatch_received)
 
 func _update_initial_display() -> void:
 	if target_van:
@@ -93,6 +122,54 @@ func _process_low_fuel_warning(delta: float) -> void:
 		low_fuel_warning.modulate = Color(1.0, 0.35, 0.2, 1.0)
 	else:
 		low_fuel_warning.visible = false
+
+func _process_radio_dispatch(delta: float) -> void:
+	if not dispatch_panel or not dispatch_label:
+		return
+
+	if not RadioManager.instance or not RadioManager.instance.dispatch_received.is_connected(_on_dispatch_received):
+		_connect_radio_manager()
+
+	if _is_typing:
+		_typewriter_timer += delta
+		_cursor_blink_timer += delta
+		if _cursor_blink_timer >= 0.16:
+			_cursor_blink_timer = 0.0
+			_cursor_visible = not _cursor_visible
+
+		# Progressive character reveal (~30 characters/second)
+		if _typewriter_timer >= 0.032:
+			_typewriter_timer = 0.0
+			_displayed_chars += 1
+			var current_slice: String = _target_dispatch_text.substr(0, _displayed_chars)
+			var cursor: String = "_" if _cursor_visible else " "
+			dispatch_label.text = current_slice + cursor
+
+			if _displayed_chars >= _target_dispatch_text.length():
+				_is_typing = false
+				dispatch_label.text = _target_dispatch_text
+	elif _is_displaying_dispatch:
+		_dispatch_display_timer += delta
+		if _dispatch_display_timer >= _dispatch_hold_duration:
+			# Smooth fade out
+			dispatch_panel.modulate.a = move_toward(dispatch_panel.modulate.a, 0.0, 1.6 * delta)
+			if dispatch_panel.modulate.a <= 0.01:
+				dispatch_panel.visible = false
+				_is_displaying_dispatch = false
+
+func _on_dispatch_received(text: String, duration: float) -> void:
+	if not dispatch_panel or not dispatch_label:
+		return
+	_target_dispatch_text = text
+	_displayed_chars = 0
+	_typewriter_timer = 0.0
+	_dispatch_display_timer = 0.0
+	_dispatch_hold_duration = duration
+	_is_typing = true
+	_is_displaying_dispatch = true
+	dispatch_label.text = "_"
+	dispatch_panel.visible = true
+	dispatch_panel.modulate.a = 1.0
 
 func _on_speed_updated(speed_kmh: float) -> void:
 	if speed_value_label:
