@@ -82,8 +82,8 @@ func _spawn_initial_track() -> void:
 	# 1. Spawn a straight buffer segment behind the starting vehicle position (from Z = 80 to Z = 0)
 	var initial_rear_transform := Transform3D(Basis.IDENTITY, Vector3(0.0, 0.0, segment_length))
 	var rear_segment := _create_segment_node(RoadSegment.SegmentType.STRAIGHT)
-	rear_segment.global_transform = initial_rear_transform
 	add_child(rear_segment)
+	rear_segment.global_transform = initial_rear_transform
 	rear_segment.build_segment()
 	active_segments.append(rear_segment)
 	total_segments_spawned += 1
@@ -100,34 +100,32 @@ func _update_road_streaming() -> void:
 	if active_segments.is_empty():
 		return
 
-	var vehicle_pos := target_vehicle.global_position
+	var vehicle_pos := target_vehicle.global_position if target_vehicle.is_inside_tree() else target_vehicle.position
 
-	# 1. Determine vehicle's current segment index
-	var current_segment_index := -1
+	# 1. Find closest segment to determine vehicle's current segment index
+	var current_segment_index: int = 0
+	var min_dist: float = INF
 	for i in range(active_segments.size()):
-		var segment := active_segments[i]
-		# If the vehicle has NOT crossed this segment's exit, it is currently on or before it
-		if not segment.is_behind_position(vehicle_pos, 0.0):
+		var segment: RoadSegment = active_segments[i]
+		var dist := vehicle_pos.distance_to(segment.get_exit_position())
+		if dist < min_dist:
+			min_dist = dist
 			current_segment_index = i
-			break
-
-	# If vehicle is past all registered segments, default to the last one
-	if current_segment_index == -1:
-		current_segment_index = active_segments.size() - 1
 
 	# 2. Maintain active chunks ahead of current segment
-	var segments_ahead := active_segments.size() - 1 - current_segment_index
+	var segments_ahead: int = active_segments.size() - 1 - current_segment_index
 	while segments_ahead < max_segments_ahead:
 		var next_type := _select_next_segment_type()
 		_spawn_segment(next_type)
 		segments_ahead += 1
 
 	# 3. Recycle old segments that are far behind the vehicle
-	while active_segments.size() > (min_segments_ahead + 1):
-		var oldest_segment := active_segments[0]
-		if oldest_segment.is_behind_position(vehicle_pos, despawn_distance):
+	while active_segments.size() > (min_segments_ahead + 1) and current_segment_index > 1:
+		var oldest_segment: RoadSegment = active_segments[0]
+		if vehicle_pos.distance_to(oldest_segment.get_exit_position()) > despawn_distance:
 			active_segments.pop_front()
 			oldest_segment.queue_free()
+			current_segment_index -= 1
 		else:
 			break
 
@@ -174,12 +172,13 @@ func _create_segment_node(type: RoadSegment.SegmentType) -> RoadSegment:
 func _spawn_segment(type: RoadSegment.SegmentType) -> RoadSegment:
 	var segment := _create_segment_node(type)
 
+	var target_transform := Transform3D.IDENTITY
 	if not active_segments.is_empty():
-		var last_segment := active_segments.back()
-		# Anchor new chunk exactly at the exit anchor of the preceding chunk
-		segment.global_transform = last_segment.get_exit_transform()
+		var last_segment: RoadSegment = active_segments.back()
+		target_transform = last_segment.get_exit_transform()
 
 	add_child(segment)
+	segment.global_transform = target_transform
 	segment.build_segment()
 	active_segments.append(segment)
 	total_segments_spawned += 1

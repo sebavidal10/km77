@@ -186,20 +186,19 @@ func build_segment() -> void:
 ## Returns the global transform of the exit anchor for seamless chunk chaining.
 func get_exit_transform() -> Transform3D:
 	if not exit_marker:
-		return global_transform
-	return exit_marker.global_transform
+		return global_transform if is_inside_tree() else transform
+	if is_inside_tree() and exit_marker.is_inside_tree():
+		return exit_marker.global_transform
+	var parent_tr := global_transform if is_inside_tree() else transform
+	return parent_tr * exit_marker.transform
 
 ## Returns the global position of the exit anchor.
 func get_exit_position() -> Vector3:
-	if not exit_marker:
-		return global_position
-	return exit_marker.global_position
+	return get_exit_transform().origin
 
 ## Returns the forward tangent vector at the exit of this chunk.
 func get_exit_forward() -> Vector3:
-	if not exit_marker:
-		return -global_transform.basis.z
-	return -exit_marker.global_transform.basis.z
+	return -get_exit_transform().basis.z
 
 ## Checks whether a target position has progressed past this chunk's exit by threshold_distance.
 func is_behind_position(target_global_pos: Vector3, threshold_distance: float) -> bool:
