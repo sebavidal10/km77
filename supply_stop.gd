@@ -98,6 +98,8 @@ func _process_interaction(delta: float) -> void:
 			if Input.is_action_pressed("interact"):
 				if scavenge_time == 0.0:
 					scavenge_started.emit()
+					if RadioManager.instance:
+						RadioManager.instance.report_supply_stop_started()
 				scavenge_time += delta
 				var ratio := clampf(scavenge_time / scavenge_required_time, 0.0, 1.0)
 				_update_hud_prompt("SCAVENGING SUPPLIES...", ratio)
@@ -142,7 +144,8 @@ func _trigger_threat() -> void:
 			RadioManager.instance.broadcast_dispatch(
 				"[STATIC BURST] ...it's right outside the glass... DON'T LOOK AT IT... DRIVE...",
 				6.0,
-				true
+				true,
+				0.85
 			)
 
 func _dismiss_threat() -> void:
@@ -161,6 +164,9 @@ func _complete_scavenge() -> void:
 	# Disable area to prevent repeated use
 	if interaction_area:
 		interaction_area.set_deferred("monitoring", false)
+
+	if RadioManager.instance:
+		RadioManager.instance.report_supply_stop_completed()
 
 	var hud := _find_hud()
 	if hud:

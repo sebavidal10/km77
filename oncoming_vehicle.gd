@@ -209,16 +209,13 @@ func _physics_process(delta: float) -> void:
 
 func _notify_radio_approach() -> void:
 	if RadioManager.instance:
-		RadioManager.instance.broadcast_dispatch(
-			"[RADIO STATIC] ...be advised! Headlights in oncoming lane... who is driving outbound on 77?!",
-			6.0,
-			true
-		)
+		RadioManager.instance.report_doppelganger_encounter()
 
 func _notify_radio_collision() -> void:
 	if RadioManager.instance:
 		RadioManager.instance.broadcast_dispatch(
 			"[RADIO 10-0] ...HEAVY 10-50 HEAD-ON COLLISION REPORTED ON KM 77 SECTOR... SIGNAL LOST...",
 			7.0,
-			true
+			true,
+			0.95
 		)

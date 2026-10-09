@@ -4,6 +4,8 @@ extends Node
 const FlickerLight = preload("res://flicker_light.gd")
 const RoadSegment = preload("res://road_segment.gd")
 const Hitchhiker = preload("res://hitchhiker.gd")
+const RadioManager = preload("res://radio_manager.gd")
+const Van = preload("res://van.gd")
 
 @export_group("Obstacle Probabilities")
 ## Chance (0.0 to 1.0) to spawn a wrecked/crashed vehicle on a chunk.
@@ -457,6 +459,20 @@ func _spawn_silhouette(segment: RoadSegment, slice_idx: int, rng: RandomNumberGe
 	head_inst.position = Vector3(0.0, 2.35, 0.0)
 	silhouette_root.add_child(head_inst)
 
+	# Detection area for narrative radio trigger
+	var det_area := Area3D.new()
+	det_area.name = "ProximityArea"
+	var det_col := CollisionShape3D.new()
+	var det_shape := SphereShape3D.new()
+	det_shape.radius = 18.0
+	det_col.shape = det_shape
+	det_area.add_child(det_col)
+	det_area.body_entered.connect(func(body: Node3D):
+		if body is Van and RadioManager.instance:
+			RadioManager.instance.report_silhouette_proximity(silhouette_root.global_position)
+	)
+	silhouette_root.add_child(det_area)
+
 	var local_offset := Vector3(verge_x, 0.5, 0.0)
 	silhouette_root.transform = slice_tr * Transform3D(Basis.IDENTITY, local_offset)
 	segment.add_child(silhouette_root)
@@ -647,6 +663,20 @@ func _spawn_bus_stop(segment: RoadSegment, slice_idx: int, rng: RandomNumberGene
 		bulb.omni_range = 7.0
 		bulb.is_flickering = rng.randf() < 0.7
 		shelter_root.add_child(bulb)
+
+	# Detection area for narrative radio trigger
+	var det_area := Area3D.new()
+	det_area.name = "ProximityArea"
+	var det_col := CollisionShape3D.new()
+	var det_shape := SphereShape3D.new()
+	det_shape.radius = 20.0
+	det_col.shape = det_shape
+	det_area.add_child(det_col)
+	det_area.body_entered.connect(func(body: Node3D):
+		if body is Van and RadioManager.instance:
+			RadioManager.instance.report_silhouette_proximity(shelter_root.global_position)
+	)
+	shelter_root.add_child(det_area)
 
 	var local_offset := Vector3(verge_x, 0.5, 0.0)
 	shelter_root.transform = slice_tr * Transform3D(Basis.IDENTITY, local_offset)

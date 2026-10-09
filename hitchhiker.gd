@@ -7,7 +7,10 @@ extends Node3D
 ## Smooth rotational speed (radians per second) when tracking the passing vehicle.
 @export var turn_speed: float = 2.4
 
+const RadioManager = preload("res://radio_manager.gd")
+
 var target_node: Node3D
+var _reported_proximity: bool = false
 
 func _ready() -> void:
 	_find_player()
@@ -19,6 +22,11 @@ func _process(delta: float) -> void:
 
 	var dist := global_position.distance_to(target_node.global_position)
 	if dist <= tracking_range:
+		if not _reported_proximity and dist <= 24.0:
+			_reported_proximity = true
+			if RadioManager.instance:
+				RadioManager.instance.report_silhouette_proximity(global_position)
+
 		# Smoothly rotate around Y-axis to track the passing vehicle
 		var to_target := target_node.global_position - global_position
 		to_target.y = 0.0

@@ -55,6 +55,7 @@ func _ready() -> void:
 
 	_apply_all_uniforms()
 	_connect_vehicle_events()
+	_connect_radio_events()
 
 func _process(delta: float) -> void:
 	if _current_glitch_intensity > 0.001:
@@ -110,3 +111,27 @@ func _on_collision_impact(trauma: float) -> void:
 	# Convert physical crash trauma into visual VHS tear glitch
 	var glitch_amount := clampf(trauma * 0.75, 0.25, 0.95)
 	trigger_glitch(glitch_amount, 2.2)
+
+func _connect_radio_events() -> void:
+	var tree := get_tree()
+	if not tree:
+		return
+	var root := tree.current_scene
+	if root:
+		var radio_candidate := root.get_node_or_null("RadioManager")
+		if radio_candidate and radio_candidate.has_signal("static_burst_triggered"):
+			if not radio_candidate.static_burst_triggered.is_connected(_on_radio_static_burst):
+				radio_candidate.static_burst_triggered.connect(_on_radio_static_burst)
+			return
+
+	tree.create_timer(0.2).timeout.connect(func():
+		var scene := get_tree().current_scene if get_tree() else null
+		if scene:
+			var radio := scene.get_node_or_null("RadioManager")
+			if radio and radio.has_signal("static_burst_triggered"):
+				if not radio.static_burst_triggered.is_connected(_on_radio_static_burst):
+					radio.static_burst_triggered.connect(_on_radio_static_burst)
+	)
+
+func _on_radio_static_burst(intensity: float, decay_speed: float) -> void:
+	trigger_glitch(intensity, decay_speed)
