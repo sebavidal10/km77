@@ -347,10 +347,13 @@ func _physics_process(delta: float) -> void:
 	_process_odometer(delta)
 	_process_telemetry()
 
-	# 10. Process visual anomalies and glitches (Fog pulse & headlight strobing)
+	# 10. Process visual anomalies, headlight strobing, and reactive taillights/reverse lights
 	_process_visual_effects(delta)
 
-	# 11. Visual chassis roll animation linked to smoothed steering angle
+	# 11. Functional rotating and steering wheels
+	_process_wheel_transformations(delta)
+
+	# 12. Visual chassis roll animation linked to smoothed steering angle
 	_process_visual_roll(delta, forward_speed_state)
 
 ## Starts the vehicle shutdown and blackout sequence.
@@ -390,6 +393,10 @@ func _process_collapse(delta: float) -> void:
 			_taillight_mat.emission_energy_multiplier = move_toward(_taillight_mat.emission_energy_multiplier, 0.0, 3.5 * delta)
 		if brake_omni_light:
 			brake_omni_light.light_energy = move_toward(brake_omni_light.light_energy, 0.0, 3.5 * delta)
+		if _reverse_light_mat:
+			_reverse_light_mat.emission_energy_multiplier = move_toward(_reverse_light_mat.emission_energy_multiplier, 0.0, 3.5 * delta)
+		if reverse_omni_light:
+			reverse_omni_light.light_energy = move_toward(reverse_omni_light.light_energy, 0.0, 3.5 * delta)
 
 		_collapse_timer += delta
 		if _collapse_timer >= 2.2:
@@ -401,6 +408,8 @@ func _process_collapse(delta: float) -> void:
 				headlight_right.visible = false
 			if brake_omni_light:
 				brake_omni_light.visible = false
+			if reverse_omni_light:
+				reverse_omni_light.visible = false
 	elif _collapse_stage == 2:
 		# Silence and static in the pitch dark
 		_collapse_timer += delta
@@ -445,6 +454,14 @@ func reset_loop_state() -> void:
 	if brake_omni_light:
 		brake_omni_light.visible = true
 		brake_omni_light.light_energy = 0.25
+	if _reverse_light_mat:
+		_reverse_light_mat.emission_energy_multiplier = 0.0
+	if reverse_omni_light:
+		reverse_omni_light.visible = true
+		reverse_omni_light.light_energy = 0.0
+
+	_wheel_roll_angle = 0.0
+	_process_wheel_transformations(0.0)
 
 	# 5. Clear stall, mud drag, and shoulder state
 	is_stalled = false
@@ -567,8 +584,51 @@ func _process_visual_effects(delta: float) -> void:
 				12.0 * delta
 			)
 
+		# Active reverse lights: bright white rear light and illumination when reversing
+		var throttle := Input.get_axis("brake", "accelerate")
+		var is_reversing: bool = (forward_speed_state < -0.1) or (throttle < -0.05 and forward_speed_state <= 0.4)
+		var target_reverse_emission: float = 3.5 if is_reversing else 0.0
+		var target_reverse_omni: float = 2.0 if is_reversing else 0.0
+		if _reverse_light_mat:
+			_reverse_light_mat.emission_energy_multiplier = move_toward(
+				_reverse_light_mat.emission_energy_multiplier,
+				target_reverse_emission,
+				14.0 * delta
+			)
+		if reverse_omni_light:
+			reverse_omni_light.light_energy = move_toward(
+				reverse_omni_light.light_energy,
+				target_reverse_omni,
+				12.0 * delta
+			)
+
 	# Process headlight low/high beam transition & fog backscatter
 	_process_headlight_beams(delta)
+
+var _wheel_roll_angle: float = 0.0
+@export var wheel_radius: float = 0.35
+
+## Animates functional wheel rolling and front steering angles.
+func _process_wheel_transformations(delta: float) -> void:
+	if delta > 0.0:
+		var delta_roll: float = -(forward_speed_state / wheel_radius) * delta
+		_wheel_roll_angle = wrapf(_wheel_roll_angle + delta_roll, -PI, PI)
+
+	# Steer front wheels around local Y
+	if wheel_fl:
+		wheel_fl.rotation.y = current_steer_angle
+	if wheel_fr:
+		wheel_fr.rotation.y = current_steer_angle
+
+	# Roll all 4 wheels around local X
+	if wheel_roll_fl:
+		wheel_roll_fl.rotation.x = _wheel_roll_angle
+	if wheel_roll_fr:
+		wheel_roll_fr.rotation.x = _wheel_roll_angle
+	if wheel_roll_rl:
+		wheel_roll_rl.rotation.x = _wheel_roll_angle
+	if wheel_roll_rr:
+		wheel_roll_rr.rotation.x = _wheel_roll_angle
 
 func _ensure_high_beams_action() -> void:
 	if not InputMap.has_action("toggle_high_beams"):
