@@ -60,6 +60,10 @@ static var _blood_crimson_mat: StandardMaterial3D
 static var _taillight_red_mat: StandardMaterial3D
 
 func _ready() -> void:
+	reset_spawner()
+
+## Resets spawner milestone counters and roadside event intervals.
+func reset_spawner() -> void:
 	current_kilometer = starting_kilometer
 	milestone_counter = 0
 	chunks_since_roadside_event = 0

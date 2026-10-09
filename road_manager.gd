@@ -24,7 +24,7 @@ const AbandonedCarScene = preload("res://abandoned_car.tscn")
 ## Turning angle in degrees for curved segments.
 @export var curve_angle: float = 22.5
 ## Distance behind the vehicle after which old segments are recycled and freed.
-@export var despawn_distance: float = 120.0
+@export var despawn_distance: float = 80.0
 ## Number of geometric slices per chunk for smooth curve rendering.
 @export var slice_count: int = 8
 
@@ -140,11 +140,15 @@ func reset_road() -> void:
 	if is_instance_valid(active_oncoming_vehicle):
 		active_oncoming_vehicle.queue_free()
 		active_oncoming_vehicle = null
+	if event_spawner and event_spawner.has_method("reset_spawner"):
+		event_spawner.reset_spawner()
 	_spawn_initial_track()
 
 func _spawn_initial_track() -> void:
-	# Clear any pre-existing children
+	# Clear any pre-existing children chunks (strictly preserve event_spawner)
 	for child in get_children():
+		if child == event_spawner:
+			continue
 		child.queue_free()
 	active_segments.clear()
 	consecutive_curves = 0
@@ -184,6 +188,8 @@ func _update_road_streaming() -> void:
 	var min_dist: float = INF
 	for i in range(active_segments.size()):
 		var segment: RoadSegment = active_segments[i]
+		if not is_instance_valid(segment):
+			continue
 		var dist := vehicle_pos.distance_to(segment.get_exit_position())
 		if dist < min_dist:
 			min_dist = dist
@@ -196,10 +202,16 @@ func _update_road_streaming() -> void:
 		_spawn_segment(next_type)
 		segments_ahead += 1
 
-	# 3. Recycle old segments that are far behind the vehicle
-	while active_segments.size() > (min_segments_ahead + 1) and current_segment_index > 1:
+	# 3. Strictly recycle old segments more than 80m behind the vehicle
+	while active_segments.size() > (min_segments_ahead + 1) and current_segment_index > 0:
 		var oldest_segment: RoadSegment = active_segments[0]
-		if vehicle_pos.distance_to(oldest_segment.get_exit_position()) > despawn_distance:
+		if not is_instance_valid(oldest_segment):
+			active_segments.pop_front()
+			current_segment_index -= 1
+			continue
+
+		var dist_to_exit: float = vehicle_pos.distance_to(oldest_segment.get_exit_position())
+		if dist_to_exit > despawn_distance:
 			active_segments.pop_front()
 			oldest_segment.queue_free()
 			current_segment_index -= 1
