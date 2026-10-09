@@ -3,6 +3,7 @@
 [ext_resource type="Script" uid="uid://sqcs05103pki" path="res://van.gd" id="1_f3sb7"]
 [ext_resource type="Script" uid="uid://dvsjh1krtwsni" path="res://chase_camera.gd" id="1_fj7yv"]
 [ext_resource type="Script" uid="uid://cuqv112f85gvi" path="res://road_manager.gd" id="2_rmgr"]
+[ext_resource type="PackedScene" path="res://hud.tscn" id="3_hud"]
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_amspa"]
 size = Vector3(2, 1.5, 4)
@@ -74,3 +75,6 @@ light_energy = 0.02
 
 [node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=1409519131]
 environment = SubResource("Environment_ku5fm")
+
+[node name="HUD" parent="." unique_id=2085714920 instance=ExtResource("3_hud") node_paths=PackedStringArray("target_van")]
+target_van = NodePath("../Van")
