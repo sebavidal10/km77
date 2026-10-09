@@ -281,6 +281,37 @@ func build_segment() -> void:
 		right_sh_col.transform = Transform3D(slice_basis, slice_center + slice_basis * right_sh_local)
 		static_body.add_child(right_sh_col)
 
+		# Shoulder trigger areas for loose surface & mud particle detection in van.gd
+		var sh_area_left := Area3D.new()
+		sh_area_left.name = "ShoulderAreaLeft_%d" % i
+		sh_area_left.collision_layer = 0
+		sh_area_left.collision_mask = 1
+		var sh_col_left := CollisionShape3D.new()
+		var sh_shape_left := BoxShape3D.new()
+		sh_shape_left.size = Vector3(shoulder_width, 1.8, slice_box_length)
+		sh_col_left.shape = sh_shape_left
+		sh_area_left.add_child(sh_col_left)
+		var left_sh_area_local := Vector3(-shoulder_center_x, 0.5, 0.0)
+		sh_area_left.transform = Transform3D(slice_basis, slice_center + slice_basis * left_sh_area_local)
+		sh_area_left.body_entered.connect(_on_shoulder_area_entered)
+		sh_area_left.body_exited.connect(_on_shoulder_area_exited)
+		add_child(sh_area_left)
+
+		var sh_area_right := Area3D.new()
+		sh_area_right.name = "ShoulderAreaRight_%d" % i
+		sh_area_right.collision_layer = 0
+		sh_area_right.collision_mask = 1
+		var sh_col_right := CollisionShape3D.new()
+		var sh_shape_right := BoxShape3D.new()
+		sh_shape_right.size = Vector3(shoulder_width, 1.8, slice_box_length)
+		sh_col_right.shape = sh_shape_right
+		sh_area_right.add_child(sh_col_right)
+		var right_sh_area_local := Vector3(shoulder_center_x, 0.5, 0.0)
+		sh_area_right.transform = Transform3D(slice_basis, slice_center + slice_basis * right_sh_area_local)
+		sh_area_right.body_entered.connect(_on_shoulder_area_entered)
+		sh_area_right.body_exited.connect(_on_shoulder_area_exited)
+		add_child(sh_area_right)
+
 		# 4. Roadside Ditches (Cunetas) with Mud Drag Hazard Areas
 		var ditch_mat := get_ditch_material()
 		var slope_hypot: float = sqrt(pow(ditch_slope_width, 2.0) + pow(ditch_depth, 2.0))
@@ -518,6 +549,14 @@ func get_slice_transform(index: int) -> Transform3D:
 	if index >= 0 and index < slice_transforms.size():
 		return slice_transforms[index]
 	return Transform3D.IDENTITY
+
+func _on_shoulder_area_entered(body: Node3D) -> void:
+	if body.has_method("enter_shoulder_zone"):
+		body.enter_shoulder_zone()
+
+func _on_shoulder_area_exited(body: Node3D) -> void:
+	if body.has_method("exit_shoulder_zone"):
+		body.exit_shoulder_zone()
 
 func _on_mud_area_entered(body: Node3D) -> void:
 	if body.has_method("enter_mud_zone"):

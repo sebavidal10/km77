@@ -136,6 +136,12 @@ var _was_drifting: bool = false
 # Roadside ditch / Mud zone state
 var in_mud_zone: bool = false
 var _mud_zones_count: int = 0
+var in_shoulder_zone: bool = false
+var _shoulder_zones_count: int = 0
+
+# Off-road wheel mud & dirt particles
+var _mud_particles_left: GPUParticles3D
+var _mud_particles_right: GPUParticles3D
 
 # Durability & Headlight state
 var left_headlight_broken: bool = false
@@ -200,6 +206,8 @@ func _ready() -> void:
 		white_mat.metallic = 0.05
 		visual_mesh.set_surface_override_material(0, white_mat)
 
+	_create_mud_particles()
+
 func _physics_process(delta: float) -> void:
 	is_drifting = Input.is_action_pressed("handbrake")
 
@@ -227,10 +235,13 @@ func _physics_process(delta: float) -> void:
 	# 4. Lateral grip damping & inertia preservation
 	lat_speed = _process_lateral(lat_speed, delta)
 
-	# 4b. Mud resistance & roadside ditch drag when off-road
+	# 4b. Mud & loose shoulder surface drag when driving off-road
 	if in_mud_zone:
 		fwd_speed = move_toward(fwd_speed, 0.0, 16.0 * delta)
 		lat_speed = move_toward(lat_speed, 0.0, 14.0 * delta)
+	elif in_shoulder_zone:
+		fwd_speed = move_toward(fwd_speed, 0.0, 5.0 * delta)
+		lat_speed = move_toward(lat_speed, 0.0, 3.5 * delta)
 
 	# 5. Recompose horizontal velocity vector
 	var target_h_vel := (forward_dir * fwd_speed) + (right_dir * lat_speed)
@@ -251,6 +262,13 @@ func _physics_process(delta: float) -> void:
 
 	# 8. Handle obstacle impact deceleration and debris knockback impulses
 	_process_collisions(forward_dir, delta)
+
+	# 8b. Off-road mud & gravel spray from spinning rear tires
+	var should_emit_mud: bool = is_on_floor() and (in_shoulder_zone or in_mud_zone) and absf(forward_speed_state) > 1.2
+	if _mud_particles_left and _mud_particles_left.emitting != should_emit_mud:
+		_mud_particles_left.emitting = should_emit_mud
+	if _mud_particles_right and _mud_particles_right.emitting != should_emit_mud:
+		_mud_particles_right.emitting = should_emit_mud
 
 	# 9. Update telemetry: fuel, odometer, speed km/h, and drift state
 	_process_fuel(delta)
@@ -348,11 +366,17 @@ func reset_loop_state() -> void:
 		brake_omni_light.visible = true
 		brake_omni_light.light_energy = 0.25
 
-	# 5. Clear stall and mud drag state
+	# 5. Clear stall, mud drag, and shoulder state
 	is_stalled = false
 	_collapse_stage = 0
 	in_mud_zone = false
 	_mud_zones_count = 0
+	in_shoulder_zone = false
+	_shoulder_zones_count = 0
+	if _mud_particles_left:
+		_mud_particles_left.emitting = false
+	if _mud_particles_right:
+		_mud_particles_right.emitting = false
 
 	# 6. Reset odometer back to starting marker
 	starting_kilometer = 85.0
@@ -585,6 +609,59 @@ func exit_mud_zone() -> void:
 	_mud_zones_count = maxi(0, _mud_zones_count - 1)
 	in_mud_zone = _mud_zones_count > 0
 
+## Called when entering a gravel/dirt shoulder zone.
+func enter_shoulder_zone() -> void:
+	_shoulder_zones_count += 1
+	in_shoulder_zone = _shoulder_zones_count > 0
+
+## Called when exiting a gravel/dirt shoulder zone.
+func exit_shoulder_zone() -> void:
+	_shoulder_zones_count = maxi(0, _shoulder_zones_count - 1)
+	in_shoulder_zone = _shoulder_zones_count > 0
+
+## Creates physical dirt and mud fragment particle emitters at the rear wheels.
+func _create_mud_particles() -> void:
+	var dirt_mesh := BoxMesh.new()
+	dirt_mesh.size = Vector3(0.09, 0.07, 0.09)
+	var dirt_mat := StandardMaterial3D.new()
+	dirt_mat.albedo_color = Color(0.22, 0.17, 0.12, 1.0)
+	dirt_mat.roughness = 0.95
+	dirt_mesh.material = dirt_mat
+
+	var proc_mat := ParticleProcessMaterial.new()
+	proc_mat.direction = Vector3(0.0, 0.6, 1.0)
+	proc_mat.spread = 28.0
+	proc_mat.initial_velocity_min = 6.0
+	proc_mat.initial_velocity_max = 14.0
+	proc_mat.gravity = Vector3(0.0, -18.0, 0.0)
+	proc_mat.scale_min = 0.6
+	proc_mat.scale_max = 1.3
+	proc_mat.color = Color(0.24, 0.18, 0.12, 0.95)
+
+	# Left rear wheel emitter
+	_mud_particles_left = GPUParticles3D.new()
+	_mud_particles_left.name = "MudParticlesLeft"
+	_mud_particles_left.amount = 32
+	_mud_particles_left.lifetime = 0.4
+	_mud_particles_left.local_coords = false
+	_mud_particles_left.draw_pass_1 = dirt_mesh
+	_mud_particles_left.process_material = proc_mat
+	_mud_particles_left.position = Vector3(-0.95, 0.3, 1.8)
+	_mud_particles_left.emitting = false
+	add_child(_mud_particles_left)
+
+	# Right rear wheel emitter
+	_mud_particles_right = GPUParticles3D.new()
+	_mud_particles_right.name = "MudParticlesRight"
+	_mud_particles_right.amount = 32
+	_mud_particles_right.lifetime = 0.4
+	_mud_particles_right.local_coords = false
+	_mud_particles_right.draw_pass_1 = dirt_mesh
+	_mud_particles_right.process_material = proc_mat
+	_mud_particles_right.position = Vector3(0.95, 0.3, 1.8)
+	_mud_particles_right.emitting = false
+	add_child(_mud_particles_right)
+
 ## Triggers erratic headlight strobing and camera shake when lingering dangerously in the dark.
 func trigger_threat_glitch() -> void:
 	_is_flickering_glitch = true
@@ -768,6 +845,11 @@ func _process_telemetry() -> void:
 ## Applies grip damping to lateral sliding velocity.
 func _process_lateral(lat_speed: float, delta: float) -> float:
 	var target_grip: float = drift_lateral_grip if is_drifting else lateral_grip
+	if in_shoulder_zone:
+		# Compromised lateral traction on loose gravel / dirt shoulder promotes oversteer & drift
+		target_grip *= 0.48
+	elif in_mud_zone:
+		target_grip *= 0.30
 	current_grip = move_toward(current_grip, target_grip, grip_recovery_speed * delta)
 	return lerpf(lat_speed, 0.0, 1.0 - exp(-current_grip * delta))
 
