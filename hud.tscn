@@ -1,0 +1,176 @@
+[gd_scene format=3 uid="uid://c7m5e3w8n5hud"]
+
+[ext_resource type="Script" path="res://hud.gd" id="1_hud"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_panel"]
+content_margin_left = 12.0
+content_margin_top = 8.0
+content_margin_right = 12.0
+content_margin_bottom = 8.0
+bg_color = Color(0.0431373, 0.054902, 0.0666667, 0.843137)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.282353, 0.321569, 0.360784, 0.8)
+corner_radius_top_left = 2
+corner_radius_top_right = 2
+corner_radius_bottom_right = 2
+corner_radius_bottom_left = 2
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_bar_bg"]
+bg_color = Color(0.0784314, 0.0941176, 0.109804, 0.9)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.235294, 0.266667, 0.301961, 0.8)
+corner_radius_top_left = 1
+corner_radius_top_right = 1
+corner_radius_bottom_right = 1
+corner_radius_bottom_left = 1
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_bar_fill"]
+bg_color = Color(1, 0.784314, 0.352941, 1)
+corner_radius_top_left = 1
+corner_radius_top_right = 1
+corner_radius_bottom_right = 1
+corner_radius_bottom_left = 1
+
+[node name="HUD" type="CanvasLayer" unique_id=2085714920]
+script = ExtResource("1_hud")
+
+[node name="MarginContainer" type="MarginContainer" parent="." unique_id=1498321041]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/margin_left = 28
+theme_override_constants/margin_top = 24
+theme_override_constants/margin_right = 28
+theme_override_constants/margin_bottom = 24
+
+[node name="Control" type="Control" parent="MarginContainer" unique_id=1738291052]
+layout_mode = 2
+
+[node name="TopCenter" type="HBoxContainer" parent="MarginContainer/Control" unique_id=983210412]
+layout_mode = 1
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -160.0
+offset_right = 160.0
+offset_bottom = 38.0
+grow_horizontal = 2
+alignment = 1
+
+[node name="RoutePanel" type="PanelContainer" parent="MarginContainer/Control/TopCenter" unique_id=34120912]
+layout_mode = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_panel")
+
+[node name="RouteLabel" type="Label" parent="MarginContainer/Control/TopCenter/RoutePanel" unique_id=89234120]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.92, 0.93, 0.95, 1)
+theme_override_font_sizes/font_size = 14
+text = "ROUTE 77  |  KM 85.0 ──> 77.0"
+horizontal_alignment = 1
+
+[node name="BottomLeft" type="VBoxContainer" parent="MarginContainer/Control" unique_id=45192031]
+layout_mode = 1
+anchors_preset = 2
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_top = -90.0
+offset_right = 170.0
+grow_vertical = 0
+theme_override_constants/separation = 6
+
+[node name="SpeedPanel" type="PanelContainer" parent="MarginContainer/Control/BottomLeft" unique_id=67291023]
+layout_mode = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_panel")
+
+[node name="HBoxContainer" type="HBoxContainer" parent="MarginContainer/Control/BottomLeft/SpeedPanel" unique_id=18293412]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="SpeedValue" type="Label" parent="MarginContainer/Control/BottomLeft/SpeedPanel/HBoxContainer" unique_id=89102314]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.823529, 0.352941, 1)
+theme_override_font_sizes/font_size = 38
+text = "000"
+
+[node name="SpeedUnit" type="Label" parent="MarginContainer/Control/BottomLeft/SpeedPanel/HBoxContainer" unique_id=90123841]
+layout_mode = 2
+size_flags_vertical = 8
+theme_override_colors/font_color = Color(0.686275, 0.72549, 0.764706, 1)
+theme_override_font_sizes/font_size = 14
+text = "KM/H"
+
+[node name="DriftBadge" type="Label" parent="MarginContainer/Control/BottomLeft" unique_id=12938475]
+unique_name_in_owner = true
+modulate = Color(0.4, 0.45, 0.48, 0.35)
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.686275, 0.156863, 1)
+theme_override_font_sizes/font_size = 14
+text = "[ DRIFT ]"
+
+[node name="BottomRight" type="VBoxContainer" parent="MarginContainer/Control" unique_id=58192034]
+layout_mode = 1
+anchors_preset = 3
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -200.0
+offset_top = -96.0
+grow_horizontal = 0
+grow_vertical = 0
+theme_override_constants/separation = 4
+alignment = 2
+
+[node name="LowFuelWarning" type="Label" parent="MarginContainer/Control/BottomRight" unique_id=67129345]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.35, 0.2, 1)
+theme_override_font_sizes/font_size = 13
+text = "[ ! LOW FUEL ! ]"
+horizontal_alignment = 2
+
+[node name="FuelPanel" type="PanelContainer" parent="MarginContainer/Control/BottomRight" unique_id=78192301]
+layout_mode = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_panel")
+
+[node name="VBoxContainer" type="VBoxContainer" parent="MarginContainer/Control/BottomRight/FuelPanel" unique_id=98234102]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="HBoxContainer" type="HBoxContainer" parent="MarginContainer/Control/BottomRight/FuelPanel/VBoxContainer" unique_id=23891045]
+layout_mode = 2
+
+[node name="FuelTitle" type="Label" parent="MarginContainer/Control/BottomRight/FuelPanel/VBoxContainer/HBoxContainer" unique_id=34901283]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.72, 0.75, 0.78, 1)
+theme_override_font_sizes/font_size = 12
+text = "FUEL LEVEL"
+
+[node name="FuelPercent" type="Label" parent="MarginContainer/Control/BottomRight/FuelPanel/VBoxContainer/HBoxContainer" unique_id=45901238]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(1, 0.823529, 0.352941, 1)
+theme_override_font_sizes/font_size = 12
+text = "100%"
+horizontal_alignment = 2
+
+[node name="FuelBar" type="ProgressBar" parent="MarginContainer/Control/BottomRight/FuelPanel/VBoxContainer" unique_id=56012389]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(170, 8)
+layout_mode = 2
+theme_override_styles/background = SubResource("StyleBoxFlat_bar_bg")
+theme_override_styles/fill = SubResource("StyleBoxFlat_bar_fill")
+value = 100.0
+show_percentage = false
