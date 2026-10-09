@@ -86,6 +86,7 @@ var _was_drifting: bool = false
 @onready var visual_mesh: MeshInstance3D = get_node_or_null("MeshInstance3D") as MeshInstance3D
 
 func _ready() -> void:
+	add_to_group("player")
 	current_kilometer = starting_kilometer
 	fuel_changed.emit(current_fuel, max_fuel)
 	distance_updated.emit(distance_traveled_meters, current_kilometer)
