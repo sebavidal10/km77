@@ -1,43 +1,166 @@
+class_name Van
 extends CharacterBody3D
 
-@export var max_speed: float = 35.0
-@export var acceleration: float = 20.0
-@export var braking: float = 25.0
-@export var steer_speed: float = 2.4
+@export_group("Engine & Speed")
+## Maximum forward speed in meters per second (approx 137 km/h).
+@export var max_speed: float = 38.0
+## Forward acceleration rate toward max_speed.
+@export var acceleration: float = 24.0
+## Deceleration rate when applying brakes.
+@export var braking: float = 32.0
+## Maximum reverse speed.
+@export var reverse_max_speed: float = 14.0
+## Acceleration rate when reversing.
+@export var reverse_acceleration: float = 16.0
+## Passive coasting slowdown rate when neither throttle nor brake is pressed.
+@export var coast_deceleration: float = 8.0
+
+@export_group("Steering & Oversteer")
+## Base turning rate in radians per second during normal driving.
+@export var steer_speed: float = 2.6
+## Multiplier applied to steering speed while handbrake is pressed (promotes aggressive oversteer).
+@export var drift_oversteer_multiplier: float = 1.75
+## Extra steering authority when countersteering into the slide to catch and balance the drift.
+@export var countersteer_boost: float = 1.3
+## Minimum speed (m/s) required to turn the vehicle.
+@export var min_steer_speed: float = 0.5
+
+@export_group("Drift & Lateral Grip")
+## Lateral grip rate when driving normally (higher = car sticks firmly to heading).
+@export var normal_lateral_grip: float = 16.0
+## Lateral grip rate while handbraking (lower = vehicle slides sideways with inertia).
+@export var drift_lateral_grip: float = 2.2
+## Longitudinal speed scrubbed per second due to tire friction while sliding sideways.
+@export var drift_drag: float = 3.5
+## Speed at which tire grip recovers when handbrake is released.
+@export var grip_recovery_speed: float = 12.0
+## Backward compatibility aliases for friction factor.
 @export var drift_friction: float = 0.88
 @export var normal_friction: float = 0.98
 
-var current_speed: float = 0.0
-var drift_factor: float = 1.0
+@export_group("Visual Chassis Roll")
+## Enables subtle body roll on the MeshInstance3D to convey weight shift during drifts.
+@export var enable_body_roll: bool = true
+## Maximum roll angle in degrees during hard cornering.
+@export var max_body_roll_deg: float = 3.5
+## Speed of roll smoothing.
+@export var body_roll_speed: float = 10.0
+
+@export_group("Environment & Gravity")
+## Downward gravity acceleration.
+@export var gravity: float = 22.0
+
+# Runtime state
+var current_grip: float = 16.0
+var is_drifting: bool = false
+var forward_speed_state: float = 0.0
+
+@onready var visual_mesh: MeshInstance3D = get_node_or_null("MeshInstance3D") as MeshInstance3D
 
 func _physics_process(delta: float) -> void:
-	# 1. Acceleration and braking
-	var throttle := Input.get_axis("brake", "accelerate")
-	if throttle > 0.0:
-		current_speed = move_toward(current_speed, max_speed, acceleration * delta)
-	elif throttle < 0.0:
-		current_speed = move_toward(current_speed, -max_speed * 0.4, braking * delta)
-	else:
-		current_speed = move_toward(current_speed, 0.0, 10.0 * delta)
+	is_drifting = Input.is_action_pressed("handbrake")
 
-	# 2. Steering and handbrake drift
-	var steer := Input.get_axis("steer_right", "steer_left")
-	var is_drifting := Input.is_action_pressed("handbrake")
+	# 1. Steering & vehicle yaw rotation
+	_process_steering(delta)
 
-	drift_factor = drift_friction if is_drifting else normal_friction
-
-	if abs(current_speed) > 0.5:
-		var turn_mult := 1.4 if is_drifting else 1.0
-		rotate_y(steer * steer_speed * turn_mult * delta * sign(current_speed))
-
-	# 3. Apply velocity with lateral inertia
+	# 2. Decompose existing horizontal velocity along new heading
 	var forward_dir := -transform.basis.z
-	var target_velocity := forward_dir * current_speed
+	var right_dir := transform.basis.x
+	var current_h_vel := Vector3(velocity.x, 0.0, velocity.z)
 
-	velocity.x = lerp(velocity.x, target_velocity.x, (1.0 - drift_factor) + delta * 2.0)
-	velocity.z = lerp(velocity.z, target_velocity.z, (1.0 - drift_factor) + delta * 2.0)
+	var fwd_speed := current_h_vel.dot(forward_dir)
+	var lat_speed := current_h_vel.dot(right_dir)
 
-	if not is_on_floor():
-		velocity.y -= 9.8 * delta
+	# 3. Acceleration, braking, and coasting
+	fwd_speed = _process_longitudinal(fwd_speed, delta)
+
+	# 4. Lateral grip damping & inertia preservation
+	lat_speed = _process_lateral(lat_speed, delta)
+
+	# 5. Recompose horizontal velocity vector
+	var target_h_vel := (forward_dir * fwd_speed) + (right_dir * lat_speed)
+	velocity.x = target_h_vel.x
+	velocity.z = target_h_vel.z
+
+	# 6. Apply gravity and solid ground contact
+	if is_on_floor():
+		velocity.y = -1.0
+	else:
+		velocity.y -= gravity * delta
 
 	move_and_slide()
+
+	# 7. Record post-collision forward speed for steering and roll calculations
+	var post_h_vel := Vector3(velocity.x, 0.0, velocity.z)
+	forward_speed_state = post_h_vel.dot(forward_dir)
+
+	# 8. Visual chassis roll animation
+	_process_visual_roll(delta, forward_speed_state)
+
+## Handles steering yaw with drift oversteer and countersteer responsiveness.
+func _process_steering(delta: float) -> void:
+	var steer_input := Input.get_axis("steer_right", "steer_left")
+	var forward_dir := -transform.basis.z
+	var right_dir := transform.basis.x
+	var current_h_vel := Vector3(velocity.x, 0.0, velocity.z)
+
+	var fwd_speed := current_h_vel.dot(forward_dir)
+	var lat_speed := current_h_vel.dot(right_dir)
+
+	if abs(fwd_speed) > min_steer_speed or abs(lat_speed) > min_steer_speed:
+		var effective_steer := steer_speed
+
+		if is_drifting:
+			effective_steer *= drift_oversteer_multiplier
+
+			# Countersteering detection: sliding right (lat_speed > 0) while steering left (steer_input > 0)
+			# or sliding left (lat_speed < 0) while steering right (steer_input < 0)
+			var is_countersteering: bool = (lat_speed > 0.5 and steer_input > 0.0) or \
+										   (lat_speed < -0.5 and steer_input < 0.0)
+			if is_countersteering:
+				effective_steer *= countersteer_boost
+
+		var direction_sign: float = signf(fwd_speed) if abs(fwd_speed) > 0.1 else 1.0
+		var turn_angle: float = steer_input * effective_steer * delta * direction_sign
+		rotate_y(turn_angle)
+
+## Updates forward/reverse speed based on throttle and handbrake scrub.
+func _process_longitudinal(fwd_speed: float, delta: float) -> float:
+	var throttle := Input.get_axis("brake", "accelerate")
+
+	if throttle > 0.0:
+		if fwd_speed < 0.0:
+			fwd_speed = move_toward(fwd_speed, 0.0, braking * delta)
+		else:
+			fwd_speed = move_toward(fwd_speed, max_speed, acceleration * delta)
+	elif throttle < 0.0:
+		if fwd_speed > 0.5:
+			fwd_speed = move_toward(fwd_speed, 0.0, braking * delta)
+		else:
+			fwd_speed = move_toward(fwd_speed, -reverse_max_speed, reverse_acceleration * delta)
+	else:
+		fwd_speed = move_toward(fwd_speed, 0.0, coast_deceleration * delta)
+
+	# Tire friction scrub during high-angle drift
+	if is_drifting and abs(fwd_speed) > 1.0:
+		fwd_speed = move_toward(fwd_speed, 0.0, drift_drag * delta)
+
+	return fwd_speed
+
+## Applies grip damping to lateral sliding velocity.
+func _process_lateral(lat_speed: float, delta: float) -> float:
+	var target_grip: float = drift_lateral_grip if is_drifting else normal_lateral_grip
+	current_grip = move_toward(current_grip, target_grip, grip_recovery_speed * delta)
+	return lerp(lat_speed, 0.0, 1.0 - exp(-current_grip * delta))
+
+## Applies subtle body roll to MeshInstance3D to convey weight transfer.
+func _process_visual_roll(delta: float, fwd_speed: float) -> void:
+	if not enable_body_roll or not visual_mesh:
+		return
+
+	var steer_input := Input.get_axis("steer_right", "steer_left")
+	var speed_ratio := clampf(abs(fwd_speed) / max_speed, 0.0, 1.0)
+	var drift_extra: float = 1.4 if is_drifting else 1.0
+
+	var target_roll: float = -steer_input * deg_to_rad(max_body_roll_deg) * speed_ratio * drift_extra
+	visual_mesh.rotation.z = lerp(visual_mesh.rotation.z, target_roll, body_roll_speed * delta)
