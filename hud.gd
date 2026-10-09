@@ -11,6 +11,10 @@ const Van = preload("res://van.gd")
 ## The vehicle node to observe for telemetry, fuel, and trip metrics.
 @export var target_van: Van
 
+const COLOR_PHOSPHOR_GREEN := Color(0.2, 1.0, 0.4, 1.0) # #33FF66
+const COLOR_ANALOG_AMBER := Color(1.0, 0.69, 0.0, 1.0)   # #FFB000
+const COLOR_BLOOD_RED := Color(1.0, 0.2, 0.2, 1.0)       # #FF3333
+
 @onready var speed_value_label: Label = %SpeedValue
 @onready var drift_badge: Label = %DriftBadge
 @onready var route_label: Label = %RouteLabel
@@ -18,6 +22,7 @@ const Van = preload("res://van.gd")
 @onready var fuel_percent_label: Label = %FuelPercent
 @onready var low_fuel_warning: Label = %LowFuelWarning
 @onready var dispatch_panel: PanelContainer = %DispatchPanel
+@onready var dispatch_header: Label = %DispatchHeader
 @onready var dispatch_label: Label = %DispatchText
 @onready var fade_overlay: ColorRect = %ScreenFadeOverlay
 @onready var interaction_panel: PanelContainer = %InteractionPanel
@@ -97,6 +102,7 @@ func show_scavenge_prompt(prompt_text: String = "HOLD [E] TO SCAVENGE FUEL / REP
 	interaction_panel.visible = true
 	if interaction_prompt_label:
 		interaction_prompt_label.text = prompt_text
+		interaction_prompt_label.add_theme_color_override("font_color", COLOR_ANALOG_AMBER)
 	if scavenge_progress_bar:
 		scavenge_progress_bar.visible = true
 		scavenge_progress_bar.value = clampf(progress_ratio * 100.0, 0.0, 100.0)
@@ -117,6 +123,7 @@ func show_scavenge_success(message: String = "[ SUPPLIES SECURED: +35 FUEL | REP
 	interaction_panel.visible = true
 	if interaction_prompt_label:
 		interaction_prompt_label.text = message
+		interaction_prompt_label.add_theme_color_override("font_color", COLOR_PHOSPHOR_GREEN)
 	if scavenge_progress_bar:
 		scavenge_progress_bar.visible = false
 	_success_message_timer = duration
@@ -210,11 +217,11 @@ func _process_status_warnings(delta: float) -> void:
 	if target_van.current_engine_health <= 0.0:
 		low_fuel_warning.visible = true
 		low_fuel_warning.text = "[ CRITICAL ENGINE FAILURE ]"
-		low_fuel_warning.modulate = Color(1.0, 0.15, 0.15, 1.0)
+		low_fuel_warning.modulate = COLOR_BLOOD_RED
 	elif target_van.current_fuel <= 0.0:
 		low_fuel_warning.visible = true
 		low_fuel_warning.text = "[ NO FUEL - ENGINE STALLED ]"
-		low_fuel_warning.modulate = Color(1.0, 0.2, 0.2, 1.0)
+		low_fuel_warning.modulate = COLOR_BLOOD_RED
 	elif target_van.current_fuel < 20.0:
 		_blink_timer += delta
 		if _blink_timer >= 0.35:
@@ -222,7 +229,7 @@ func _process_status_warnings(delta: float) -> void:
 			_blink_visible = !_blink_visible
 			low_fuel_warning.visible = _blink_visible
 		low_fuel_warning.text = "[ ! LOW FUEL ! ]"
-		low_fuel_warning.modulate = Color(1.0, 0.35, 0.2, 1.0)
+		low_fuel_warning.modulate = COLOR_ANALOG_AMBER
 	elif target_van.current_engine_health < 30.0:
 		_blink_timer += delta
 		if _blink_timer >= 0.35:
@@ -230,7 +237,7 @@ func _process_status_warnings(delta: float) -> void:
 			_blink_visible = !_blink_visible
 			low_fuel_warning.visible = _blink_visible
 		low_fuel_warning.text = "[ ! ENGINE DAMAGED ! ]"
-		low_fuel_warning.modulate = Color(1.0, 0.5, 0.15, 1.0)
+		low_fuel_warning.modulate = COLOR_BLOOD_RED
 	else:
 		low_fuel_warning.visible = false
 
@@ -282,6 +289,36 @@ func _on_dispatch_received(text: String, duration: float) -> void:
 	dispatch_panel.visible = true
 	dispatch_panel.modulate.a = 1.0
 
+	# Contextual palette: Glitch Blood Red for critical/anomaly dispatches, Phosphor Green & Amber for routine dispatches
+	var is_critical: bool = false
+	var upper := text.to_upper()
+	for kw in ["10-33", "10-0", "10-50", "MAYDAY", "CRITICAL", "CORRUPT", "RECURSION", "EMERGENCY", "ANOMALY", "PARADOX", "FLATLINED", "CRIMSON"]:
+		if upper.contains(kw):
+			is_critical = true
+			break
+
+	if is_critical:
+		if dispatch_header:
+			dispatch_header.text = "▲ ALERT // CRITICAL DISPATCH OVERRIDE"
+			dispatch_header.add_theme_color_override("font_color", COLOR_BLOOD_RED)
+		dispatch_label.add_theme_color_override("font_color", COLOR_BLOOD_RED)
+	else:
+		if dispatch_header:
+			dispatch_header.text = "● RX // POLICE DISPATCH FREQ 142.8 MHz"
+			dispatch_header.add_theme_color_override("font_color", COLOR_PHOSPHOR_GREEN)
+		dispatch_label.add_theme_color_override("font_color", COLOR_ANALOG_AMBER)
+
+	var panel_style := dispatch_panel.get_theme_stylebox("panel")
+	if panel_style is StyleBoxFlat:
+		var dup_style := panel_style.duplicate() as StyleBoxFlat
+		if is_critical:
+			dup_style.border_color = COLOR_BLOOD_RED
+			dup_style.bg_color = Color(0.06, 0.015, 0.015, 0.92)
+		else:
+			dup_style.border_color = Color(0.2, 1.0, 0.4, 0.75)
+			dup_style.bg_color = Color(0.02, 0.035, 0.03, 0.88)
+		dispatch_panel.add_theme_stylebox_override("panel", dup_style)
+
 func _on_speed_updated(speed_kmh: float) -> void:
 	if speed_value_label:
 		speed_value_label.text = "%03d" % int(round(speed_kmh))
@@ -304,6 +341,6 @@ func _on_distance_updated(_meters: float, current_km: float) -> void:
 func _on_drift_state_changed(is_active: bool) -> void:
 	if drift_badge:
 		if is_active:
-			drift_badge.modulate = Color(1.0, 0.68, 0.15, 1.0) # Vibrant active amber
+			drift_badge.modulate = COLOR_ANALOG_AMBER
 		else:
-			drift_badge.modulate = Color(0.4, 0.45, 0.48, 0.35) # Dim technical standby watermark
+			drift_badge.modulate = Color(0.4, 0.45, 0.48, 0.35)

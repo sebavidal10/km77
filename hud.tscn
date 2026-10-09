@@ -31,7 +31,7 @@ corner_radius_bottom_right = 1
 corner_radius_bottom_left = 1
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_bar_fill"]
-bg_color = Color(1, 0.784314, 0.352941, 1)
+bg_color = Color(1, 0.69, 0, 1)
 corner_radius_top_left = 1
 corner_radius_top_right = 1
 corner_radius_bottom_right = 1
@@ -47,7 +47,7 @@ border_width_left = 1
 border_width_top = 1
 border_width_right = 1
 border_width_bottom = 1
-border_color = Color(0.2, 0.65, 0.38, 0.75)
+border_color = Color(0.2, 1, 0.4, 0.75)
 corner_radius_top_left = 2
 corner_radius_top_right = 2
 corner_radius_bottom_right = 2
@@ -89,7 +89,7 @@ theme_override_styles/panel = SubResource("StyleBoxFlat_panel")
 [node name="RouteLabel" type="Label" parent="MarginContainer/Control/TopCenter/RoutePanel" unique_id=89234120]
 unique_name_in_owner = true
 layout_mode = 2
-theme_override_colors/font_color = Color(0.92, 0.93, 0.95, 1)
+theme_override_colors/font_color = Color(1, 0.69, 0, 1)
 theme_override_font_sizes/font_size = 14
 text = "ROUTE 77  |  KM 85.0 ──> 77.0"
 horizontal_alignment = 1
@@ -115,14 +115,14 @@ theme_override_constants/separation = 8
 [node name="SpeedValue" type="Label" parent="MarginContainer/Control/BottomLeft/SpeedPanel/HBoxContainer" unique_id=89102314]
 unique_name_in_owner = true
 layout_mode = 2
-theme_override_colors/font_color = Color(1, 0.823529, 0.352941, 1)
+theme_override_colors/font_color = Color(0.2, 1, 0.4, 1)
 theme_override_font_sizes/font_size = 38
 text = "000"
 
 [node name="SpeedUnit" type="Label" parent="MarginContainer/Control/BottomLeft/SpeedPanel/HBoxContainer" unique_id=90123841]
 layout_mode = 2
 size_flags_vertical = 8
-theme_override_colors/font_color = Color(0.686275, 0.72549, 0.764706, 1)
+theme_override_colors/font_color = Color(0.25, 0.85, 0.45, 0.85)
 theme_override_font_sizes/font_size = 14
 text = "KM/H"
 
@@ -130,7 +130,7 @@ text = "KM/H"
 unique_name_in_owner = true
 modulate = Color(0.4, 0.45, 0.48, 0.35)
 layout_mode = 2
-theme_override_colors/font_color = Color(1, 0.686275, 0.156863, 1)
+theme_override_colors/font_color = Color(1, 0.69, 0, 1)
 theme_override_font_sizes/font_size = 14
 text = "[ DRIFT ]"
 
@@ -152,7 +152,7 @@ alignment = 2
 unique_name_in_owner = true
 visible = false
 layout_mode = 2
-theme_override_colors/font_color = Color(1, 0.35, 0.2, 1)
+theme_override_colors/font_color = Color(1, 0.2, 0.2, 1)
 theme_override_font_sizes/font_size = 13
 text = "[ ! LOW FUEL ! ]"
 horizontal_alignment = 2
@@ -170,7 +170,7 @@ layout_mode = 2
 
 [node name="FuelTitle" type="Label" parent="MarginContainer/Control/BottomRight/FuelPanel/VBoxContainer/HBoxContainer" unique_id=34901283]
 layout_mode = 2
-theme_override_colors/font_color = Color(0.72, 0.75, 0.78, 1)
+theme_override_colors/font_color = Color(0.85, 0.72, 0.45, 1)
 theme_override_font_sizes/font_size = 12
 text = "FUEL LEVEL"
 
@@ -178,7 +178,7 @@ text = "FUEL LEVEL"
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
-theme_override_colors/font_color = Color(1, 0.823529, 0.352941, 1)
+theme_override_colors/font_color = Color(1, 0.69, 0, 1)
 theme_override_font_sizes/font_size = 12
 text = "100%"
 horizontal_alignment = 2
@@ -215,15 +215,16 @@ layout_mode = 2
 theme_override_constants/separation = 4
 
 [node name="DispatchHeader" type="Label" parent="MarginContainer/Control/DispatchPanel/VBoxContainer" unique_id=12948192]
+unique_name_in_owner = true
 layout_mode = 2
-theme_override_colors/font_color = Color(0.3, 0.85, 0.45, 1)
+theme_override_colors/font_color = Color(0.2, 1, 0.4, 1)
 theme_override_font_sizes/font_size = 11
 text = "● RX // POLICE DISPATCH FREQ 142.8 MHz"
 
 [node name="DispatchText" type="Label" parent="MarginContainer/Control/DispatchPanel/VBoxContainer" unique_id=34019284]
 unique_name_in_owner = true
 layout_mode = 2
-theme_override_colors/font_color = Color(0.95, 0.88, 0.52, 1)
+theme_override_colors/font_color = Color(1, 0.69, 0, 1)
 theme_override_font_sizes/font_size = 13
 text = "[DISPATCH 10-4] Unit 77, report status..."
 autowrap_mode = 3
@@ -254,7 +255,7 @@ alignment = 1
 [node name="InteractionPromptLabel" type="Label" parent="MarginContainer/Control/InteractionPanel/VBoxContainer" unique_id=45920183]
 unique_name_in_owner = true
 layout_mode = 2
-theme_override_colors/font_color = Color(1, 0.85, 0.35, 1)
+theme_override_colors/font_color = Color(1, 0.69, 0, 1)
 theme_override_font_sizes/font_size = 13
 text = "HOLD [E] TO SCAVENGE FUEL / REPAIR"
 horizontal_alignment = 1
