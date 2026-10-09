@@ -334,6 +334,8 @@ func _spawn_crashed_vehicle(segment: RoadSegment, slice_idx: int, rng: RandomNum
 	wreck_shape.size = Vector3(2.2, 1.6, 4.4)
 	wreck_col.shape = wreck_shape
 	wreck_col.position = Vector3(0.0, 0.8, 0.0)
+	wreck_body.add_child(wreck_col)
+
 	# Rear taillights (dim broken crimson lights)
 	var taillight_mesh := BoxMesh.new()
 	taillight_mesh.size = Vector3(0.28, 0.16, 0.05)
@@ -462,6 +464,21 @@ func _spawn_lamppost(segment: RoadSegment, slice_idx: int, rng: RandomNumberGene
 	post_inst.position = Vector3(0.0, 2.9, 0.0)
 	lamppost_root.add_child(post_inst)
 
+	# Solid physical collision for lamppost
+	var post_body := StaticBody3D.new()
+	post_body.name = "PostCollision"
+	post_body.collision_layer = 1
+	post_body.collision_mask = 1
+	post_body.add_to_group("heavy_obstacle")
+
+	var post_col := CollisionShape3D.new()
+	var post_shape := BoxShape3D.new()
+	post_shape.size = Vector3(0.35, 5.8, 0.35)
+	post_col.shape = post_shape
+	post_col.position = Vector3(0.0, 2.9, 0.0)
+	post_body.add_child(post_col)
+	lamppost_root.add_child(post_body)
+
 	# Horizontal arm extending over guardrail toward road
 	var arm_mesh := BoxMesh.new()
 	arm_mesh.size = Vector3(1.3, 0.18, 0.18)
@@ -530,6 +547,19 @@ func _spawn_silhouette(segment: RoadSegment, slice_idx: int, rng: RandomNumberGe
 	head_inst.position = Vector3(0.0, 1.56, 0.0)
 	silhouette_root.add_child(head_inst)
 
+	# Solid physical collision for silhouette
+	var sil_body := StaticBody3D.new()
+	sil_body.name = "SilhouetteCollision"
+	sil_body.collision_layer = 1
+	sil_body.collision_mask = 1
+	var sil_col := CollisionShape3D.new()
+	var sil_shape := BoxShape3D.new()
+	sil_shape.size = Vector3(0.5, 1.8, 0.4)
+	sil_col.shape = sil_shape
+	sil_col.position = Vector3(0.0, 0.9, 0.0)
+	sil_body.add_child(sil_col)
+	silhouette_root.add_child(sil_body)
+
 	# Detection area for narrative radio trigger
 	var det_area := Area3D.new()
 	det_area.name = "ProximityArea"
@@ -584,6 +614,21 @@ func _spawn_milestone_marker(segment: RoadSegment, slice_idx: int, km_value: int
 	cap_inst.mesh = cap_mesh
 	cap_inst.position = Vector3(0.0, 0.85, 0.0)
 	marker_root.add_child(cap_inst)
+
+	# Solid collision for concrete milestone
+	var marker_body := StaticBody3D.new()
+	marker_body.name = "MilestoneCollision"
+	marker_body.collision_layer = 1
+	marker_body.collision_mask = 1
+	marker_body.add_to_group("heavy_obstacle")
+
+	var marker_col := CollisionShape3D.new()
+	var marker_shape := BoxShape3D.new()
+	marker_shape.size = Vector3(0.55, 1.1, 0.4)
+	marker_col.shape = marker_shape
+	marker_col.position = Vector3(0.0, 0.55, 0.0)
+	marker_body.add_child(marker_col)
+	marker_root.add_child(marker_body)
 
 	# Text label displaying "KM 77"
 	var label := Label3D.new()
@@ -660,6 +705,19 @@ func _spawn_hitchhiker(segment: RoadSegment, slice_idx: int, rng: RandomNumberGe
 	thumb_inst.position = Vector3(-0.76, 1.32, 0.15)
 	hitchhiker_root.add_child(thumb_inst)
 
+	# Solid collision for hitchhiker
+	var hitch_body := StaticBody3D.new()
+	hitch_body.name = "HitchhikerCollision"
+	hitch_body.collision_layer = 1
+	hitch_body.collision_mask = 1
+	var hitch_col := CollisionShape3D.new()
+	var hitch_shape := BoxShape3D.new()
+	hitch_shape.size = Vector3(0.5, 1.8, 0.4)
+	hitch_col.shape = hitch_shape
+	hitch_col.position = Vector3(0.0, 0.9, 0.0)
+	hitch_body.add_child(hitch_col)
+	hitchhiker_root.add_child(hitch_body)
+
 	var local_offset := Vector3(verge_x, 0.2, 0.0)
 	hitchhiker_root.transform = slice_tr * Transform3D(Basis.IDENTITY, local_offset)
 	segment.add_child(hitchhiker_root)
@@ -726,6 +784,44 @@ func _spawn_bus_stop(segment: RoadSegment, slice_idx: int, rng: RandomNumberGene
 	roof_inst.position = Vector3(0.0, 2.65, 0.0)
 	roof_inst.rotation.x = deg_to_rad(-8.0)
 	shelter_root.add_child(roof_inst)
+
+	# Solid collision for bus stop shelter walls and roof
+	var shelter_body := StaticBody3D.new()
+	shelter_body.name = "BusStopCollision"
+	shelter_body.collision_layer = 1
+	shelter_body.collision_mask = 1
+	shelter_body.add_to_group("heavy_obstacle")
+
+	var col_back := CollisionShape3D.new()
+	var shape_back := BoxShape3D.new()
+	shape_back.size = Vector3(4.2, 2.5, 0.3)
+	col_back.shape = shape_back
+	col_back.position = Vector3(0.0, 1.35, 1.2)
+	shelter_body.add_child(col_back)
+
+	var col_left := CollisionShape3D.new()
+	var shape_left := BoxShape3D.new()
+	shape_left.size = Vector3(0.3, 2.5, 2.4)
+	col_left.shape = shape_left
+	col_left.position = Vector3(-2.0, 1.35, 0.0)
+	shelter_body.add_child(col_left)
+
+	var col_right := CollisionShape3D.new()
+	var shape_right := BoxShape3D.new()
+	shape_right.size = Vector3(0.3, 2.5, 2.4)
+	col_right.shape = shape_right
+	col_right.position = Vector3(2.0, 1.35, 0.0)
+	shelter_body.add_child(col_right)
+
+	var col_roof := CollisionShape3D.new()
+	var shape_roof := BoxShape3D.new()
+	shape_roof.size = Vector3(4.6, 0.25, 2.9)
+	col_roof.shape = shape_roof
+	col_roof.position = Vector3(0.0, 2.65, 0.0)
+	col_roof.rotation.x = deg_to_rad(-8.0)
+	shelter_body.add_child(col_roof)
+
+	shelter_root.add_child(shelter_body)
 
 	# 6. Interior bench (BoxMesh)
 	var bench_mesh := BoxMesh.new()
@@ -818,6 +914,22 @@ func _spawn_tree(segment: RoadSegment, slice_tr: Transform3D, local_offset: Vect
 	trunk_inst.position = Vector3(0.0, trunk_h * 0.5, 0.0)
 	tree_root.add_child(trunk_inst)
 
+	# Solid trunk collision to punish off-road crashes against trees
+	var tree_body := StaticBody3D.new()
+	tree_body.name = "TreeCollision"
+	tree_body.collision_layer = 1
+	tree_body.collision_mask = 1
+	tree_body.add_to_group("heavy_obstacle")
+
+	var tree_col := CollisionShape3D.new()
+	var tree_shape := CylinderShape3D.new()
+	tree_shape.height = trunk_h
+	tree_shape.radius = 0.35
+	tree_col.shape = tree_shape
+	tree_col.position = Vector3(0.0, trunk_h * 0.5, 0.0)
+	tree_body.add_child(tree_col)
+	tree_root.add_child(tree_body)
+
 	# Foliage cone (CylinderMesh with top_radius = 0)
 	var foliage_h: float = height * 0.7
 	var foliage_mesh := CylinderMesh.new()
@@ -842,6 +954,21 @@ func _spawn_distant_cabin(segment: RoadSegment, slice_idx: int, rng: RandomNumbe
 
 	var cabin_root := Node3D.new()
 	cabin_root.name = "DistantCabin_%d" % slice_idx
+
+	# Solid collision for cabin
+	var cabin_body := StaticBody3D.new()
+	cabin_body.name = "CabinCollision"
+	cabin_body.collision_layer = 1
+	cabin_body.collision_mask = 1
+	cabin_body.add_to_group("heavy_obstacle")
+
+	var cabin_col := CollisionShape3D.new()
+	var cabin_shape := BoxShape3D.new()
+	cabin_shape.size = Vector3(5.2, 3.4, 5.8)
+	cabin_col.shape = cabin_shape
+	cabin_col.position = Vector3(0.0, 1.7, 0.0)
+	cabin_body.add_child(cabin_col)
+	cabin_root.add_child(cabin_body)
 
 	# Cabin body (BoxMesh)
 	var cabin_mesh := BoxMesh.new()

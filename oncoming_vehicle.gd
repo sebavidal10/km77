@@ -27,6 +27,8 @@ static var _body_material: StandardMaterial3D
 static var _headlight_lens_mat: StandardMaterial3D
 
 func _ready() -> void:
+	collision_layer = 1
+	collision_mask = 1
 	add_to_group("heavy_obstacle")
 	add_to_group("oncoming_vehicle")
 	_build_visuals_and_collision()

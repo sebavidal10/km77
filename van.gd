@@ -172,6 +172,8 @@ func _find_headlight_right() -> SpotLight3D:
 
 func _ready() -> void:
 	add_to_group("player")
+	collision_layer = 1
+	collision_mask = 1
 	current_kilometer = starting_kilometer
 	fuel_changed.emit(current_fuel, max_fuel)
 	engine_health_changed.emit(current_engine_health, max_engine_health)
@@ -467,30 +469,7 @@ func _process_collisions(forward_dir: Vector3, _delta: float) -> void:
 		var is_heavy: bool = collider.is_in_group("heavy_obstacle") or collider is StaticBody3D or collider is CharacterBody3D
 
 		if is_heavy and impact_speed > impact_speed_threshold:
-			# Damage calculation based on impact velocity
-			var damage: float = (impact_speed - impact_speed_threshold) * collision_damage_factor
-			if collider.is_in_group("heavy_obstacle"):
-				damage *= 1.5
-			current_engine_health = maxf(0.0, current_engine_health - damage)
-			engine_health_changed.emit(current_engine_health, max_engine_health)
-
-			# Severely scrub forward momentum upon direct impact
-			velocity *= 0.35
-			forward_speed_state *= 0.35
-
-			# Trigger camera trauma on ChaseCamera
-			var shake_trauma := clampf((impact_speed / max_speed) * camera_shake_intensity, 0.25, 1.4)
-			collision_impact.emit(shake_trauma)
-			_apply_camera_shake(shake_trauma)
-
-			# Probabilistic headlight damage
-			var roll_chance := headlight_break_chance_heavy if impact_speed > 14.0 else headlight_break_chance_light
-			if randf() < roll_chance:
-				_damage_random_headlight()
-
-			# Check critical engine condition
-			if current_engine_health <= 0.0:
-				engine_critical.emit()
+			apply_collision_damage(impact_speed, collider.is_in_group("heavy_obstacle"))
 
 		# 2. Collision with lightweight dynamic debris (RigidBody3D)
 		if collider is RigidBody3D:
@@ -502,6 +481,36 @@ func _process_collisions(forward_dir: Vector3, _delta: float) -> void:
 			collider.apply_central_impulse(impulse)
 			var torque := Vector3(randf_range(-6.0, 6.0), randf_range(6.0, 12.0), randf_range(-6.0, 6.0))
 			collider.apply_torque_impulse(torque)
+
+## Applies collision damage, momentum scrub, camera trauma, and headlight failure.
+func apply_collision_damage(impact_speed: float, is_heavy_obstacle: bool = true) -> void:
+	if impact_speed <= impact_speed_threshold:
+		return
+
+	# Damage calculation based on impact velocity
+	var damage: float = (impact_speed - impact_speed_threshold) * collision_damage_factor
+	if is_heavy_obstacle:
+		damage *= 1.5
+	current_engine_health = maxf(0.0, current_engine_health - damage)
+	engine_health_changed.emit(current_engine_health, max_engine_health)
+
+	# Severely scrub forward momentum upon direct impact
+	velocity *= 0.35
+	forward_speed_state *= 0.35
+
+	# Trigger camera trauma on ChaseCamera
+	var shake_trauma := clampf((impact_speed / max_speed) * camera_shake_intensity, 0.25, 1.4)
+	collision_impact.emit(shake_trauma)
+	_apply_camera_shake(shake_trauma)
+
+	# Probabilistic headlight damage
+	var roll_chance := headlight_break_chance_heavy if impact_speed > 14.0 else headlight_break_chance_light
+	if randf() < roll_chance:
+		_damage_random_headlight()
+
+	# Check critical engine condition
+	if current_engine_health <= 0.0:
+		engine_critical.emit()
 
 func _damage_random_headlight() -> void:
 	var available: Array[SpotLight3D] = []
