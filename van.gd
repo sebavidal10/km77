@@ -182,20 +182,58 @@ var _is_flickering_glitch: bool = false
 var _glitch_timer: float = 0.0
 var _glitch_toggle_timer: float = 0.0
 
-@onready var visual_mesh: MeshInstance3D = get_node_or_null("MeshInstance3D") as MeshInstance3D
+@onready var visual_root: Node3D = get_node_or_null("VisualRoot") as Node3D
+@onready var visual_mesh: MeshInstance3D = _find_visual_mesh()
 @onready var headlight_left: SpotLight3D = get_node_or_null("HeadlightLeft") as SpotLight3D
 @onready var headlight_right: SpotLight3D = _find_headlight_right()
-@onready var taillight_left: MeshInstance3D = get_node_or_null("TaillightLeft") as MeshInstance3D
-@onready var taillight_right: MeshInstance3D = get_node_or_null("TaillightRight") as MeshInstance3D
+@onready var taillight_left: MeshInstance3D = _find_taillight_left()
+@onready var taillight_right: MeshInstance3D = _find_taillight_right()
 @onready var brake_omni_light: OmniLight3D = get_node_or_null("BrakeLight") as OmniLight3D
+@onready var reverse_omni_light: OmniLight3D = get_node_or_null("ReverseLight") as OmniLight3D
+@onready var reverse_light_left: MeshInstance3D = _find_reverse_light_left()
+@onready var reverse_light_right: MeshInstance3D = _find_reverse_light_right()
+
+@onready var wheel_fl: Node3D = get_node_or_null("VisualRoot/WheelFL") as Node3D
+@onready var wheel_fr: Node3D = get_node_or_null("VisualRoot/WheelFR") as Node3D
+@onready var wheel_rl: Node3D = get_node_or_null("VisualRoot/WheelRL") as Node3D
+@onready var wheel_rr: Node3D = get_node_or_null("VisualRoot/WheelRR") as Node3D
+@onready var wheel_roll_fl: Node3D = get_node_or_null("VisualRoot/WheelFL/WheelRoll") as Node3D
+@onready var wheel_roll_fr: Node3D = get_node_or_null("VisualRoot/WheelFR/WheelRoll") as Node3D
+@onready var wheel_roll_rl: Node3D = get_node_or_null("VisualRoot/WheelRL/WheelRoll") as Node3D
+@onready var wheel_roll_rr: Node3D = get_node_or_null("VisualRoot/WheelRR/WheelRoll") as Node3D
 
 var _taillight_mat: StandardMaterial3D = null
+var _reverse_light_mat: StandardMaterial3D = null
+
+func _find_visual_mesh() -> MeshInstance3D:
+	var m := get_node_or_null("VisualRoot/CabMesh") as MeshInstance3D
+	if not m:
+		m = get_node_or_null("MeshInstance3D") as MeshInstance3D
+	return m
 
 func _find_headlight_right() -> SpotLight3D:
 	var light := get_node_or_null("HeadlightRight") as SpotLight3D
 	if not light:
 		light = get_node_or_null("HeadlighRight") as SpotLight3D
 	return light
+
+func _find_taillight_left() -> MeshInstance3D:
+	var m := get_node_or_null("VisualRoot/TaillightLeftMesh") as MeshInstance3D
+	if not m:
+		m = get_node_or_null("TaillightLeft") as MeshInstance3D
+	return m
+
+func _find_taillight_right() -> MeshInstance3D:
+	var m := get_node_or_null("VisualRoot/TaillightRightMesh") as MeshInstance3D
+	if not m:
+		m = get_node_or_null("TaillightRight") as MeshInstance3D
+	return m
+
+func _find_reverse_light_left() -> MeshInstance3D:
+	return get_node_or_null("VisualRoot/ReverseLightLeftMesh") as MeshInstance3D
+
+func _find_reverse_light_right() -> MeshInstance3D:
+	return get_node_or_null("VisualRoot/ReverseLightRightMesh") as MeshInstance3D
 
 func _ready() -> void:
 	add_to_group("player")
@@ -222,8 +260,15 @@ func _ready() -> void:
 		if taillight_right:
 			taillight_right.material_override = _taillight_mat
 
-	# Ensure van body is weathered commercial white (#E0E0E0)
-	if visual_mesh and visual_mesh.get_surface_override_material(0) == null:
+	# Setup dynamic reverse light material instance
+	if reverse_light_left and reverse_light_left.mesh and reverse_light_left.mesh.material is StandardMaterial3D:
+		_reverse_light_mat = reverse_light_left.mesh.material.duplicate() as StandardMaterial3D
+		reverse_light_left.material_override = _reverse_light_mat
+		if reverse_light_right:
+			reverse_light_right.material_override = _reverse_light_mat
+
+	# Ensure van body is weathered commercial white (#E0E0E0) for legacy mesh if unassigned
+	if visual_mesh and visual_mesh.get_surface_override_material(0) == null and (visual_mesh.mesh == null or visual_mesh.mesh.material == null):
 		var white_mat := StandardMaterial3D.new()
 		white_mat.albedo_color = Color(0.88, 0.88, 0.88, 1.0)
 		white_mat.roughness = 0.82
@@ -950,9 +995,12 @@ func _process_lateral(lat_speed: float, delta: float) -> float:
 	current_grip = move_toward(current_grip, target_grip, grip_recovery_speed * delta)
 	return lerpf(lat_speed, 0.0, 1.0 - exp(-current_grip * delta))
 
-## Applies subtle body roll to MeshInstance3D to convey weight transfer.
+## Applies subtle body roll to VisualRoot or MeshInstance3D to convey weight transfer.
 func _process_visual_roll(delta: float, fwd_speed: float) -> void:
-	if not enable_body_roll or not visual_mesh:
+	if not enable_body_roll:
+		return
+	var target_node: Node3D = visual_root if visual_root else visual_mesh
+	if not target_node:
 		return
 
 	var base_max_angle: float = deg_to_rad(max_steer_angle) if max_steer_angle > 1.5 else max_steer_angle
@@ -961,4 +1009,4 @@ func _process_visual_roll(delta: float, fwd_speed: float) -> void:
 	var drift_extra: float = 1.35 if is_drifting else 1.0
 
 	var target_roll: float = -steer_ratio * deg_to_rad(max_body_roll_deg) * speed_ratio * drift_extra
-	visual_mesh.rotation.z = lerpf(visual_mesh.rotation.z, target_roll, body_roll_speed * delta)
+	target_node.rotation.z = lerpf(target_node.rotation.z, target_roll, body_roll_speed * delta)

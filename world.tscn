@@ -1,6 +1,5 @@
 [gd_scene format=3 uid="uid://denwn2ja0vigo"]
 
-[ext_resource type="Script" uid="uid://sqcs05103pki" path="res://van.gd" id="1_f3sb7"]
 [ext_resource type="Script" uid="uid://dvsjh1krtwsni" path="res://chase_camera.gd" id="1_fj7yv"]
 [ext_resource type="Script" uid="uid://cuqv112f85gvi" path="res://road_manager.gd" id="2_rmgr"]
 [ext_resource type="PackedScene" path="res://hud.tscn" id="3_hud"]
@@ -9,27 +8,8 @@
 [ext_resource type="Shader" path="res://shaders/psx_retro.gdshader" id="6_shader"]
 [ext_resource type="Script" path="res://storm_controller.gd" id="7_storm"]
 [ext_resource type="Script" path="res://loop_reset_manager.gd" id="8_loop"]
+[ext_resource type="PackedScene" uid="uid://bvx4m2q7vvan" path="res://van.tscn" id="9_van"]
 
-[sub_resource type="BoxShape3D" id="BoxShape3D_amspa"]
-size = Vector3(2, 1.5, 4)
-
-[sub_resource type="BoxMesh" id="BoxMesh_r8maq"]
-size = Vector3(2, 1.5, 4)
-
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_f3sb7"]
-albedo_color = Color(0.88, 0.88, 0.88, 1)
-roughness = 0.82
-metallic = 0.05
-
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_taillight"]
-albedo_color = Color(0.85, 0.05, 0.05, 1)
-emission_enabled = true
-emission = Color(0.95, 0.08, 0.08, 1)
-emission_energy_multiplier = 0.8
-
-[sub_resource type="BoxMesh" id="BoxMesh_taillight"]
-material = SubResource("StandardMaterial3D_taillight")
-size = Vector3(0.35, 0.22, 0.06)
 
 [sub_resource type="Environment" id="Environment_ku5fm"]
 background_mode = 1
@@ -70,50 +50,8 @@ target_node = NodePath("../Van/CameraTarget")
 script = ExtResource("2_rmgr")
 target_vehicle = NodePath("../Van")
 
-[node name="Van" type="CharacterBody3D" parent="." unique_id=686971467]
+[node name="Van" parent="." unique_id=686971467 instance=ExtResource("9_van")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.5, 1.5, 0)
-collision_layer = 1
-collision_mask = 1
-script = ExtResource("1_f3sb7")
-
-[node name="CollisionShape3D" type="CollisionShape3D" parent="Van" unique_id=2139074407]
-shape = SubResource("BoxShape3D_amspa")
-
-[node name="MeshInstance3D" type="MeshInstance3D" parent="Van" unique_id=548947607]
-mesh = SubResource("BoxMesh_r8maq")
-surface_material_override/0 = SubResource("StandardMaterial3D_f3sb7")
-
-[node name="HeadlightLeft" type="SpotLight3D" parent="Van" unique_id=615601642]
-transform = Transform3D(1, 0, 0, 0, 0.9781476, 0.2079117, 0, -0.2079117, 0.9781476, -0.8, 0.6, -2.2)
-light_color = Color(1, 0.9490196, 0.8, 1)
-light_energy = 2.5
-spot_range = 40.0
-spot_angle = 50.0
-
-[node name="HeadlighRight" type="SpotLight3D" parent="Van" unique_id=608761848]
-transform = Transform3D(1, 0, 0, 0, 0.9781476, 0.2079117, 0, -0.2079117, 0.9781476, 0.8, 0.6, -2.2)
-light_color = Color(1, 0.9490196, 0.8, 1)
-light_energy = 2.5
-spot_range = 40.0
-spot_angle = 50.0
-
-[node name="CameraTarget" type="Node3D" parent="Van" unique_id=615025000]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3.8, 7.0)
-
-[node name="TaillightLeft" type="MeshInstance3D" parent="Van" unique_id=615601650]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.75, 0.45, 2.01)
-mesh = SubResource("BoxMesh_taillight")
-
-[node name="TaillightRight" type="MeshInstance3D" parent="Van" unique_id=615601651]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.75, 0.45, 2.01)
-mesh = SubResource("BoxMesh_taillight")
-
-[node name="BrakeLight" type="OmniLight3D" parent="Van" unique_id=615601652]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.5, 2.25)
-light_color = Color(1, 0.08, 0.08, 1)
-light_energy = 0.25
-omni_range = 6.0
-omni_attenuation = 1.6
 
 [node name="DirectionalLight3D" type="DirectionalLight3D" parent="." unique_id=798504467]
 transform = Transform3D(0.8660254, -0.35355338, 0.35355338, 0, 0.70710677, 0.70710677, -0.5, -0.6123724, 0.6123724, 0, 0, 0)
