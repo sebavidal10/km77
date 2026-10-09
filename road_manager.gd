@@ -2,6 +2,7 @@ class_name RoadManager
 extends Node3D
 
 const RoadEventSpawner = preload("res://road_event_spawner.gd")
+const OncomingVehicle = preload("res://oncoming_vehicle.gd")
 
 @export_group("Target Vehicle")
 ## Node representing the vehicle to track for spawning and recycling road segments.
@@ -35,6 +36,18 @@ const RoadEventSpawner = preload("res://road_event_spawner.gd")
 ## Optional custom event spawner node. If null, a default RoadEventSpawner is created automatically.
 @export var event_spawner: RoadEventSpawner
 
+@export_group("Doppelgänger / Oncoming Vehicle")
+## Enables oncoming doppelgänger patrol vehicle encounters in the opposing lane.
+@export var enable_oncoming_vehicle: bool = true
+## Minimum chunks generated between oncoming vehicle encounters.
+@export var oncoming_spawn_min_chunks: int = 4
+## Maximum chunks generated between oncoming vehicle encounters.
+@export var oncoming_spawn_max_chunks: int = 6
+## Chance (0.0 to 1.0) to spawn an oncoming vehicle once the chunk interval is reached.
+@export var oncoming_spawn_chance: float = 0.75
+## Opposing lane center lateral offset from road center (meters).
+@export var opposing_lane_offset: float = 3.6
+
 # Internal state
 var active_segments: Array[RoadSegment] = []
 var rng: RandomNumberGenerator = RandomNumberGenerator.new()
@@ -42,9 +55,14 @@ var consecutive_curves: int = 0
 var last_curve_type: RoadSegment.SegmentType = RoadSegment.SegmentType.STRAIGHT
 var total_segments_spawned: int = 0
 
+var active_oncoming_vehicle: OncomingVehicle = null
+var chunks_since_last_oncoming: int = 0
+var next_oncoming_chunk_interval: int = 5
+
 func _ready() -> void:
 	_init_rng()
 	_init_event_spawner()
+	next_oncoming_chunk_interval = rng.randi_range(oncoming_spawn_min_chunks, oncoming_spawn_max_chunks)
 	_find_target_vehicle()
 	_spawn_initial_track()
 
@@ -81,9 +99,11 @@ func _find_target_vehicle() -> void:
 			return
 
 	# Fallback: search by CharacterBody3D or group
-	var nodes := get_tree().get_nodes_in_group("player")
-	if not nodes.is_empty():
-		target_vehicle = nodes[0] as Node3D
+	var tree := get_tree()
+	if tree:
+		var nodes := tree.get_nodes_in_group("player")
+		if not nodes.is_empty():
+			target_vehicle = nodes[0] as Node3D
 
 func _spawn_initial_track() -> void:
 	# Clear any pre-existing children
@@ -93,6 +113,7 @@ func _spawn_initial_track() -> void:
 	consecutive_curves = 0
 	last_curve_type = RoadSegment.SegmentType.STRAIGHT
 	total_segments_spawned = 0
+	chunks_since_last_oncoming = 0
 
 	# 1. Spawn a straight buffer segment behind the starting vehicle position (from Z = 80 to Z = 0)
 	var initial_rear_transform := Transform3D(Basis.IDENTITY, Vector3(0.0, 0.0, segment_length))
@@ -199,4 +220,69 @@ func _spawn_segment(type: RoadSegment.SegmentType) -> RoadSegment:
 		event_spawner.spawn_events_for_segment(segment, total_segments_spawned, rng)
 	active_segments.append(segment)
 	total_segments_spawned += 1
+
+	_on_segment_spawned_check_oncoming()
+
 	return segment
+
+func _on_segment_spawned_check_oncoming() -> void:
+	if not enable_oncoming_vehicle:
+		return
+	if is_instance_valid(active_oncoming_vehicle):
+		return
+	# Don't spawn on the initial runway chunks
+	if total_segments_spawned < 4:
+		return
+
+	chunks_since_last_oncoming += 1
+	if chunks_since_last_oncoming < next_oncoming_chunk_interval:
+		return
+
+	chunks_since_last_oncoming = 0
+	next_oncoming_chunk_interval = rng.randi_range(oncoming_spawn_min_chunks, oncoming_spawn_max_chunks)
+
+	if rng.randf() > oncoming_spawn_chance:
+		return
+
+	_spawn_oncoming_vehicle()
+
+func _spawn_oncoming_vehicle() -> void:
+	if active_segments.size() < 4 or not target_vehicle:
+		return
+
+	var vehicle_pos := target_vehicle.global_position if target_vehicle.is_inside_tree() else Vector3.ZERO
+
+	# 1. Find segment closest to the player
+	var current_segment_index: int = 0
+	var min_dist: float = INF
+	for i in range(active_segments.size()):
+		var seg: RoadSegment = active_segments[i]
+		var dist := vehicle_pos.distance_to(seg.get_exit_position())
+		if dist < min_dist:
+			min_dist = dist
+			current_segment_index = i
+
+	# 2. Select spawn chunk approx 120-150m ahead (current + 2 chunks)
+	var spawn_seg_idx: int = clampi(current_segment_index + 2, 0, active_segments.size() - 1)
+	if spawn_seg_idx <= current_segment_index:
+		return
+
+	# 3. Build left-lane waypoints walking backward from spawn chunk towards & past the player
+	var waypoints: Array[Vector3] = []
+	for s in range(spawn_seg_idx, -1, -1):
+		var seg: RoadSegment = active_segments[s]
+		var slices: int = seg.get_slice_count()
+		for i in range(slices - 1, -1, -1):
+			var slice_tr: Transform3D = seg.get_slice_transform(i)
+			var global_slice: Transform3D = seg.global_transform * slice_tr
+			var wp: Vector3 = global_slice.origin + global_slice.basis * Vector3(-opposing_lane_offset, 0.75, 0.0)
+			waypoints.append(wp)
+
+	if waypoints.size() < 4:
+		return
+
+	var oncoming := OncomingVehicle.new()
+	oncoming.name = "OncomingDoppelganger_%d" % total_segments_spawned
+	add_child(oncoming)
+	oncoming.setup_waypoints(waypoints, target_vehicle)
+	active_oncoming_vehicle = oncoming
