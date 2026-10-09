@@ -114,13 +114,28 @@ signal paradox_anomaly_triggered
 ## Destination kilometer goal.
 @export var target_kilometer: float = 77.0
 
-@export_group("Visual Chassis Roll")
-## Enables subtle body roll on the MeshInstance3D to convey weight shift during turns and drifts.
-@export var enable_body_roll: bool = true
+@export_group("Suspension Dynamics")
+## Enables suspension dynamics: body pitch, centrifugal roll, and idle vibration shiver.
+@export var enable_suspension_dynamics: bool = true
 ## Maximum roll angle in degrees during hard cornering.
-@export var max_body_roll_deg: float = 3.8
+@export var max_body_roll_deg: float = 4.2
 ## Speed of roll smoothing.
 @export var body_roll_speed: float = 8.5
+## Maximum pitch angle in degrees during hard acceleration or braking.
+@export var max_body_pitch_deg: float = 3.6
+## Speed of pitch smoothing.
+@export var body_pitch_speed: float = 7.5
+## Sensitivity factor translating acceleration (m/s^2) to pitch angle.
+@export var pitch_acceleration_factor: float = 0.024
+## Frequency multiplier for engine idle vibration shiver.
+@export var idle_shiver_frequency: float = 25.0
+## Maximum vertical displacement in meters for idle shiver.
+@export var idle_shiver_amplitude: float = 0.0035
+
+# Backward compatibility alias
+var enable_body_roll: bool:
+	get: return enable_suspension_dynamics
+	set(val): enable_suspension_dynamics = val
 
 @export_group("Environment & Gravity")
 ## Downward gravity acceleration.
@@ -205,6 +220,13 @@ var _glitch_toggle_timer: float = 0.0
 var _taillight_mat: StandardMaterial3D = null
 var _reverse_light_mat: StandardMaterial3D = null
 
+var _prev_forward_speed: float = 0.0
+var _current_pitch: float = 0.0
+var _current_roll: float = 0.0
+var _idle_shiver_time: float = 0.0
+var _idle_shiver_offset: float = 0.0
+var _base_visual_root_y: float = 0.0
+
 func _find_visual_mesh() -> MeshInstance3D:
 	var m := get_node_or_null("VisualRoot/CabMesh") as MeshInstance3D
 	if not m:
@@ -239,6 +261,8 @@ func _ready() -> void:
 	add_to_group("player")
 	collision_layer = 1
 	collision_mask = 1
+	if visual_root:
+		_base_visual_root_y = visual_root.position.y
 	_ensure_high_beams_action()
 	var tree := get_tree()
 	if tree and tree.current_scene:
@@ -353,8 +377,8 @@ func _physics_process(delta: float) -> void:
 	# 11. Functional rotating and steering wheels
 	_process_wheel_transformations(delta)
 
-	# 12. Visual chassis roll animation linked to smoothed steering angle
-	_process_visual_roll(delta, forward_speed_state)
+	# 12. Visual suspension dynamics: longitudinal pitch, centrifugal roll, and idle shiver
+	_process_suspension_dynamics(delta, forward_speed_state)
 
 ## Starts the vehicle shutdown and blackout sequence.
 func _start_collapse() -> void:
@@ -462,6 +486,16 @@ func reset_loop_state() -> void:
 
 	_wheel_roll_angle = 0.0
 	_process_wheel_transformations(0.0)
+
+	_current_pitch = 0.0
+	_current_roll = 0.0
+	_idle_shiver_offset = 0.0
+	_idle_shiver_time = 0.0
+	_prev_forward_speed = 0.0
+	var target_suspension_node: Node3D = visual_root if visual_root else visual_mesh
+	if target_suspension_node:
+		target_suspension_node.rotation = Vector3.ZERO
+		target_suspension_node.position.y = _base_visual_root_y
 
 	# 5. Clear stall, mud drag, and shoulder state
 	is_stalled = false
@@ -608,8 +642,28 @@ func _process_visual_effects(delta: float) -> void:
 var _wheel_roll_angle: float = 0.0
 @export var wheel_radius: float = 0.35
 
+func _ensure_wheel_nodes() -> void:
+	if not wheel_fl:
+		wheel_fl = get_node_or_null("VisualRoot/WheelFL") as Node3D
+	if not wheel_fr:
+		wheel_fr = get_node_or_null("VisualRoot/WheelFR") as Node3D
+	if not wheel_rl:
+		wheel_rl = get_node_or_null("VisualRoot/WheelRL") as Node3D
+	if not wheel_rr:
+		wheel_rr = get_node_or_null("VisualRoot/WheelRR") as Node3D
+	if not wheel_roll_fl:
+		wheel_roll_fl = get_node_or_null("VisualRoot/WheelFL/WheelRoll") as Node3D
+	if not wheel_roll_fr:
+		wheel_roll_fr = get_node_or_null("VisualRoot/WheelFR/WheelRoll") as Node3D
+	if not wheel_roll_rl:
+		wheel_roll_rl = get_node_or_null("VisualRoot/WheelRL/WheelRoll") as Node3D
+	if not wheel_roll_rr:
+		wheel_roll_rr = get_node_or_null("VisualRoot/WheelRR/WheelRoll") as Node3D
+
 ## Animates functional wheel rolling and front steering angles.
 func _process_wheel_transformations(delta: float) -> void:
+	_ensure_wheel_nodes()
+
 	if delta > 0.0:
 		var delta_roll: float = -(forward_speed_state / wheel_radius) * delta
 		_wheel_roll_angle = wrapf(_wheel_roll_angle + delta_roll, -PI, PI)
@@ -1055,18 +1109,51 @@ func _process_lateral(lat_speed: float, delta: float) -> float:
 	current_grip = move_toward(current_grip, target_grip, grip_recovery_speed * delta)
 	return lerpf(lat_speed, 0.0, 1.0 - exp(-current_grip * delta))
 
-## Applies subtle body roll to VisualRoot or MeshInstance3D to convey weight transfer.
-func _process_visual_roll(delta: float, fwd_speed: float) -> void:
-	if not enable_body_roll:
+## Applies visual suspension dynamics (pitch, roll, and idle vibration shiver) to VisualRoot.
+func _process_suspension_dynamics(delta: float, fwd_speed: float) -> void:
+	if not enable_suspension_dynamics:
 		return
+	if not visual_root:
+		visual_root = get_node_or_null("VisualRoot") as Node3D
 	var target_node: Node3D = visual_root if visual_root else visual_mesh
 	if not target_node:
 		return
 
+	# 1. Pitch (longitudinal cabeceo): nose dips under heavy braking, nose lifts under acceleration
+	var accel_long: float = 0.0
+	if delta > 0.0:
+		accel_long = (fwd_speed - _prev_forward_speed) / delta
+	_prev_forward_speed = fwd_speed
+
+	var target_pitch: float = clampf(
+		accel_long * pitch_acceleration_factor,
+		-deg_to_rad(max_body_pitch_deg),
+		deg_to_rad(max_body_pitch_deg)
+	)
+	_current_pitch = lerpf(_current_pitch, target_pitch, body_pitch_speed * delta)
+
+	# 2. Roll (balanceo lateral): body tilts toward outside of curves according to centrifugal force
 	var base_max_angle: float = deg_to_rad(max_steer_angle) if max_steer_angle > 1.5 else max_steer_angle
 	var steer_ratio: float = clampf(current_steer_angle / maxf(base_max_angle, 0.001), -1.0, 1.0)
 	var speed_ratio: float = clampf(absf(fwd_speed) / max_speed, 0.0, 1.0)
 	var drift_extra: float = 1.35 if is_drifting else 1.0
 
 	var target_roll: float = -steer_ratio * deg_to_rad(max_body_roll_deg) * speed_ratio * drift_extra
-	target_node.rotation.z = lerpf(target_node.rotation.z, target_roll, body_roll_speed * delta)
+	_current_roll = lerpf(_current_roll, target_roll, body_roll_speed * delta)
+
+	# 3. Idle Shiver: subtle vertical procedural vibration via sin(time * 25.0) when vehicle is stopped (< 1.0 km/h)
+	var is_idling: bool = absf(fwd_speed) < 0.28 and not is_stalled and current_fuel > 0.0
+	if is_idling:
+		_idle_shiver_time += delta * idle_shiver_frequency
+		_idle_shiver_offset = sin(_idle_shiver_time) * idle_shiver_amplitude
+	else:
+		_idle_shiver_offset = move_toward(_idle_shiver_offset, 0.0, 0.05 * delta)
+
+	# 4. Apply interpolated pitch, roll, and idle shiver to VisualRoot (CollisionShape3D remains static)
+	target_node.rotation.x = _current_pitch
+	target_node.rotation.z = _current_roll
+	target_node.position.y = _base_visual_root_y + _idle_shiver_offset
+
+## Backward compatibility alias for _process_suspension_dynamics.
+func _process_visual_roll(delta: float, fwd_speed: float) -> void:
+	_process_suspension_dynamics(delta, fwd_speed)
