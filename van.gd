@@ -84,15 +84,15 @@ signal paradox_anomaly_triggered
 ## Low beam intensity energy.
 @export var low_beam_energy: float = 8.5
 ## Low beam downward pitch in degrees (illuminates road surface).
-@export var low_beam_pitch_deg: float = -7.0
+@export var low_beam_pitch_deg: float = 0.0
 ## High beam spot range (meters).
-@export var high_beam_range: float = 120.0
+@export var high_beam_range: float = 130.0
 ## High beam cone angle (degrees).
-@export var high_beam_angle: float = 40.0
+@export var high_beam_angle: float = 38.0
 ## High beam intensity energy.
 @export var high_beam_energy: float = 16.0
 ## High beam downward pitch in degrees (pierces far down highway).
-@export var high_beam_pitch_deg: float = -2.5
+@export var high_beam_pitch_deg: float = 0.0
 
 @export_group("Reverse & Coasting")
 ## Maximum reverse speed in m/s (approx 45 km/h).
@@ -203,9 +203,9 @@ var _glitch_toggle_timer: float = 0.0
 
 @onready var visual_root: Node3D = get_node_or_null("VisualRoot") as Node3D
 @onready var visual_mesh: MeshInstance3D = _find_visual_mesh()
-@onready var headlight_left: SpotLight3D = get_node_or_null("HeadlightLeft") as SpotLight3D
+@onready var headlight_left: SpotLight3D = _find_headlight_left()
 @onready var headlight_right: SpotLight3D = _find_headlight_right()
-@onready var headlight_ground_fill: SpotLight3D = get_node_or_null("HeadlightGroundFill") as SpotLight3D
+@onready var headlight_ground_fill: SpotLight3D = _find_headlight_ground_fill()
 @onready var headlight_left_mesh: MeshInstance3D = get_node_or_null("VisualRoot/HeadlightLeftMesh") as MeshInstance3D
 @onready var headlight_right_mesh: MeshInstance3D = get_node_or_null("VisualRoot/HeadlightRightMesh") as MeshInstance3D
 @onready var taillight_left: MeshInstance3D = _find_taillight_left()
@@ -242,10 +242,30 @@ func _find_visual_mesh() -> MeshInstance3D:
 		m = get_node_or_null("MeshInstance3D") as MeshInstance3D
 	return m
 
+func _find_headlight_left() -> SpotLight3D:
+	var light := get_node_or_null("HeadlightLeft") as SpotLight3D
+	if not light and visual_root:
+		light = visual_root.get_node_or_null("HeadlightLeft") as SpotLight3D
+	if not light:
+		light = find_child("HeadlightLeft", true, false) as SpotLight3D
+	return light
+
 func _find_headlight_right() -> SpotLight3D:
 	var light := get_node_or_null("HeadlightRight") as SpotLight3D
 	if not light:
 		light = get_node_or_null("HeadlighRight") as SpotLight3D
+	if not light and visual_root:
+		light = visual_root.get_node_or_null("HeadlightRight") as SpotLight3D
+	if not light:
+		light = find_child("HeadlightRight", true, false) as SpotLight3D
+	return light
+
+func _find_headlight_ground_fill() -> SpotLight3D:
+	var light := get_node_or_null("HeadlightGroundFill") as SpotLight3D
+	if not light and visual_root:
+		light = visual_root.get_node_or_null("HeadlightGroundFill") as SpotLight3D
+	if not light:
+		light = find_child("HeadlightGroundFill", true, false) as SpotLight3D
 	return light
 
 func _find_taillight_left() -> MeshInstance3D:
@@ -748,18 +768,19 @@ func _apply_headlight_mode_instant() -> void:
 	var target_fill_energy: float = 10.5 if is_high_beams_active else 7.5
 
 	if headlight_left and not left_headlight_broken:
-		headlight_left.rotation.x = target_pitch
+		headlight_left.rotation = Vector3(target_pitch, 0.0, 0.0)
 		headlight_left.spot_range = target_range
 		headlight_left.spot_angle = target_angle
 		headlight_left.light_energy = target_energy
 		headlight_left.volumetric_fog_energy = target_fog_energy
 	if headlight_right and not right_headlight_broken:
-		headlight_right.rotation.x = target_pitch
+		headlight_right.rotation = Vector3(target_pitch, 0.0, 0.0)
 		headlight_right.spot_range = target_range
 		headlight_right.spot_angle = target_angle
 		headlight_right.light_energy = target_energy
 		headlight_right.volumetric_fog_energy = target_fog_energy
 	if headlight_ground_fill:
+		headlight_ground_fill.rotation = Vector3.ZERO
 		headlight_ground_fill.light_energy = target_fill_energy
 		headlight_ground_fill.volumetric_fog_energy = 2.0
 	if _headlight_mat:
@@ -783,6 +804,8 @@ func _process_headlight_beams(delta: float) -> void:
 	if not is_stalled:
 		if headlight_left and not left_headlight_broken:
 			headlight_left.rotation.x = move_toward(headlight_left.rotation.x, target_pitch, 8.0 * delta)
+			headlight_left.rotation.y = 0.0
+			headlight_left.rotation.z = 0.0
 			headlight_left.spot_range = move_toward(headlight_left.spot_range, target_range, 90.0 * delta)
 			headlight_left.spot_angle = move_toward(headlight_left.spot_angle, target_angle, 45.0 * delta)
 			headlight_left.volumetric_fog_energy = target_fog_energy
@@ -790,6 +813,8 @@ func _process_headlight_beams(delta: float) -> void:
 				headlight_left.light_energy = move_toward(headlight_left.light_energy, target_energy, 18.0 * delta)
 		if headlight_right and not right_headlight_broken:
 			headlight_right.rotation.x = move_toward(headlight_right.rotation.x, target_pitch, 8.0 * delta)
+			headlight_right.rotation.y = 0.0
+			headlight_right.rotation.z = 0.0
 			headlight_right.spot_range = move_toward(headlight_right.spot_range, target_range, 90.0 * delta)
 			headlight_right.spot_angle = move_toward(headlight_right.spot_angle, target_angle, 45.0 * delta)
 			headlight_right.volumetric_fog_energy = target_fog_energy
@@ -797,6 +822,7 @@ func _process_headlight_beams(delta: float) -> void:
 				headlight_right.light_energy = move_toward(headlight_right.light_energy, target_energy, 18.0 * delta)
 
 		if headlight_ground_fill:
+			headlight_ground_fill.rotation = Vector3.ZERO
 			headlight_ground_fill.light_energy = move_toward(headlight_ground_fill.light_energy, target_fill_energy, 14.0 * delta)
 
 		if _headlight_mat:
