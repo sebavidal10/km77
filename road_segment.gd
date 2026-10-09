@@ -52,10 +52,11 @@ static var _sign_post_mat: StandardMaterial3D
 static func get_road_material() -> StandardMaterial3D:
 	if not _road_material:
 		_road_material = StandardMaterial3D.new()
-		# Dark lead-gray asphalt with high roughness
-		_road_material.albedo_color = Color(0.12, 0.12, 0.14, 1.0)
-		_road_material.roughness = 0.95
-		_road_material.metallic = 0.05
+		# Wet lead-gray asphalt with glossy rain sheen reflections
+		_road_material.albedo_color = Color(0.10, 0.10, 0.12, 1.0)
+		_road_material.roughness = 0.18
+		_road_material.metallic = 0.08
+		_road_material.metallic_specular = 0.65
 	return _road_material
 
 static func get_shoulder_material() -> StandardMaterial3D:
@@ -88,9 +89,9 @@ static func get_barrier_material() -> StandardMaterial3D:
 static func get_marking_material() -> StandardMaterial3D:
 	if not _marking_material:
 		_marking_material = StandardMaterial3D.new()
-		# High-visibility worn highway traffic yellow (#FFCC00) with retro-reflectivity
+		# High-visibility wet highway traffic yellow (#FFCC00) with retro-reflectivity
 		_marking_material.albedo_color = Color(1.0, 0.8, 0.0, 1.0)
-		_marking_material.roughness = 0.45
+		_marking_material.roughness = 0.22
 		_marking_material.metallic = 0.05
 		_marking_material.emission_enabled = true
 		_marking_material.emission = Color(1.0, 0.8, 0.0, 1.0)

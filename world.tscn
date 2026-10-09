@@ -7,6 +7,7 @@
 [ext_resource type="Script" path="res://radio_manager.gd" id="4_radio"]
 [ext_resource type="Script" path="res://post_process.gd" id="5_post"]
 [ext_resource type="Shader" path="res://shaders/psx_retro.gdshader" id="6_shader"]
+[ext_resource type="Script" path="res://storm_controller.gd" id="7_storm"]
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_amspa"]
 size = Vector3(2, 1.5, 4)
@@ -115,7 +116,13 @@ omni_attenuation = 1.6
 
 [node name="DirectionalLight3D" type="DirectionalLight3D" parent="." unique_id=798504467]
 transform = Transform3D(0.8660254, -0.35355338, 0.35355338, 0, 0.70710677, 0.70710677, -0.5, -0.6123724, 0.6123724, 0, 0, 0)
-light_energy = 0.02
+light_color = Color(0.85, 0.92, 1, 1)
+light_energy = 0.0
+
+[node name="StormController" type="Node3D" parent="." unique_id=89214701 node_paths=PackedStringArray("target_vehicle", "lightning_light")]
+script = ExtResource("7_storm")
+target_vehicle = NodePath("../Van")
+lightning_light = NodePath("../DirectionalLight3D")
 
 [node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=1409519131]
 environment = SubResource("Environment_ku5fm")
