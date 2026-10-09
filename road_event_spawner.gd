@@ -55,10 +55,30 @@ static var _bus_stop_wood_mat: StandardMaterial3D
 static var _cabin_wall_mat: StandardMaterial3D
 static var _cabin_roof_mat: StandardMaterial3D
 static var _window_emission_mat: StandardMaterial3D
+static var _blood_crimson_mat: StandardMaterial3D
+static var _taillight_red_mat: StandardMaterial3D
 
 func _ready() -> void:
 	current_kilometer = starting_kilometer
 	milestone_counter = 0
+
+static func _get_blood_crimson_mat() -> StandardMaterial3D:
+	if not _blood_crimson_mat:
+		_blood_crimson_mat = StandardMaterial3D.new()
+		# Deep coagulated crimson blood with slick wet specular sheen (#550508)
+		_blood_crimson_mat.albedo_color = Color(0.38, 0.02, 0.03, 1.0)
+		_blood_crimson_mat.roughness = 0.18
+		_blood_crimson_mat.metallic = 0.08
+	return _blood_crimson_mat
+
+static func _get_taillight_red_mat() -> StandardMaterial3D:
+	if not _taillight_red_mat:
+		_taillight_red_mat = StandardMaterial3D.new()
+		_taillight_red_mat.albedo_color = Color(0.85, 0.05, 0.05, 1.0)
+		_taillight_red_mat.emission_enabled = true
+		_taillight_red_mat.emission = Color(0.9, 0.04, 0.02, 1.0)
+		_taillight_red_mat.emission_energy_multiplier = 1.3
+	return _taillight_red_mat
 
 static func _get_rust_material() -> StandardMaterial3D:
 	if not _rust_metal_mat:
@@ -296,7 +316,20 @@ func _spawn_crashed_vehicle(segment: RoadSegment, slice_idx: int, rng: RandomNum
 	wreck_shape.size = Vector3(2.2, 1.6, 4.4)
 	wreck_col.shape = wreck_shape
 	wreck_col.position = Vector3(0.0, 0.8, 0.0)
-	wreck_body.add_child(wreck_col)
+	# Rear taillights (dim broken crimson lights)
+	var taillight_mesh := BoxMesh.new()
+	taillight_mesh.size = Vector3(0.28, 0.16, 0.05)
+	taillight_mesh.material = _get_taillight_red_mat()
+
+	var left_tail := MeshInstance3D.new()
+	left_tail.mesh = taillight_mesh
+	left_tail.position = Vector3(-0.85, 0.7, 2.16)
+	wreck_body.add_child(left_tail)
+
+	var right_tail := MeshInstance3D.new()
+	right_tail.mesh = taillight_mesh
+	right_tail.position = Vector3(0.85, 0.7, 2.16)
+	wreck_body.add_child(right_tail)
 
 	# Place relative to slice transform (top of road is at Y = 0.5)
 	var local_offset := Vector3(lateral_x, 0.5, 0.0)
@@ -304,6 +337,25 @@ func _spawn_crashed_vehicle(segment: RoadSegment, slice_idx: int, rng: RandomNum
 	wreck_body.transform = slice_tr * Transform3D(local_basis, local_offset)
 
 	segment.add_child(wreck_body)
+
+	# Crimson blood impact zone beneath crashed vehicle
+	var blood_pool := MeshInstance3D.new()
+	var blood_mesh := BoxMesh.new()
+	blood_mesh.size = Vector3(3.4, 0.015, 4.8)
+	blood_mesh.material = _get_blood_crimson_mat()
+	blood_pool.mesh = blood_mesh
+	blood_pool.transform = slice_tr * Transform3D(Basis.IDENTITY, Vector3(lateral_x, 0.51, 0.0))
+	segment.add_child(blood_pool)
+
+	# Irregular secondary blood splatter streak
+	var blood_streak := MeshInstance3D.new()
+	var streak_mesh := BoxMesh.new()
+	streak_mesh.size = Vector3(1.6, 0.015, 2.8)
+	streak_mesh.material = _get_blood_crimson_mat()
+	blood_streak.mesh = streak_mesh
+	var streak_basis := Basis(Vector3.UP, rng.randf_range(-0.8, 0.8))
+	blood_streak.transform = slice_tr * Transform3D(streak_basis, Vector3(lateral_x + rng.randf_range(-1.2, 1.2), 0.512, rng.randf_range(-1.5, 1.5)))
+	segment.add_child(blood_streak)
 
 ## Spawns a cluster of physics-driven debris and traffic cones that scatter upon impact.
 func _spawn_debris_cluster(segment: RoadSegment, slice_idx: int, rng: RandomNumberGenerator) -> void:
@@ -472,6 +524,15 @@ func _spawn_silhouette(segment: RoadSegment, slice_idx: int, rng: RandomNumberGe
 			RadioManager.instance.report_silhouette_proximity(silhouette_root.global_position)
 	)
 	silhouette_root.add_child(det_area)
+
+	# Viscous dark crimson puddle beneath silhouette
+	var puddle_inst := MeshInstance3D.new()
+	var puddle_mesh := BoxMesh.new()
+	puddle_mesh.size = Vector3(1.5, 0.015, 1.4)
+	puddle_mesh.material = _get_blood_crimson_mat()
+	puddle_inst.mesh = puddle_mesh
+	puddle_inst.position = Vector3(0.0, 0.012, 0.0)
+	silhouette_root.add_child(puddle_inst)
 
 	var local_offset := Vector3(verge_x, 0.5, 0.0)
 	silhouette_root.transform = slice_tr * Transform3D(Basis.IDENTITY, local_offset)

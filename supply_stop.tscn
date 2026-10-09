@@ -86,10 +86,19 @@ bottom_radius = 0.04
 height = 0.35
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_flare_tip"]
-albedo_color = Color(1, 0.35, 0.1, 1)
+albedo_color = Color(1, 0.133333, 0, 1)
 emission_enabled = true
-emission = Color(1, 0.25, 0.08, 1)
-emission_energy_multiplier = 4.0
+emission = Color(1, 0.133333, 0, 1)
+emission_energy_multiplier = 6.0
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_blood_puddle"]
+albedo_color = Color(0.38, 0.02, 0.03, 1)
+roughness = 0.18
+metallic = 0.08
+
+[sub_resource type="BoxMesh" id="BoxMesh_blood_puddle"]
+material = SubResource("StandardMaterial3D_blood_puddle")
+size = Vector3(2.4, 0.015, 3.2)
 
 [sub_resource type="BoxMesh" id="BoxMesh_flare_tip"]
 material = SubResource("StandardMaterial3D_flare_tip")
@@ -189,10 +198,14 @@ surface_material_override/0 = SubResource("StandardMaterial3D_flare_tip")
 [node name="FlareLight" type="OmniLight3D" parent="RoadFlare" unique_id=9812419]
 unique_name_in_owner = true
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.05, 0.38, 0)
-light_color = Color(1, 0.22, 0.1, 1)
-light_energy = 6.5
-omni_range = 14.0
-omni_attenuation = 1.35
+light_color = Color(1, 0.133333, 0, 1)
+light_energy = 8.5
+omni_range = 18.0
+omni_attenuation = 1.25
+
+[node name="BloodPuddle" type="MeshInstance3D" parent="." unique_id=9812429]
+transform = Transform3D(0.9659258, 0, -0.258819, 0, 1, 0, 0.258819, 0, 0.9659258, 1.2, 0.14, -5.2)
+mesh = SubResource("BoxMesh_blood_puddle")
 
 [node name="InteractionArea" type="Area3D" parent="." unique_id=9812420]
 unique_name_in_owner = true

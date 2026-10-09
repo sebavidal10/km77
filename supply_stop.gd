@@ -66,9 +66,11 @@ func _process_flare_effects(delta: float) -> void:
 	if is_flare_active:
 		_flare_noise_time += delta * 18.0
 		var flicker := (sin(_flare_noise_time) * 0.45) + (sin(_flare_noise_time * 2.37) * 0.35) + randf_range(-0.35, 0.35)
-		flare_light.light_energy = clampf(5.8 + flicker * 2.2, 1.8, 9.5)
+		flare_light.light_color = Color(1.0, 0.133333, 0.0, 1.0) # #FF2200 Vivid crimson flare
+		flare_light.light_energy = clampf(8.5 + flicker * 2.8, 3.5, 12.0)
 		if _tip_material:
-			_tip_material.emission_energy_multiplier = clampf(3.5 + flicker * 1.5, 1.0, 5.5)
+			_tip_material.emission = Color(1.0, 0.133333, 0.0, 1.0)
+			_tip_material.emission_energy_multiplier = clampf(6.0 + flicker * 2.2, 3.0, 9.5)
 	else:
 		# Gradually extinguish flare to dark ash
 		flare_light.light_energy = move_toward(flare_light.light_energy, 0.0, 7.5 * delta)

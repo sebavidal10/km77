@@ -36,6 +36,8 @@ var slice_transforms: Array[Transform3D] = []
 static var _road_material: StandardMaterial3D
 static var _barrier_material: StandardMaterial3D
 static var _marking_material: StandardMaterial3D
+static var _reflector_amber_mat: StandardMaterial3D
+static var _sign_post_mat: StandardMaterial3D
 
 static func get_road_material() -> StandardMaterial3D:
 	if not _road_material:
@@ -58,11 +60,32 @@ static func get_barrier_material() -> StandardMaterial3D:
 static func get_marking_material() -> StandardMaterial3D:
 	if not _marking_material:
 		_marking_material = StandardMaterial3D.new()
-		# Worn highway traffic yellow with slight retro-reflectivity
-		_marking_material.albedo_color = Color(0.86, 0.72, 0.22, 1.0)
-		_marking_material.roughness = 0.65
+		# High-visibility worn highway traffic yellow (#FFCC00) with retro-reflectivity
+		_marking_material.albedo_color = Color(1.0, 0.8, 0.0, 1.0)
+		_marking_material.roughness = 0.45
 		_marking_material.metallic = 0.05
+		_marking_material.emission_enabled = true
+		_marking_material.emission = Color(1.0, 0.8, 0.0, 1.0)
+		_marking_material.emission_energy_multiplier = 0.35
 	return _marking_material
+
+static func get_reflector_amber_material() -> StandardMaterial3D:
+	if not _reflector_amber_mat:
+		_reflector_amber_mat = StandardMaterial3D.new()
+		# High-visibility retro-reflective amber (#FFA000) for highway curve delineators
+		_reflector_amber_mat.albedo_color = Color(1.0, 0.62, 0.0, 1.0)
+		_reflector_amber_mat.roughness = 0.25
+		_reflector_amber_mat.emission_enabled = true
+		_reflector_amber_mat.emission = Color(1.0, 0.6, 0.02, 1.0)
+		_reflector_amber_mat.emission_energy_multiplier = 1.35
+	return _reflector_amber_mat
+
+static func get_sign_post_material() -> StandardMaterial3D:
+	if not _sign_post_mat:
+		_sign_post_mat = StandardMaterial3D.new()
+		_sign_post_mat.albedo_color = Color(0.12, 0.12, 0.14, 1.0)
+		_sign_post_mat.roughness = 0.85
+	return _sign_post_mat
 
 func _ready() -> void:
 	if not static_body:
@@ -233,6 +256,36 @@ func build_segment() -> void:
 		right_col.shape = right_col_shape
 		right_col.transform = right_transform
 		static_body.add_child(right_col)
+
+		# 4. Curve Warning Delineator Signs (Retro-reflective amber diamonds on outer barriers)
+		if segment_type != SegmentType.STRAIGHT and (i % 2 == 0):
+			var is_outer_right: bool = (segment_type == SegmentType.CURVE_LEFT)
+			var sign_side_x: float = lateral_offset if is_outer_right else -lateral_offset
+			var sign_y: float = barrier_height + 0.65
+			var sign_local := Vector3(sign_side_x, sign_y, 0.0)
+
+			# Black iron mounting pole
+			var pole_mesh := BoxMesh.new()
+			pole_mesh.size = Vector3(0.12, 1.3, 0.12)
+			pole_mesh.material = get_sign_post_material()
+
+			var pole_inst := MeshInstance3D.new()
+			pole_inst.name = "WarningSignPole_%d" % i
+			pole_inst.mesh = pole_mesh
+			pole_inst.transform = Transform3D(slice_basis, slice_center + slice_basis * sign_local)
+			static_body.add_child(pole_inst)
+
+			# Retro-reflective amber diamond plate (#FFA000)
+			var plate_mesh := BoxMesh.new()
+			plate_mesh.size = Vector3(0.55, 0.55, 0.05)
+			plate_mesh.material = get_reflector_amber_material()
+
+			var plate_inst := MeshInstance3D.new()
+			plate_inst.name = "ReflectorDiamond_%d" % i
+			plate_inst.mesh = plate_mesh
+			var diamond_rot := slice_basis.rotated(slice_basis.z, deg_to_rad(45.0))
+			plate_inst.transform = Transform3D(diamond_rot, slice_center + slice_basis * (sign_local + Vector3(0.0, 0.45, 0.0)))
+			static_body.add_child(plate_inst)
 
 		# Advance current trajectory to slice end
 		current_pos += mid_fwd * slice_length

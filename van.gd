@@ -158,6 +158,11 @@ var _glitch_toggle_timer: float = 0.0
 @onready var visual_mesh: MeshInstance3D = get_node_or_null("MeshInstance3D") as MeshInstance3D
 @onready var headlight_left: SpotLight3D = get_node_or_null("HeadlightLeft") as SpotLight3D
 @onready var headlight_right: SpotLight3D = _find_headlight_right()
+@onready var taillight_left: MeshInstance3D = get_node_or_null("TaillightLeft") as MeshInstance3D
+@onready var taillight_right: MeshInstance3D = get_node_or_null("TaillightRight") as MeshInstance3D
+@onready var brake_omni_light: OmniLight3D = get_node_or_null("BrakeLight") as OmniLight3D
+
+var _taillight_mat: StandardMaterial3D = null
 
 func _find_headlight_right() -> SpotLight3D:
 	var light := get_node_or_null("HeadlightRight") as SpotLight3D
@@ -173,6 +178,13 @@ func _ready() -> void:
 	distance_updated.emit(distance_traveled_meters, current_kilometer)
 	speed_updated.emit(0.0)
 	drift_state_changed.emit(false)
+
+	# Setup dynamic taillight material instance
+	if taillight_left and taillight_left.mesh and taillight_left.mesh.material is StandardMaterial3D:
+		_taillight_mat = taillight_left.mesh.material.duplicate() as StandardMaterial3D
+		taillight_left.material_override = _taillight_mat
+		if taillight_right:
+			taillight_right.material_override = _taillight_mat
 
 func _physics_process(delta: float) -> void:
 	is_drifting = Input.is_action_pressed("handbrake")
@@ -253,11 +265,15 @@ func _start_collapse() -> void:
 ## Drives headlight fade, blackout pause, and loop reset.
 func _process_collapse(delta: float) -> void:
 	if _collapse_stage == 1:
-		# Gradually extinguish surviving headlights
+		# Gradually extinguish surviving headlights and taillights
 		if headlight_left and not left_headlight_broken:
 			headlight_left.light_energy = move_toward(headlight_left.light_energy, 0.0, 6.0 * delta)
 		if headlight_right and not right_headlight_broken:
 			headlight_right.light_energy = move_toward(headlight_right.light_energy, 0.0, 6.0 * delta)
+		if _taillight_mat:
+			_taillight_mat.emission_energy_multiplier = move_toward(_taillight_mat.emission_energy_multiplier, 0.0, 3.5 * delta)
+		if brake_omni_light:
+			brake_omni_light.light_energy = move_toward(brake_omni_light.light_energy, 0.0, 3.5 * delta)
 
 		_collapse_timer += delta
 		if _collapse_timer >= 2.2:
@@ -267,6 +283,8 @@ func _process_collapse(delta: float) -> void:
 				headlight_left.visible = false
 			if headlight_right:
 				headlight_right.visible = false
+			if brake_omni_light:
+				brake_omni_light.visible = false
 	elif _collapse_stage == 2:
 		# Silence and static in the pitch dark
 		_collapse_timer += delta
@@ -295,7 +313,7 @@ func reset_loop_state() -> void:
 	fuel_changed.emit(current_fuel, max_fuel)
 	engine_health_changed.emit(current_engine_health, max_engine_health)
 
-	# 4. Restore headlights
+	# 4. Restore headlights and taillights
 	if headlight_left:
 		headlight_left.visible = true
 		headlight_left.light_energy = 10.0
@@ -304,6 +322,12 @@ func reset_loop_state() -> void:
 		headlight_right.light_energy = 10.0
 	left_headlight_broken = false
 	right_headlight_broken = false
+
+	if _taillight_mat:
+		_taillight_mat.emission_energy_multiplier = 0.8
+	if brake_omni_light:
+		brake_omni_light.visible = true
+		brake_omni_light.light_energy = 0.25
 
 	# 5. Clear stall state
 	is_stalled = false
@@ -399,6 +423,24 @@ func _process_visual_effects(delta: float) -> void:
 				headlight_left.visible = true
 			if headlight_right and not right_headlight_broken:
 				headlight_right.visible = true
+
+	# Dynamic rear tail & reactive brake lights
+	if not is_stalled:
+		var is_braking: bool = (Input.is_action_pressed("brake") and forward_speed_state > 0.2) or Input.is_action_pressed("handbrake")
+		var target_emission: float = 4.5 if is_braking else 0.8
+		var target_omni: float = 3.5 if is_braking else 0.25
+		if _taillight_mat:
+			_taillight_mat.emission_energy_multiplier = move_toward(
+				_taillight_mat.emission_energy_multiplier,
+				target_emission,
+				14.0 * delta
+			)
+		if brake_omni_light:
+			brake_omni_light.light_energy = move_toward(
+				brake_omni_light.light_energy,
+				target_omni,
+				12.0 * delta
+			)
 
 ## Handles physical impacts with obstacles and vehicles: damage, speed scrub, shake, and headlight failure.
 func _process_collisions(forward_dir: Vector3, _delta: float) -> void:

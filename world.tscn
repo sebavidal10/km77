@@ -17,6 +17,16 @@ size = Vector3(2, 1.5, 4)
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_f3sb7"]
 albedo_color = Color(1, 0, 0, 1)
 
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_taillight"]
+albedo_color = Color(0.85, 0.05, 0.05, 1)
+emission_enabled = true
+emission = Color(0.95, 0.08, 0.08, 1)
+emission_energy_multiplier = 0.8
+
+[sub_resource type="BoxMesh" id="BoxMesh_taillight"]
+material = SubResource("StandardMaterial3D_taillight")
+size = Vector3(0.35, 0.22, 0.06)
+
 [sub_resource type="Environment" id="Environment_ku5fm"]
 background_mode = 1
 background_color = Color(0.015, 0.018, 0.022, 1)
@@ -28,7 +38,7 @@ fog_light_color = Color(0.04, 0.045, 0.055, 1)
 fog_density = 0.03
 fog_depth_begin = 12.0
 fog_depth_end = 45.0
-volumetric_fog_enabled = true
+ volumetric_fog_enabled = true
 volumetric_fog_density = 0.06
 volumetric_fog_albedo = Color(0.05, 0.055, 0.065, 1)
 volumetric_fog_length = 48.0
@@ -43,6 +53,7 @@ shader_parameter/grain_intensity = 0.035
 shader_parameter/scanline_intensity = 0.06
 shader_parameter/chromatic_aberration = 0.0015
 shader_parameter/static_glitch_intensity = 0.0
+shader_parameter/saturation = 1.15
 
 [node name="World" type="Node3D" unique_id=1065469961]
 
@@ -82,6 +93,21 @@ spot_angle = 32.0
 
 [node name="CameraTarget" type="Node3D" parent="Van" unique_id=615025000]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3.2, 6.5)
+
+[node name="TaillightLeft" type="MeshInstance3D" parent="Van" unique_id=615601650]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.75, 0.45, 2.01)
+mesh = SubResource("BoxMesh_taillight")
+
+[node name="TaillightRight" type="MeshInstance3D" parent="Van" unique_id=615601651]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.75, 0.45, 2.01)
+mesh = SubResource("BoxMesh_taillight")
+
+[node name="BrakeLight" type="OmniLight3D" parent="Van" unique_id=615601652]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.5, 2.25)
+light_color = Color(1, 0.08, 0.08, 1)
+light_energy = 0.25
+omni_range = 6.0
+omni_attenuation = 1.6
 
 [node name="DirectionalLight3D" type="DirectionalLight3D" parent="." unique_id=798504467]
 transform = Transform3D(0.8660254, -0.35355338, 0.35355338, 0, 0.70710677, 0.70710677, -0.5, -0.6123724, 0.6123724, 0, 0, 0)

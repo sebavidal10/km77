@@ -10,6 +10,7 @@ uniform float grain_intensity : hint_range(0.0, 0.2, 0.005) = 0.035;
 uniform float scanline_intensity : hint_range(0.0, 0.5, 0.01) = 0.06;
 uniform float chromatic_aberration : hint_range(0.0, 0.05, 0.0005) = 0.0015;
 uniform float static_glitch_intensity : hint_range(0.0, 1.0, 0.01) = 0.0;
+uniform float saturation : hint_range(0.5, 2.0, 0.05) = 1.15;
 
 // 8x8 Bayer Ordered Dither Matrix (values normalized to [0, 1])
 const float bayer8[64] = float[64](
@@ -85,6 +86,10 @@ void fragment() {
             col = mix(col, vec3(snow * 0.8), static_glitch_intensity * 0.6);
         }
     }
+
+    // 9. Color saturation adjustment to preserve vivid accents through dither
+    float luma = dot(col, vec3(0.299, 0.587, 0.114));
+    col = mix(vec3(luma), col, saturation);
 
     COLOR = vec4(clamp(col, 0.0, 1.0), 1.0);
 }

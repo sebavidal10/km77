@@ -40,6 +40,12 @@ const Van = preload("res://van.gd")
 		base_chromatic_aberration = val
 		_update_uniform("chromatic_aberration", val)
 
+## Color saturation multiplier to preserve vivid chromatic contrast.
+@export var saturation: float = 1.15:
+	set(val):
+		saturation = val
+		_update_uniform("saturation", val)
+
 @onready var color_rect: ColorRect = $PostProcessOverlay
 
 var _current_glitch_intensity: float = 0.0
@@ -88,6 +94,7 @@ func _apply_all_uniforms() -> void:
 	_update_uniform("scanline_intensity", scanline_intensity)
 	_update_uniform("chromatic_aberration", base_chromatic_aberration)
 	_update_uniform("static_glitch_intensity", 0.0)
+	_update_uniform("saturation", saturation)
 
 func _connect_vehicle_events() -> void:
 	var tree := get_tree()
