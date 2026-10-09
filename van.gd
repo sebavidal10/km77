@@ -94,8 +94,38 @@ func _physics_process(delta: float) -> void:
 	var post_h_vel := Vector3(velocity.x, 0.0, velocity.z)
 	forward_speed_state = post_h_vel.dot(forward_dir)
 
-	# 8. Visual chassis roll animation
+	# 8. Handle obstacle impact deceleration and debris knockback impulses
+	_process_collisions(forward_dir, delta)
+
+	# 9. Visual chassis roll animation
 	_process_visual_roll(delta, forward_speed_state)
+
+## Handles physical impacts with heavy obstacles (heavy deceleration) and pushes debris RigidBodies.
+func _process_collisions(forward_dir: Vector3, _delta: float) -> void:
+	var slide_count := get_slide_collision_count()
+	for i in range(slide_count):
+		var collision := get_slide_collision(i)
+		var collider := collision.get_collider()
+		if not collider:
+			continue
+
+		# 1. Collision with heavy obstacles (e.g. wrecked vehicles)
+		if collider.is_in_group("heavy_obstacle"):
+			# Severely scrub forward momentum upon direct impact
+			if forward_speed_state > 2.0:
+				velocity = velocity * 0.25
+				forward_speed_state *= 0.25
+
+		# 2. Collision with lightweight dynamic debris (RigidBody3D)
+		if collider is RigidBody3D:
+			var push_dir: Vector3 = -collision.get_normal()
+			push_dir.y = 0.0
+			push_dir = push_dir.normalized()
+			var speed_magnitude := clampf(abs(forward_speed_state), 8.0, max_speed)
+			var impulse: Vector3 = (push_dir * speed_magnitude * 10.0) + (Vector3.UP * 4.5)
+			collider.apply_central_impulse(impulse)
+			var torque := Vector3(randf_range(-6.0, 6.0), randf_range(6.0, 12.0), randf_range(-6.0, 6.0))
+			collider.apply_torque_impulse(torque)
 
 ## Handles steering yaw with drift oversteer and countersteer responsiveness.
 func _process_steering(delta: float) -> void:
