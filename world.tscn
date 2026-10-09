@@ -1,0 +1,87 @@
+[gd_scene format=3 uid="uid://denwn2ja0vigo"]
+
+[ext_resource type="Script" uid="uid://sqcs05103pki" path="res://van.gd" id="1_f3sb7"]
+[ext_resource type="Script" uid="uid://dvsjh1krtwsni" path="res://chase_camera.gd" id="1_fj7yv"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_r8maq"]
+size = Vector3(16, 1, 500)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_fj7yv"]
+albedo_color = Color(0.13333334, 0.13333334, 0.14509805, 1)
+
+[sub_resource type="BoxMesh" id="BoxMesh_ku5fm"]
+size = Vector3(16, 1, 500)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_ku5fm"]
+size = Vector3(1, 4, 500)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_amspa"]
+size = Vector3(2, 1.5, 4)
+
+[sub_resource type="BoxMesh" id="BoxMesh_r8maq"]
+size = Vector3(2, 1.5, 4)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_f3sb7"]
+albedo_color = Color(1, 0, 0, 1)
+
+[sub_resource type="Environment" id="Environment_ku5fm"]
+ambient_light_source = 3
+
+[node name="World" type="Node3D" unique_id=1065469961]
+
+[node name="Camera3D" type="Camera3D" parent="." unique_id=649475330 node_paths=PackedStringArray("target_node")]
+transform = Transform3D(1, 0, 0, 0, 0.9659259, 0.25881907, 0, -0.25881907, 0.9659258, 0, 5, 7)
+script = ExtResource("1_fj7yv")
+target_node = NodePath("../Van/CameraTarget")
+
+[node name="Track" type="StaticBody3D" parent="." unique_id=1806123561]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Track" unique_id=1586087272]
+shape = SubResource("BoxShape3D_r8maq")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Track" unique_id=538535376]
+material_override = SubResource("StandardMaterial3D_fj7yv")
+mesh = SubResource("BoxMesh_ku5fm")
+
+[node name="WallLeft" type="CollisionShape3D" parent="Track" unique_id=649872629]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8.5, 2, 0)
+shape = SubResource("BoxShape3D_ku5fm")
+
+[node name="WallRight" type="CollisionShape3D" parent="Track" unique_id=1063121002]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8.5, 2, 0)
+shape = SubResource("BoxShape3D_ku5fm")
+
+[node name="Van" type="CharacterBody3D" parent="." unique_id=686971467]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.5, 0)
+script = ExtResource("1_f3sb7")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Van" unique_id=2139074407]
+shape = SubResource("BoxShape3D_amspa")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Van" unique_id=548947607]
+mesh = SubResource("BoxMesh_r8maq")
+surface_material_override/0 = SubResource("StandardMaterial3D_f3sb7")
+
+[node name="HeadlightLeft" type="SpotLight3D" parent="Van" unique_id=615601642]
+transform = Transform3D(1, 0, 0, 0, 0.9781476, 0.2079117, 0, -0.2079117, 0.9781476, -0.8, 0.6, -2.2)
+light_color = Color(1, 0.9490196, 0.8, 1)
+light_energy = 10.0
+spot_range = 45.0
+spot_angle = 32.0
+
+[node name="HeadlighRight" type="SpotLight3D" parent="Van" unique_id=608761848]
+transform = Transform3D(1, 0, 0, 0, 0.9781476, 0.2079117, 0, -0.2079117, 0.9781476, 0.8, 0.6, -2.2)
+light_color = Color(1, 0.9490196, 0.8, 1)
+light_energy = 10.0
+spot_range = 45.0
+spot_angle = 32.0
+
+[node name="CameraTarget" type="Node3D" parent="Van" unique_id=615025000]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3.2, 6.5)
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="." unique_id=798504467]
+transform = Transform3D(0.8660254, -0.35355338, 0.35355338, 0, 0.70710677, 0.70710677, -0.5, -0.6123724, 0.6123724, 0, 0, 0)
+light_energy = 0.02
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=1409519131]
+environment = SubResource("Environment_ku5fm")
