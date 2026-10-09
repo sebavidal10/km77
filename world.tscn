@@ -5,6 +5,8 @@
 [ext_resource type="Script" uid="uid://cuqv112f85gvi" path="res://road_manager.gd" id="2_rmgr"]
 [ext_resource type="PackedScene" path="res://hud.tscn" id="3_hud"]
 [ext_resource type="Script" path="res://radio_manager.gd" id="4_radio"]
+[ext_resource type="Script" path="res://post_process.gd" id="5_post"]
+[ext_resource type="Shader" path="res://shaders/psx_retro.gdshader" id="6_shader"]
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_amspa"]
 size = Vector3(2, 1.5, 4)
@@ -30,6 +32,17 @@ volumetric_fog_enabled = true
 volumetric_fog_density = 0.06
 volumetric_fog_albedo = Color(0.05, 0.055, 0.065, 1)
 volumetric_fog_length = 48.0
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_psx"]
+shader = ExtResource("6_shader")
+shader_parameter/enable_pixelation = true
+shader_parameter/target_resolution = Vector2(480, 270)
+shader_parameter/color_depth = 32.0
+shader_parameter/dither_intensity = 0.85
+shader_parameter/grain_intensity = 0.035
+shader_parameter/scanline_intensity = 0.06
+shader_parameter/chromatic_aberration = 0.0015
+shader_parameter/static_glitch_intensity = 0.0
 
 [node name="World" type="Node3D" unique_id=1065469961]
 
@@ -76,6 +89,19 @@ light_energy = 0.02
 
 [node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=1409519131]
 environment = SubResource("Environment_ku5fm")
+
+[node name="PostProcessLayer" type="CanvasLayer" parent="." unique_id=98712034]
+layer = 1
+script = ExtResource("5_post")
+
+[node name="PostProcessOverlay" type="ColorRect" parent="PostProcessLayer" unique_id=98712035]
+material = SubResource("ShaderMaterial_psx")
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
 
 [node name="HUD" parent="." unique_id=2085714920 instance=ExtResource("3_hud") node_paths=PackedStringArray("target_van")]
 target_van = NodePath("../Van")
