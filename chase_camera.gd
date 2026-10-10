@@ -11,14 +11,26 @@ var _shake_intensity: float = 0.0
 
 func _ready() -> void:
 	add_to_group("chase_camera")
+	_ensure_target()
+
+func _ensure_target() -> void:
+	if target_node and is_instance_valid(target_node):
+		return
+	var tree := get_tree()
+	if tree:
+		var vans := tree.get_nodes_in_group("player")
+		if not vans.is_empty():
+			target_node = vans[0].get_node_or_null("CameraTarget") as Node3D
 
 ## Adds trauma for camera shake during high-speed collisions.
 func apply_shake(amount: float) -> void:
 	_shake_intensity = clampf(_shake_intensity + amount, 0.0, 1.5)
 
 func _physics_process(delta: float) -> void:
-	if not target_node:
-		return
+	if not target_node or not is_instance_valid(target_node):
+		_ensure_target()
+		if not target_node:
+			return
 
 	# 1. Smoothly follow the CameraTarget position
 	global_position = global_position.lerp(target_node.global_position, follow_speed * delta)
