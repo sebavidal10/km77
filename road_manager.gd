@@ -72,6 +72,14 @@ const AbandonedCarScene = preload("res://abandoned_car.tscn")
 ## Opposing lane center lateral offset from road center (meters).
 @export var opposing_lane_offset: float = 3.5
 
+@export_group("Rear Stalker Vehicle")
+## Enables high-speed rear stalker vehicle pursuing the player from behind.
+@export var enable_rear_stalker: bool = true
+## Minimum chunks generated between rear stalker encounters (every 15-20 chunks).
+@export var stalker_spawn_min_chunks: int = 15
+## Maximum chunks generated between rear stalker encounters.
+@export var stalker_spawn_max_chunks: int = 20
+
 # Internal state
 var active_segments: Array[RoadSegment] = []
 var rng: RandomNumberGenerator = RandomNumberGenerator.new()
@@ -92,6 +100,10 @@ var next_abandoned_car_interval: int = 7
 var chunks_since_last_turnoff: int = 0
 var next_turnoff_interval: int = 13
 
+var active_rear_stalker: RearStalker = null
+var chunks_since_last_stalker: int = 0
+var next_stalker_interval: int = 17
+
 func _ready() -> void:
 	_init_rng()
 	_init_event_spawner()
@@ -102,6 +114,8 @@ func _ready() -> void:
 	chunks_since_last_abandoned_car = 0
 	next_turnoff_interval = rng.randi_range(turnoff_min_chunks, turnoff_max_chunks)
 	chunks_since_last_turnoff = 0
+	next_stalker_interval = rng.randi_range(stalker_spawn_min_chunks, stalker_spawn_max_chunks)
+	chunks_since_last_stalker = 0
 	_find_target_vehicle()
 	_spawn_initial_track()
 
@@ -149,6 +163,9 @@ func reset_road() -> void:
 	if is_instance_valid(active_oncoming_vehicle):
 		active_oncoming_vehicle.queue_free()
 		active_oncoming_vehicle = null
+	if is_instance_valid(active_rear_stalker):
+		active_rear_stalker.queue_free()
+		active_rear_stalker = null
 	if event_spawner and event_spawner.has_method("reset_spawner"):
 		event_spawner.reset_spawner()
 	_spawn_initial_track()
@@ -156,9 +173,12 @@ func reset_road() -> void:
 func _spawn_initial_track() -> void:
 	# Clear any pre-existing children chunks (strictly preserve event_spawner)
 	for child in get_children():
-		if child == event_spawner:
+		if child == event_spawner or child == active_oncoming_vehicle or child == active_rear_stalker:
 			continue
 		child.queue_free()
+	if is_instance_valid(active_rear_stalker):
+		active_rear_stalker.queue_free()
+		active_rear_stalker = null
 	active_segments.clear()
 	consecutive_curves = 0
 	last_curve_type = RoadSegment.SegmentType.STRAIGHT
@@ -170,6 +190,8 @@ func _spawn_initial_track() -> void:
 	next_abandoned_car_interval = rng.randi_range(abandoned_car_min_chunks, abandoned_car_max_chunks)
 	chunks_since_last_turnoff = 0
 	next_turnoff_interval = rng.randi_range(turnoff_min_chunks, turnoff_max_chunks)
+	chunks_since_last_stalker = 0
+	next_stalker_interval = rng.randi_range(stalker_spawn_min_chunks, stalker_spawn_max_chunks)
 
 	# 1. Spawn a straight buffer segment behind the starting vehicle position (from Z = 80 to Z = 0)
 	var initial_rear_transform := Transform3D(Basis.IDENTITY, Vector3(0.0, 0.0, segment_length))
@@ -319,6 +341,7 @@ func _spawn_segment(type: RoadSegment.SegmentType) -> RoadSegment:
 	total_segments_spawned += 1
 
 	_on_segment_spawned_check_oncoming()
+	_on_segment_spawned_check_rear_stalker()
 
 	return segment
 
@@ -434,3 +457,49 @@ func _spawn_oncoming_vehicle() -> void:
 	add_child(oncoming)
 	oncoming.setup_waypoints(waypoints, target_vehicle)
 	active_oncoming_vehicle = oncoming
+
+func _on_segment_spawned_check_rear_stalker() -> void:
+	if not enable_rear_stalker:
+		return
+	if is_instance_valid(active_rear_stalker):
+		return
+	if total_segments_spawned < 8 or not target_vehicle:
+		return
+
+	chunks_since_last_stalker += 1
+	if chunks_since_last_stalker < next_stalker_interval:
+		return
+
+	# Only spawn if the player is traveling at moderate speed
+	var player_speed: float = 0.0
+	if target_vehicle is Van:
+		player_speed = (target_vehicle as Van).current_speed_kmh
+	elif target_vehicle is CharacterBody3D:
+		player_speed = (target_vehicle as CharacterBody3D).velocity.length() * 3.6
+
+	if player_speed < 15.0:
+		return
+
+	chunks_since_last_stalker = 0
+	next_stalker_interval = rng.randi_range(stalker_spawn_min_chunks, stalker_spawn_max_chunks)
+
+	_spawn_rear_stalker()
+
+func _spawn_rear_stalker() -> void:
+	if not target_vehicle or not is_instance_valid(target_vehicle):
+		return
+	if is_instance_valid(active_rear_stalker):
+		return
+
+	var van_basis := target_vehicle.global_transform.basis
+	# Spawn ~65 meters behind the van on the asphalt (facing forward along same direction)
+	var spawn_pos: Vector3 = target_vehicle.global_position + (van_basis.z * 65.0)
+	spawn_pos.y = target_vehicle.global_position.y
+
+	var stalker := RearStalker.new()
+	stalker.name = "RearStalker_%d" % total_segments_spawned
+	add_child(stalker)
+	stalker.global_position = spawn_pos
+	stalker.rotation.y = target_vehicle.rotation.y
+	stalker.setup(target_vehicle)
+	active_rear_stalker = stalker
