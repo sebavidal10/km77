@@ -359,10 +359,10 @@ func _spawn_rural_turnoff(segment: RoadSegment) -> void:
 	var turnoff := RuralTurnoff.new()
 	turnoff.name = "RuralTurnoff_%d" % total_segments_spawned
 
-	# Position at the right shoulder (X ≈ +8.5m) and yaw branch at ~30 degrees into the woods
+	# Position at the right shoulder (X ≈ +8.5m, Y = 0.5m flush with road surface) and yaw branch at ~30 degrees into the woods
 	var branch_yaw_deg: float = -30.0
 	var local_rot := Basis(Vector3.UP, deg_to_rad(branch_yaw_deg))
-	var local_offset := Vector3(8.5, 0.0, 0.0)
+	var local_offset := Vector3(8.5, 0.5, 0.0)
 
 	turnoff.transform = slice_tr * Transform3D(local_rot, local_offset)
 	segment.add_child(turnoff)

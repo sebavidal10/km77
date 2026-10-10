@@ -93,10 +93,10 @@ var is_high_beams_active: bool:
 @export var high_beam_pitch_deg: float = -4.5
 
 @export_group("Reverse & Coasting")
-## Maximum reverse speed in m/s (approx 45 km/h).
-@export var reverse_max_speed: float = 12.5
-## Acceleration rate when reversing.
-@export var reverse_acceleration: float = 14.0
+## Maximum reverse speed in m/s (approx 52 km/h).
+@export var reverse_max_speed: float = 14.5
+## Acceleration rate when reversing (high torque to pull out of ditches).
+@export var reverse_acceleration: float = 16.5
 ## Passive coasting slowdown rate when neither throttle nor brake is pressed.
 @export var coast_deceleration: float = 3.5
 
@@ -142,6 +142,8 @@ var enable_body_roll: bool:
 @export_group("Environment & Gravity")
 ## Downward gravity acceleration.
 @export var gravity: float = 22.0
+## Maximum step/curb height (meters) the vehicle collider can climb over smoothly.
+@export var floor_max_climb_step: float = 0.35
 
 # Backward compatibility property accessors
 var acceleration: float:
@@ -287,6 +289,11 @@ func _ready() -> void:
 	add_to_group("player")
 	collision_layer = 1
 	collision_mask = 1
+	floor_snap_length = 0.3
+	floor_max_angle = deg_to_rad(55.0)
+	floor_stop_on_slope = false
+	floor_constant_speed = true
+	floor_block_on_wall = false
 	if visual_root:
 		_base_visual_root_y = visual_root.position.y
 	_ensure_high_beams_action()
@@ -386,13 +393,22 @@ func _physics_process(delta: float) -> void:
 	# 4. Lateral grip damping & inertia preservation
 	lat_speed = _process_lateral(lat_speed, delta)
 
-	# 4b. Mud & loose shoulder surface drag when driving off-road
+	# 4b. Off-road mud & loose shoulder surface resistance:
+	# Reduce top speed when off-road, but preserve low-end wheel torque so the van can always climb back onto the road.
+	var active_throttle := Input.get_axis("brake", "accelerate")
+	var is_applying_power: bool = absf(active_throttle) > 0.05 and not is_stalled and current_fuel > 0.0
 	if in_mud_zone:
-		fwd_speed = move_toward(fwd_speed, 0.0, 16.0 * delta)
-		lat_speed = move_toward(lat_speed, 0.0, 14.0 * delta)
+		if absf(fwd_speed) > 9.5:
+			fwd_speed = move_toward(fwd_speed, signf(fwd_speed) * 9.5, 11.0 * delta)
+		elif not is_applying_power:
+			fwd_speed = move_toward(fwd_speed, 0.0, 4.0 * delta)
+		lat_speed = move_toward(lat_speed, 0.0, 7.5 * delta)
 	elif in_shoulder_zone:
-		fwd_speed = move_toward(fwd_speed, 0.0, 5.0 * delta)
-		lat_speed = move_toward(lat_speed, 0.0, 3.5 * delta)
+		if absf(fwd_speed) > 19.0:
+			fwd_speed = move_toward(fwd_speed, signf(fwd_speed) * 19.0, 6.0 * delta)
+		elif not is_applying_power:
+			fwd_speed = move_toward(fwd_speed, 0.0, 2.2 * delta)
+		lat_speed = move_toward(lat_speed, 0.0, 2.8 * delta)
 
 	# 5. Recompose horizontal velocity vector
 	var target_h_vel := (forward_dir * fwd_speed) + (right_dir * lat_speed)
@@ -406,6 +422,10 @@ func _physics_process(delta: float) -> void:
 		velocity.y -= gravity * delta
 
 	move_and_slide()
+
+	# 6b. Step-climbing over road curbs/lips when re-entering asphalt from shoulder or ditch
+	if is_on_wall() and target_h_vel.length() > 0.25:
+		_try_step_climb(delta, target_h_vel)
 
 	# 7. Record post-collision forward speed for telemetry and roll calculations
 	var post_h_vel := Vector3(velocity.x, 0.0, velocity.z)
@@ -434,6 +454,20 @@ func _physics_process(delta: float) -> void:
 
 	# 12. Visual suspension dynamics: longitudinal pitch, centrifugal roll, and idle shiver
 	_process_suspension_dynamics(delta, forward_speed_state)
+
+## Smoothly climbs over road curbs and shoulder ledges up to floor_max_climb_step height.
+func _try_step_climb(delta: float, desired_h_vel: Vector3) -> void:
+	var step_up := Vector3(0.0, floor_max_climb_step, 0.0)
+	if test_move(global_transform, step_up):
+		return
+	var raised_transform := global_transform.translated(step_up)
+	var step_fwd := desired_h_vel * maxf(delta, 0.016)
+	if test_move(raised_transform, step_fwd):
+		return
+	global_position += step_up + step_fwd
+	velocity.x = desired_h_vel.x
+	velocity.z = desired_h_vel.z
+	apply_floor_snap()
 
 ## Starts the vehicle shutdown and blackout sequence.
 func _start_collapse() -> void:
@@ -822,6 +856,10 @@ func _process_collisions(forward_dir: Vector3, _delta: float) -> void:
 			continue
 
 		var col_normal := collision.get_normal()
+		# Ignore ground, shoulder curbs, and sloped ditch banks so climbing back onto the road never scrubs speed
+		if absf(col_normal.y) > 0.25:
+			continue
+
 		var frontal_alignment := maxf(0.0, -forward_dir.dot(col_normal))
 		var impact_speed := absf(forward_speed_state) * frontal_alignment
 
@@ -1099,9 +1137,8 @@ func _process_longitudinal(fwd_speed: float, delta: float) -> float:
 			# Traveling in reverse while throttle pressed: apply service brake to halt reverse
 			fwd_speed = move_toward(fwd_speed, 0.0, braking_force * delta)
 		else:
-			# Progressive acceleration curve with heavy inertia:
-			# - Heavy launch resistance at low speeds (0-15 km/h)
-			var launch_factor: float = lerpf(0.70, 1.0, clampf(fwd_speed / 4.5, 0.0, 1.0))
+			# Progressive acceleration curve with strong low-end recovery torque:
+			var launch_factor: float = lerpf(0.88, 1.0, clampf(fwd_speed / 4.5, 0.0, 1.0))
 			# - Drag taper approaching cruising (80-90 km/h) and top speed (~110 km/h)
 			var speed_ratio: float = clampf(fwd_speed / max_speed, 0.0, 1.0)
 			var drag_taper: float = clampf(1.0 - (speed_ratio * speed_ratio * 0.82), 0.18, 1.0)
