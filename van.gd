@@ -78,13 +78,13 @@ var is_high_beams_active: bool:
 ## Low beam spot range (meters).
 @export var low_beam_range: float = 45.0
 ## Low beam cone angle (degrees).
-@export var low_beam_angle: float = 45.0
+@export var low_beam_angle: float = 48.0
 ## Low beam intensity energy.
-@export var low_beam_energy: float = 3.5
+@export var low_beam_energy: float = 3.0
 ## High beam spot range (meters).
-@export var high_beam_range: float = 85.0
+@export var high_beam_range: float = 90.0
 ## High beam cone angle (degrees).
-@export var high_beam_angle: float = 32.0
+@export var high_beam_angle: float = 30.0
 ## High beam intensity energy.
 @export var high_beam_energy: float = 6.0
 
@@ -206,6 +206,16 @@ var _glitch_toggle_timer: float = 0.0
 @onready var reverse_light_left: MeshInstance3D = _find_reverse_light_left()
 @onready var reverse_light_right: MeshInstance3D = _find_reverse_light_right()
 var headlights: Array[SpotLight3D] = []
+
+var hud: HUD:
+	get:
+		if _hud_ref and is_instance_valid(_hud_ref):
+			return _hud_ref
+		_hud_ref = _find_hud()
+		return _hud_ref
+	set(val):
+		_hud_ref = val
+var _hud_ref: HUD = null
 
 @onready var wheel_fl: Node3D = get_node_or_null("VisualRoot/WheelFL") as Node3D
 @onready var wheel_fr: Node3D = get_node_or_null("VisualRoot/WheelFR") as Node3D
@@ -698,18 +708,28 @@ func _ensure_high_beams_action() -> void:
 			InputMap.action_add_event("toggle_high_beams", ev)
 
 ## Toggles between low beam and high beam headlights.
-func toggle_headlights() -> void:
-	is_high_beam = not is_high_beam
-	_apply_headlight_mode_instant()
-	headlights_mode_changed.emit(is_high_beam)
-
-## Backward compatibility alias for toggle_headlights.
-func toggle_high_beams() -> void:
-	toggle_headlights()
-
-## User-facing alias for toggle_headlights.
 func toggle_beams() -> void:
-	toggle_headlights()
+	is_high_beam = !is_high_beam
+	var target_range = 90.0 if is_high_beam else 45.0
+	var target_energy = 6.0 if is_high_beam else 3.0
+	var target_angle = 30.0 if is_high_beam else 48.0
+
+	for light in [headlight_left, headlight_right]:
+		if light and is_instance_valid(light):
+			light.spot_range = target_range
+			light.light_energy = target_energy
+			light.spot_angle = target_angle
+
+	if hud and hud.has_method("update_beam_indicator"):
+		hud.update_beam_indicator(is_high_beam)
+	headlights_mode_changed.emit(is_high_beam)
+	print("Headlights toggled. High beam: ", is_high_beam)
+
+func toggle_headlights() -> void:
+	toggle_beams()
+
+func toggle_high_beams() -> void:
+	toggle_beams()
 
 ## Instantly sets headlight parameters to current beam mode without smoothing.
 func _apply_headlight_mode_instant() -> void:
