@@ -238,25 +238,27 @@ shape = SubResource("SphereShape3D_wheel")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3.3, 6.2)
 
 [node name="HeadlightLeft" type="SpotLight3D" parent="." unique_id=615601642]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.72, 0.7, -2.36)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.65, 0.7, -2.6)
 light_color = Color(1, 0.96, 0.88, 1)
-light_energy = 3.0
-shadow_enabled = true
-spot_range = 45.0
-spot_angle = 48.0
+light_energy = 5.0
 light_volumetric_fog_energy = 2.0
+light_cull_mask = 1
+shadow_enabled = false
+spot_range = 60.0
+spot_angle = 55.0
 
 [node name="HeadlightRight" type="SpotLight3D" parent="." unique_id=608761848]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.72, 0.7, -2.36)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.65, 0.7, -2.6)
 light_color = Color(1, 0.96, 0.88, 1)
-light_energy = 3.0
-shadow_enabled = true
-spot_range = 45.0
-spot_angle = 48.0
+light_energy = 5.0
 light_volumetric_fog_energy = 2.0
+light_cull_mask = 1
+shadow_enabled = false
+spot_range = 60.0
+spot_angle = 55.0
 
 [node name="RearMirrorMount" type="Marker3D" parent="." unique_id=615601655]
-transform = Transform3D(-1, 0, -8.74228e-08, 0, 1, 0, 8.74228e-08, 0, -1, 0, 1.95, 2.22)
+transform = Transform3D(-1, 0, -8.74228e-08, 0, 1, 0, 8.74228e-08, 0, -1, 0, 1.95, 2.32)
 
 [node name="VisualRoot" type="Node3D" parent="." unique_id=615601660]
 

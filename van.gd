@@ -76,17 +76,17 @@ var is_high_beams_active: bool:
 	get: return is_high_beam
 	set(val): is_high_beam = val
 ## Low beam spot range (meters).
-@export var low_beam_range: float = 45.0
+@export var low_beam_range: float = 60.0
 ## Low beam cone angle (degrees).
-@export var low_beam_angle: float = 48.0
+@export var low_beam_angle: float = 55.0
 ## Low beam intensity energy.
-@export var low_beam_energy: float = 3.0
+@export var low_beam_energy: float = 5.0
 ## High beam spot range (meters).
 @export var high_beam_range: float = 90.0
 ## High beam cone angle (degrees).
-@export var high_beam_angle: float = 30.0
+@export var high_beam_angle: float = 35.0
 ## High beam intensity energy.
-@export var high_beam_energy: float = 6.0
+@export var high_beam_energy: float = 7.0
 
 @export_group("Reverse & Coasting")
 ## Maximum reverse speed in m/s (approx 45 km/h).
@@ -291,8 +291,25 @@ func _ready() -> void:
 		_world_env = tree.current_scene.get_node_or_null("WorldEnvironment") as WorldEnvironment
 	headlights.clear()
 	if headlight_left:
+		headlight_left.position = Vector3(-0.65, 0.7, -2.6)
+		headlight_left.rotation = Vector3.ZERO
+		headlight_left.shadow_enabled = false
+		headlight_left.light_cull_mask = 1
+		var van_fwd := -global_transform.basis.z.normalized()
+		var hl_fwd := -headlight_left.global_transform.basis.z.normalized()
+		if van_fwd.dot(hl_fwd) < 0.0:
+			headlight_left.global_transform.basis = global_transform.basis
+		print("Van forward: ", -global_transform.basis.z, " | HeadlightLeft forward: ", -headlight_left.global_transform.basis.z)
 		headlights.append(headlight_left)
 	if headlight_right:
+		headlight_right.position = Vector3(0.65, 0.7, -2.6)
+		headlight_right.rotation = Vector3.ZERO
+		headlight_right.shadow_enabled = false
+		headlight_right.light_cull_mask = 1
+		var van_fwd := -global_transform.basis.z.normalized()
+		var hr_fwd := -headlight_right.global_transform.basis.z.normalized()
+		if van_fwd.dot(hr_fwd) < 0.0:
+			headlight_right.global_transform.basis = global_transform.basis
 		headlights.append(headlight_right)
 
 	_apply_headlight_mode_instant()
@@ -336,9 +353,22 @@ func _ready() -> void:
 
 	_create_mud_particles()
 
-func _input(event: InputEvent) -> void:
-	if event.is_action_pressed("toggle_high_beams") or (event is InputEventKey and event.pressed and not event.is_echo() and (event.keycode == KEY_F or event.keycode == KEY_H or event.keycode == KEY_L or event.physical_keycode == KEY_F or event.physical_keycode == KEY_H or event.physical_keycode == KEY_L)):
-		toggle_beams()
+func _unhandled_key_input(event: InputEvent) -> void:
+	if event is InputEventKey and event.pressed and not event.echo:
+		if event.keycode == KEY_F or event.keycode == KEY_H or event.physical_keycode == KEY_F or event.physical_keycode == KEY_H:
+			is_high_beam = !is_high_beam
+			var r = 90.0 if is_high_beam else 45.0
+			var e = 7.0 if is_high_beam else 3.5
+			var a = 35.0 if is_high_beam else 50.0
+			for hl in [headlight_left, headlight_right]:
+				if hl:
+					hl.spot_range = r
+					hl.light_energy = e
+					hl.spot_angle = a
+			if hud and hud.has_method("update_beam_indicator"):
+				hud.update_beam_indicator(is_high_beam)
+			headlights_mode_changed.emit(is_high_beam)
+			print("Switched beams! High: ", is_high_beam)
 
 func _physics_process(delta: float) -> void:
 	is_drifting = Input.is_action_pressed("handbrake")
@@ -710,20 +740,21 @@ func _ensure_high_beams_action() -> void:
 ## Toggles between low beam and high beam headlights.
 func toggle_beams() -> void:
 	is_high_beam = !is_high_beam
-	var target_range = 90.0 if is_high_beam else 45.0
-	var target_energy = 6.0 if is_high_beam else 3.0
-	var target_angle = 30.0 if is_high_beam else 48.0
+	var r = 90.0 if is_high_beam else 45.0
+	var e = 7.0 if is_high_beam else 3.5
+	var a = 35.0 if is_high_beam else 50.0
 
-	for light in [headlight_left, headlight_right]:
-		if light and is_instance_valid(light):
-			light.spot_range = target_range
-			light.light_energy = target_energy
-			light.spot_angle = target_angle
+	for hl in [headlight_left, headlight_right]:
+		if hl and is_instance_valid(hl):
+			hl.spot_range = r
+			hl.light_energy = e
+			hl.spot_angle = a
+			hl.shadow_enabled = false
 
 	if hud and hud.has_method("update_beam_indicator"):
 		hud.update_beam_indicator(is_high_beam)
 	headlights_mode_changed.emit(is_high_beam)
-	print("Headlights toggled. High beam: ", is_high_beam)
+	print("Switched beams! High: ", is_high_beam)
 
 func toggle_headlights() -> void:
 	toggle_beams()
@@ -740,52 +771,43 @@ func _apply_headlight_mode_instant() -> void:
 	var target_mesh_emission: float = 5.0 if is_high_beam else 2.2
 
 	if headlight_left and not left_headlight_broken:
+		headlight_left.position = Vector3(-0.65, 0.7, -2.6)
 		headlight_left.rotation = Vector3.ZERO
 		headlight_left.spot_range = target_range
 		headlight_left.spot_angle = target_angle
 		headlight_left.light_energy = target_energy
-		headlight_left.shadow_enabled = true
+		headlight_left.shadow_enabled = false
+		headlight_left.light_cull_mask = 1
 		headlight_left.light_volumetric_fog_energy = target_fog_energy
 	if headlight_right and not right_headlight_broken:
+		headlight_right.position = Vector3(0.65, 0.7, -2.6)
 		headlight_right.rotation = Vector3.ZERO
 		headlight_right.spot_range = target_range
 		headlight_right.spot_angle = target_angle
 		headlight_right.light_energy = target_energy
-		headlight_right.shadow_enabled = true
+		headlight_right.shadow_enabled = false
+		headlight_right.light_cull_mask = 1
 		headlight_right.light_volumetric_fog_energy = target_fog_energy
 	if _headlight_mat:
 		_headlight_mat.emission_energy_multiplier = target_mesh_emission
 
-## Smoothly interpolates beam range, angle, intensity, and fog backscatter.
+## Updates headlight lens emission and atmospheric fog backscatter without overriding beam values.
 func _process_headlight_beams(delta: float) -> void:
 	if not _world_env:
 		var tree := get_tree()
 		if tree and tree.current_scene:
 			_world_env = tree.current_scene.get_node_or_null("WorldEnvironment") as WorldEnvironment
 
-	var target_range: float = high_beam_range if is_high_beam else low_beam_range
-	var target_angle: float = high_beam_angle if is_high_beam else low_beam_angle
-	var target_energy: float = high_beam_energy if is_high_beam else low_beam_energy
 	var target_fog_energy: float = 4.5 if is_high_beam else 2.0
 	var target_mesh_emission: float = 5.0 if is_high_beam else 2.2
 
 	if not is_stalled:
 		if headlight_left and not left_headlight_broken:
-			headlight_left.rotation = Vector3.ZERO
-			headlight_left.shadow_enabled = true
-			headlight_left.spot_range = move_toward(headlight_left.spot_range, target_range, 90.0 * delta)
-			headlight_left.spot_angle = move_toward(headlight_left.spot_angle, target_angle, 45.0 * delta)
+			headlight_left.shadow_enabled = false
 			headlight_left.light_volumetric_fog_energy = target_fog_energy
-			if not _is_flickering_glitch:
-				headlight_left.light_energy = move_toward(headlight_left.light_energy, target_energy, 18.0 * delta)
 		if headlight_right and not right_headlight_broken:
-			headlight_right.rotation = Vector3.ZERO
-			headlight_right.shadow_enabled = true
-			headlight_right.spot_range = move_toward(headlight_right.spot_range, target_range, 90.0 * delta)
-			headlight_right.spot_angle = move_toward(headlight_right.spot_angle, target_angle, 45.0 * delta)
+			headlight_right.shadow_enabled = false
 			headlight_right.light_volumetric_fog_energy = target_fog_energy
-			if not _is_flickering_glitch:
-				headlight_right.light_energy = move_toward(headlight_right.light_energy, target_energy, 18.0 * delta)
 
 		if _headlight_mat:
 			_headlight_mat.emission_energy_multiplier = move_toward(
