@@ -76,17 +76,21 @@ var is_high_beams_active: bool:
 	get: return is_high_beam
 	set(val): is_high_beam = val
 ## Low beam spot range (meters).
-@export var low_beam_range: float = 60.0
+@export var low_beam_range: float = 55.0
 ## Low beam cone angle (degrees).
-@export var low_beam_angle: float = 55.0
+@export var low_beam_angle: float = 52.0
 ## Low beam intensity energy.
-@export var low_beam_energy: float = 5.0
+@export var low_beam_energy: float = 16.0
+## Low beam downward pitch tilt (degrees).
+@export var low_beam_pitch_deg: float = -9.5
 ## High beam spot range (meters).
-@export var high_beam_range: float = 90.0
+@export var high_beam_range: float = 115.0
 ## High beam cone angle (degrees).
-@export var high_beam_angle: float = 35.0
+@export var high_beam_angle: float = 36.0
 ## High beam intensity energy.
-@export var high_beam_energy: float = 7.0
+@export var high_beam_energy: float = 32.0
+## High beam downward pitch tilt (degrees).
+@export var high_beam_pitch_deg: float = -4.5
 
 @export_group("Reverse & Coasting")
 ## Maximum reverse speed in m/s (approx 45 km/h).
@@ -291,28 +295,25 @@ func _ready() -> void:
 		_world_env = tree.current_scene.get_node_or_null("WorldEnvironment") as WorldEnvironment
 	headlights.clear()
 	if headlight_left:
-		headlight_left.position = Vector3(-0.65, 0.7, -2.6)
-		headlight_left.rotation = Vector3.ZERO
+		headlight_left.position = Vector3(-0.65, 1.05, -2.65)
+		headlight_left.rotation_degrees = Vector3(low_beam_pitch_deg, 0.0, 0.0)
 		headlight_left.shadow_enabled = false
-		headlight_left.light_cull_mask = 1
-		var van_fwd := -global_transform.basis.z.normalized()
-		var hl_fwd := -headlight_left.global_transform.basis.z.normalized()
-		if van_fwd.dot(hl_fwd) < 0.0:
-			headlight_left.global_transform.basis = global_transform.basis
-		print("Van forward: ", -global_transform.basis.z, " | HeadlightLeft forward: ", -headlight_left.global_transform.basis.z)
+		headlight_left.light_cull_mask = 4294967295
+		headlight_left.spot_attenuation = 0.38
+		headlight_left.spot_angle_attenuation = 0.45
 		headlights.append(headlight_left)
 	if headlight_right:
-		headlight_right.position = Vector3(0.65, 0.7, -2.6)
-		headlight_right.rotation = Vector3.ZERO
+		headlight_right.position = Vector3(0.65, 1.05, -2.65)
+		headlight_right.rotation_degrees = Vector3(low_beam_pitch_deg, 0.0, 0.0)
 		headlight_right.shadow_enabled = false
-		headlight_right.light_cull_mask = 1
-		var van_fwd := -global_transform.basis.z.normalized()
-		var hr_fwd := -headlight_right.global_transform.basis.z.normalized()
-		if van_fwd.dot(hr_fwd) < 0.0:
-			headlight_right.global_transform.basis = global_transform.basis
+		headlight_right.light_cull_mask = 4294967295
+		headlight_right.spot_attenuation = 0.38
+		headlight_right.spot_angle_attenuation = 0.45
 		headlights.append(headlight_right)
 
 	_apply_headlight_mode_instant()
+	if headlight_left:
+		print("Van forward: ", -global_transform.basis.z, " | HeadlightLeft forward: ", -headlight_left.global_transform.basis.z)
 	headlights_mode_changed.emit(is_high_beam)
 
 	current_kilometer = starting_kilometer
@@ -356,19 +357,7 @@ func _ready() -> void:
 func _unhandled_key_input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo:
 		if event.keycode == KEY_F or event.keycode == KEY_H or event.physical_keycode == KEY_F or event.physical_keycode == KEY_H:
-			is_high_beam = !is_high_beam
-			var r = 90.0 if is_high_beam else 45.0
-			var e = 7.0 if is_high_beam else 3.5
-			var a = 35.0 if is_high_beam else 50.0
-			for hl in [headlight_left, headlight_right]:
-				if hl:
-					hl.spot_range = r
-					hl.light_energy = e
-					hl.spot_angle = a
-			if hud and hud.has_method("update_beam_indicator"):
-				hud.update_beam_indicator(is_high_beam)
-			headlights_mode_changed.emit(is_high_beam)
-			print("Switched beams! High: ", is_high_beam)
+			toggle_beams()
 
 func _physics_process(delta: float) -> void:
 	is_drifting = Input.is_action_pressed("handbrake")
@@ -740,16 +729,7 @@ func _ensure_high_beams_action() -> void:
 ## Toggles between low beam and high beam headlights.
 func toggle_beams() -> void:
 	is_high_beam = !is_high_beam
-	var r = 90.0 if is_high_beam else 45.0
-	var e = 7.0 if is_high_beam else 3.5
-	var a = 35.0 if is_high_beam else 50.0
-
-	for hl in [headlight_left, headlight_right]:
-		if hl and is_instance_valid(hl):
-			hl.spot_range = r
-			hl.light_energy = e
-			hl.spot_angle = a
-			hl.shadow_enabled = false
+	_apply_headlight_mode_instant()
 
 	if hud and hud.has_method("update_beam_indicator"):
 		hud.update_beam_indicator(is_high_beam)
@@ -767,26 +747,33 @@ func _apply_headlight_mode_instant() -> void:
 	var target_range: float = high_beam_range if is_high_beam else low_beam_range
 	var target_angle: float = high_beam_angle if is_high_beam else low_beam_angle
 	var target_energy: float = high_beam_energy if is_high_beam else low_beam_energy
-	var target_fog_energy: float = 4.5 if is_high_beam else 2.0
-	var target_mesh_emission: float = 5.0 if is_high_beam else 2.2
+	var target_pitch: float = high_beam_pitch_deg if is_high_beam else low_beam_pitch_deg
+	var target_atten: float = 0.35 if is_high_beam else 0.38
+	var target_angle_atten: float = 0.40 if is_high_beam else 0.45
+	var target_fog_energy: float = 0.8 if is_high_beam else 0.5
+	var target_mesh_emission: float = 6.5 if is_high_beam else 3.2
 
 	if headlight_left and not left_headlight_broken:
-		headlight_left.position = Vector3(-0.65, 0.7, -2.6)
-		headlight_left.rotation = Vector3.ZERO
+		headlight_left.position = Vector3(-0.65, 1.05, -2.65)
+		headlight_left.rotation_degrees = Vector3(target_pitch, 0.0, 0.0)
 		headlight_left.spot_range = target_range
 		headlight_left.spot_angle = target_angle
 		headlight_left.light_energy = target_energy
+		headlight_left.spot_attenuation = target_atten
+		headlight_left.spot_angle_attenuation = target_angle_atten
 		headlight_left.shadow_enabled = false
-		headlight_left.light_cull_mask = 1
+		headlight_left.light_cull_mask = 4294967295
 		headlight_left.light_volumetric_fog_energy = target_fog_energy
 	if headlight_right and not right_headlight_broken:
-		headlight_right.position = Vector3(0.65, 0.7, -2.6)
-		headlight_right.rotation = Vector3.ZERO
+		headlight_right.position = Vector3(0.65, 1.05, -2.65)
+		headlight_right.rotation_degrees = Vector3(target_pitch, 0.0, 0.0)
 		headlight_right.spot_range = target_range
 		headlight_right.spot_angle = target_angle
 		headlight_right.light_energy = target_energy
+		headlight_right.spot_attenuation = target_atten
+		headlight_right.spot_angle_attenuation = target_angle_atten
 		headlight_right.shadow_enabled = false
-		headlight_right.light_cull_mask = 1
+		headlight_right.light_cull_mask = 4294967295
 		headlight_right.light_volumetric_fog_energy = target_fog_energy
 	if _headlight_mat:
 		_headlight_mat.emission_energy_multiplier = target_mesh_emission
@@ -798,8 +785,8 @@ func _process_headlight_beams(delta: float) -> void:
 		if tree and tree.current_scene:
 			_world_env = tree.current_scene.get_node_or_null("WorldEnvironment") as WorldEnvironment
 
-	var target_fog_energy: float = 4.5 if is_high_beam else 2.0
-	var target_mesh_emission: float = 5.0 if is_high_beam else 2.2
+	var target_fog_energy: float = 0.8 if is_high_beam else 0.5
+	var target_mesh_emission: float = 6.5 if is_high_beam else 3.2
 
 	if not is_stalled:
 		if headlight_left and not left_headlight_broken:
@@ -816,9 +803,9 @@ func _process_headlight_beams(delta: float) -> void:
 				14.0 * delta
 			)
 
-	# Volumetric fog backscatter effect: high beams illuminate atmospheric fog layers
+	# Volumetric fog backscatter effect: keep density low so fog does not absorb headlight projection
 	if _world_env and _world_env.environment and not _is_fog_anomaly:
-		var target_density: float = 0.055 if is_high_beam else 0.040
+		var target_density: float = 0.010 if is_high_beam else 0.014
 		_world_env.environment.volumetric_fog_density = move_toward(
 			_world_env.environment.volumetric_fog_density,
 			target_density,

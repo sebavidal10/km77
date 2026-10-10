@@ -52,18 +52,18 @@ static var _sign_post_mat: StandardMaterial3D
 static func get_road_material() -> StandardMaterial3D:
 	if not _road_material:
 		_road_material = StandardMaterial3D.new()
-		# Weathered rural asphalt with readable tone and wet rain sheen
-		_road_material.albedo_color = Color(0.24, 0.25, 0.28, 1.0)
-		_road_material.roughness = 0.38
-		_road_material.metallic = 0.08
-		_road_material.metallic_specular = 0.75
+		# Weathered rural asphalt tuned for strong diffuse headlight backscatter
+		_road_material.albedo_color = Color(0.35, 0.36, 0.40, 1.0)
+		_road_material.roughness = 0.80
+		_road_material.metallic = 0.0
+		_road_material.metallic_specular = 0.30
 	return _road_material
 
 static func get_shoulder_material() -> StandardMaterial3D:
 	if not _shoulder_material:
 		_shoulder_material = StandardMaterial3D.new()
-		# Compacted dark gravel and unpaved dirt shoulder
-		_shoulder_material.albedo_color = Color(0.20, 0.18, 0.15, 1.0)
+		# Compacted gravel and unpaved dirt shoulder
+		_shoulder_material.albedo_color = Color(0.28, 0.25, 0.21, 1.0)
 		_shoulder_material.roughness = 0.90
 		_shoulder_material.metallic = 0.0
 	return _shoulder_material
