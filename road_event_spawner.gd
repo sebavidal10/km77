@@ -1,12 +1,6 @@
 class_name RoadEventSpawner
 extends Node
 
-const FlickerLight = preload("res://flicker_light.gd")
-const RoadSegment = preload("res://road_segment.gd")
-const Hitchhiker = preload("res://hitchhiker.gd")
-const RadioManager = preload("res://radio_manager.gd")
-const Van = preload("res://van.gd")
-
 @export_group("Obstacle Probabilities")
 ## Chance (0.0 to 1.0) to spawn a wrecked/crashed vehicle on a chunk.
 @export var crashed_car_probability: float = 0.30

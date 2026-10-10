@@ -5,8 +5,6 @@ extends Node3D
 ## Features a narrow dirt track tightly flanked by trees, an impassable fallen log blockade,
 ## and a narrative radio warning dispatch. Forces reverse driving to return to Route 77.
 
-const RadioManager = preload("res://radio_manager.gd")
-
 # Shared cached materials
 static var _dirt_mat: StandardMaterial3D
 static var _rut_mat: StandardMaterial3D

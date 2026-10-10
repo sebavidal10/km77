@@ -1,10 +1,6 @@
 class_name AbandonedCar
 extends StaticBody3D
 
-const RadioManager = preload("res://radio_manager.gd")
-const Van = preload("res://van.gd")
-const HUD = preload("res://hud.gd")
-
 @export_group("Interior Lighting")
 ## Whether the interior dome light is still flickering or completely dead.
 @export var is_dome_light_flickering: bool = true

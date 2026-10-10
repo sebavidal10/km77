@@ -4,9 +4,6 @@ extends CanvasLayer
 signal screen_faded_to_black
 signal screen_faded_from_black
 
-const RadioManager = preload("res://radio_manager.gd")
-const Van = preload("res://van.gd")
-
 @export_group("Target")
 ## The vehicle node to observe for telemetry, fuel, and trip metrics.
 @export var target_van: Van
@@ -454,4 +451,3 @@ func _on_headlights_mode_changed(is_high: bool) -> void:
 	else:
 		headlight_badge.text = "● LOW BEAM [F/H]"
 		headlight_badge.add_theme_color_override("font_color", COLOR_LOW_BEAM_GREEN)
-

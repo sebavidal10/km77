@@ -1,10 +1,6 @@
 class_name SupplyStop
 extends Node3D
 
-const Van = preload("res://van.gd")
-const HUD = preload("res://hud.gd")
-const RadioManager = preload("res://radio_manager.gd")
-
 signal scavenge_started
 signal scavenge_completed
 signal threat_triggered_signal

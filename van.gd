@@ -1,11 +1,6 @@
 class_name Van
 extends CharacterBody3D
 
-const RadioManager = preload("res://radio_manager.gd")
-const RoadManager = preload("res://road_manager.gd")
-const HUD = preload("res://hud.gd")
-const ChaseCamera = preload("res://chase_camera.gd")
-
 # Telemetry signals
 signal fuel_changed(current_fuel: float, max_fuel: float)
 signal fuel_depleted
@@ -772,17 +767,17 @@ func _apply_headlight_mode_instant() -> void:
 		headlight_left.spot_range = target_range
 		headlight_left.spot_angle = target_angle
 		headlight_left.light_energy = target_energy
-		headlight_left.volumetric_fog_energy = target_fog_energy
+		headlight_left.light_volumetric_fog_energy = target_fog_energy
 	if headlight_right and not right_headlight_broken:
 		headlight_right.rotation = Vector3(target_pitch, 0.0, 0.0)
 		headlight_right.spot_range = target_range
 		headlight_right.spot_angle = target_angle
 		headlight_right.light_energy = target_energy
-		headlight_right.volumetric_fog_energy = target_fog_energy
+		headlight_right.light_volumetric_fog_energy = target_fog_energy
 	if headlight_ground_fill:
 		headlight_ground_fill.rotation = Vector3.ZERO
 		headlight_ground_fill.light_energy = target_fill_energy
-		headlight_ground_fill.volumetric_fog_energy = 2.0
+		headlight_ground_fill.light_volumetric_fog_energy = 2.0
 	if _headlight_mat:
 		_headlight_mat.emission_energy_multiplier = target_mesh_emission
 
@@ -808,7 +803,7 @@ func _process_headlight_beams(delta: float) -> void:
 			headlight_left.rotation.z = 0.0
 			headlight_left.spot_range = move_toward(headlight_left.spot_range, target_range, 90.0 * delta)
 			headlight_left.spot_angle = move_toward(headlight_left.spot_angle, target_angle, 45.0 * delta)
-			headlight_left.volumetric_fog_energy = target_fog_energy
+			headlight_left.light_volumetric_fog_energy = target_fog_energy
 			if not _is_flickering_glitch:
 				headlight_left.light_energy = move_toward(headlight_left.light_energy, target_energy, 18.0 * delta)
 		if headlight_right and not right_headlight_broken:
@@ -817,7 +812,7 @@ func _process_headlight_beams(delta: float) -> void:
 			headlight_right.rotation.z = 0.0
 			headlight_right.spot_range = move_toward(headlight_right.spot_range, target_range, 90.0 * delta)
 			headlight_right.spot_angle = move_toward(headlight_right.spot_angle, target_angle, 45.0 * delta)
-			headlight_right.volumetric_fog_energy = target_fog_energy
+			headlight_right.light_volumetric_fog_energy = target_fog_energy
 			if not _is_flickering_glitch:
 				headlight_right.light_energy = move_toward(headlight_right.light_energy, target_energy, 18.0 * delta)
 

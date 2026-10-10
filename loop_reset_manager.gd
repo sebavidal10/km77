@@ -4,12 +4,6 @@ extends Node
 signal collapse_started(reason: String)
 signal reboot_completed
 
-const Van = preload("res://van.gd")
-const RoadManager = preload("res://road_manager.gd")
-const RadioManager = preload("res://radio_manager.gd")
-const HUD = preload("res://hud.gd")
-const PostProcess = preload("res://post_process.gd")
-
 @export_group("Target Nodes")
 @export var target_van: Van
 @export var road_manager: RoadManager

@@ -1,8 +1,6 @@
 class_name PostProcess
 extends CanvasLayer
 
-const Van = preload("res://van.gd")
-
 @export_group("Retro Shader Settings")
 ## Target pixelation resolution. Defaults to 640x360 for crisp retro widescreen.
 @export var target_resolution: Vector2 = Vector2(640.0, 360.0):

@@ -1,13 +1,8 @@
 class_name RoadManager
 extends Node3D
 
-const RoadEventSpawner = preload("res://road_event_spawner.gd")
-const OncomingVehicle = preload("res://oncoming_vehicle.gd")
-const SupplyStop = preload("res://supply_stop.gd")
 const SupplyStopScene = preload("res://supply_stop.tscn")
-const AbandonedCar = preload("res://abandoned_car.gd")
 const AbandonedCarScene = preload("res://abandoned_car.tscn")
-const RuralTurnoff = preload("res://rural_turnoff.gd")
 
 @export_group("Target Vehicle")
 ## Node representing the vehicle to track for spawning and recycling road segments.

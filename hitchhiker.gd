@@ -1,9 +1,6 @@
 class_name Hitchhiker
 extends Node3D
 
-const RadioManager = preload("res://radio_manager.gd")
-const Van = preload("res://van.gd")
-
 @export_group("Tracking")
 ## Maximum distance within which the hitchhiker turns to look at the player's vehicle.
 @export var tracking_range: float = 25.0

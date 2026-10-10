@@ -1,8 +1,6 @@
 class_name RadioManager
 extends Node
 
-const Van = preload("res://van.gd")
-
 signal dispatch_received(text: String, duration: float)
 signal static_burst_triggered(intensity: float, decay_speed: float)
 

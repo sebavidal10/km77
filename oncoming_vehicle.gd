@@ -1,8 +1,6 @@
 class_name OncomingVehicle
 extends CharacterBody3D
 
-const RadioManager = preload("res://radio_manager.gd")
-
 signal vehicle_approaching
 signal vehicle_passed
 signal player_collided
