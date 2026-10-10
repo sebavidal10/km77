@@ -12,15 +12,13 @@ signal reboot_completed
 
 @export_group("Thresholds")
 ## Maximum tilt angle before rollover detection starts counting (degrees).
-@export var max_rollover_angle_deg: float = 70.0
-## Duration in seconds the vehicle must be tilted beyond threshold to trigger death.
-@export var rollover_time_threshold: float = 2.0
+@export var max_rollover_angle_deg: float = 75.0
+## Duration in seconds the vehicle must be tilted beyond threshold to trigger death (requires >3.0s).
+@export var rollover_time_threshold: float = 3.0
 ## Duration of the blackout / reboot pause in seconds.
 @export var reboot_duration: float = 3.0
-## Deep fall Y-coordinate threshold.
-@export var fall_depth_threshold: float = -4.5
-## Lateral boundary threshold in meters.
-@export var max_lateral_boundary: float = 35.0
+## Deep fall Y-coordinate threshold deep enough to ignore dips and ditches.
+@export var fall_depth_threshold: float = -15.0
 
 var _is_rebooting: bool = false
 var _rollover_timer: float = 0.0
@@ -42,38 +40,39 @@ func _physics_process(delta: float) -> void:
 	_check_failure_conditions(delta)
 
 func _check_failure_conditions(delta: float) -> void:
-	# 1. Rollover Check (vehicle UP vector tilts > 70 degrees from world UP)
+	# 1. Rollover Check (vehicle UP vector tilts > 75 degrees and upside down for sustained >3.0s)
 	var up_vec: Vector3 = target_van.global_transform.basis.y
 	var tilt_dot: float = up_vec.dot(Vector3.UP)
-	var tilt_threshold := cos(deg_to_rad(max_rollover_angle_deg))
+	var tilt_threshold := cos(deg_to_rad(max_rollover_angle_deg)) # cos(75°) ≈ 0.2588
 	if tilt_dot < tilt_threshold:
 		_rollover_timer += delta
 		if _rollover_timer >= rollover_time_threshold:
-			start_timeline_reboot("VEHICLE ROLLOVER DETECTED")
+			start_timeline_reboot("SUSTAINED VEHICLE ROLLOVER (tilted > 75° for %.1fs)" % rollover_time_threshold)
 			return
 	else:
-		_rollover_timer = maxf(0.0, _rollover_timer - delta * 1.5)
+		_rollover_timer = maxf(0.0, _rollover_timer - delta * 2.0)
 
-	# 2. Deep Ditch / Abyss Fall Check
+	# 2. Deep Ditch / Abyss Fall Check (Y-position fall threshold deep enough to avoid road dips)
 	var pos := target_van.global_position
-	if pos.y < fall_depth_threshold or absf(pos.x) > max_lateral_boundary:
-		start_timeline_reboot("OUT OF BOUNDS ABYSS COLLAPSE")
+	if pos.y < fall_depth_threshold:
+		start_timeline_reboot("DEEP OUT-OF-BOUNDS ABYSS DROP (Y: %.1f < %.1f)" % [pos.y, fall_depth_threshold])
 		return
 
 	# 3. Fuel Depletion Stall Check
-	if target_van.current_fuel <= 0.0 and absf(target_van.current_speed_kmh) < 4.0:
-		start_timeline_reboot("CRITICAL FUEL DEPLETION")
+	if target_van.current_fuel <= 0.0 and absf(target_van.current_speed_kmh) < 2.0:
+		start_timeline_reboot("CRITICAL FUEL DEPLETION (Empty Tank)")
 		return
 
 	# 4. Engine Destruction Check
-	if target_van.current_engine_health <= 0.0 and absf(target_van.current_speed_kmh) < 4.0:
-		start_timeline_reboot("FATAL ENGINE INTEGRITY LOSS")
+	if target_van.current_engine_health <= 0.0 and absf(target_van.current_speed_kmh) < 2.0:
+		start_timeline_reboot("FATAL ENGINE INTEGRITY LOSS (0% Engine Health)")
 		return
 
 ## Triggers the fatal collapse, CRT failure display, and recursive timeline reboot.
 func start_timeline_reboot(reason: String = "") -> void:
 	if _is_rebooting:
 		return
+	print("Reset triggered by: ", reason)
 	_is_rebooting = true
 	_reboot_timer = 0.0
 	_rollover_timer = 0.0

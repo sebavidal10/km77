@@ -101,10 +101,10 @@ var is_high_beams_active: bool:
 @export var max_fuel: float = 100.0
 ## Current fuel level.
 @export var current_fuel: float = 100.0
-## Base fuel consumed per second when engine is idling/active.
-@export var fuel_consumption_idle: float = 0.12
+## Base fuel consumed per second when engine is idling/active (~0.12% per second at cruise).
+@export var fuel_consumption_idle: float = 0.06
 ## Additional fuel consumed per second under full acceleration throttle.
-@export var fuel_consumption_throttle: float = 0.75
+@export var fuel_consumption_throttle: float = 0.18
 
 @export_group("Trip & Navigation")
 ## Starting kilometer marker (counts down toward target_kilometer).
@@ -411,6 +411,7 @@ func _physics_process(delta: float) -> void:
 
 ## Starts the vehicle shutdown and blackout sequence.
 func _start_collapse() -> void:
+	print("Reset triggered by: CRITICAL VEHICLE SHUTDOWN (Fuel: %.1f, Health: %.1f)" % [current_fuel, current_engine_health])
 	var root := get_tree().current_scene if get_tree() else null
 	if root:
 		var lrm := root.get_node_or_null("LoopResetManager")
@@ -478,8 +479,8 @@ func reset_loop_state() -> void:
 		rm.reset_road()
 
 	# 3. Restore partial fuel and engine health
-	current_fuel = max_fuel * 0.65
-	current_engine_health = max_engine_health * 0.75
+	current_fuel = max_fuel * 0.70
+	current_engine_health = max_engine_health * 0.85
 	fuel_changed.emit(current_fuel, max_fuel)
 	engine_health_changed.emit(current_engine_health, max_engine_health)
 
