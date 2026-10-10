@@ -3,7 +3,7 @@
 [ext_resource type="Script" uid="uid://sqcs05103pki" path="res://van.gd" id="1_van"]
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_van_body"]
-size = Vector3(1.85, 1.45, 4.3)
+size = Vector3(1.85, 1.35, 4.1)
 
 [sub_resource type="SphereShape3D" id="SphereShape3D_wheel"]
 radius = 0.35
@@ -211,11 +211,11 @@ floor_constant_speed = true
 floor_block_on_wall = false
 floor_max_angle = 0.872665
 floor_snap_length = 0.25
-safe_margin = 0.08
+safe_margin = 0.005
 script = ExtResource("1_van")
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="." unique_id=2139074407]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.25, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.35, 0)
 shape = SubResource("BoxShape3D_van_body")
 
 [node name="WheelColFL" type="CollisionShape3D" parent="." unique_id=2139074408]
@@ -238,50 +238,23 @@ shape = SubResource("SphereShape3D_wheel")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3.3, 6.2)
 
 [node name="HeadlightLeft" type="SpotLight3D" parent="." unique_id=615601642]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.72, 0.82, -2.35)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.65, 0.65, -2.15)
 light_color = Color(1, 0.96, 0.88, 1)
-light_energy = 8.5
-spot_range = 65.0
-spot_angle = 58.0
-light_volumetric_fog_energy = 3.8
-
-[node name="HeadlightRight" type="SpotLight3D" parent="." unique_id=608761848]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.72, 0.82, -2.35)
-light_color = Color(1, 0.96, 0.88, 1)
-light_energy = 8.5
-spot_range = 65.0
-spot_angle = 58.0
-light_volumetric_fog_energy = 3.8
-
-[node name="HeadlightGroundFill" type="SpotLight3D" parent="." unique_id=615601643]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.85, -2.15)
-light_color = Color(1, 0.96, 0.88, 1)
-light_energy = 7.5
-spot_range = 35.0
-spot_angle = 75.0
-spot_attenuation = 1.2
+light_energy = 2.2
+spot_range = 42.0
+spot_angle = 48.0
 light_volumetric_fog_energy = 2.0
 
-[node name="BrakeLight" type="OmniLight3D" parent="." unique_id=615601652]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.75, 2.35)
-light_color = Color(1, 0.08, 0.08, 1)
-light_energy = 0.35
-omni_range = 6.5
-omni_attenuation = 1.4
+[node name="HeadlightRight" type="SpotLight3D" parent="." unique_id=608761848]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.65, 0.65, -2.15)
+light_color = Color(1, 0.96, 0.88, 1)
+light_energy = 2.2
+spot_range = 42.0
+spot_angle = 48.0
+light_volumetric_fog_energy = 2.0
 
-[node name="ReverseLight" type="OmniLight3D" parent="." unique_id=615601653]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.65, 2.35)
-light_color = Color(0.9, 0.95, 1, 1)
-light_energy = 0.0
-omni_range = 7.0
-omni_attenuation = 1.5
-
-[node name="LicensePlateLight" type="OmniLight3D" parent="." unique_id=615601654]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.65, 2.32)
-light_color = Color(0.95, 0.92, 0.82, 1)
-light_energy = 0.6
-omni_range = 2.4
-omni_attenuation = 1.5
+[node name="RearMirrorMount" type="Marker3D" parent="." unique_id=615601655]
+transform = Transform3D(-1, 0, -8.74228e-08, 0, 1, 0, 8.74228e-08, 0, -1, 0, 1.95, 2.22)
 
 [node name="VisualRoot" type="Node3D" parent="." unique_id=615601660]
 

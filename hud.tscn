@@ -1,6 +1,26 @@
 [gd_scene format=3 uid="uid://c7m5e3w8n5hud"]
 
 [ext_resource type="Script" path="res://hud.gd" id="1_hud"]
+[ext_resource type="Shader" path="res://shaders/mirror_flip.gdshader" id="2_mirror_shader"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_mirror"]
+shader = ExtResource("2_mirror_shader")
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_mirror_frame"]
+content_margin_left = 3.0
+content_margin_top = 3.0
+content_margin_right = 3.0
+content_margin_bottom = 3.0
+bg_color = Color(0.02, 0.025, 0.03, 0.95)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.28, 0.32, 0.36, 0.85)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_panel"]
 content_margin_left = 12.0
@@ -72,26 +92,52 @@ theme_override_constants/margin_bottom = 24
 [node name="Control" type="Control" parent="MarginContainer" unique_id=1738291052]
 layout_mode = 2
 
-[node name="TopCenter" type="HBoxContainer" parent="MarginContainer/Control" unique_id=983210412]
+[node name="TopCenter" type="VBoxContainer" parent="MarginContainer/Control" unique_id=983210412]
 layout_mode = 1
 anchors_preset = 5
 anchor_left = 0.5
 anchor_right = 0.5
-offset_left = -160.0
-offset_right = 160.0
-offset_bottom = 38.0
+offset_left = -140.0
+offset_right = 140.0
+offset_bottom = 110.0
 grow_horizontal = 2
+theme_override_constants/separation = 6
 alignment = 1
+
+[node name="RearMirrorFrame" type="PanelContainer" parent="MarginContainer/Control/TopCenter" unique_id=983210413]
+custom_minimum_size = Vector2(280, 68)
+layout_mode = 2
+size_flags_horizontal = 4
+theme_override_styles/panel = SubResource("StyleBoxFlat_mirror_frame")
+
+[node name="RearMirrorContainer" type="SubViewportContainer" parent="MarginContainer/Control/TopCenter/RearMirrorFrame" unique_id=983210414]
+material = SubResource("ShaderMaterial_mirror")
+custom_minimum_size = Vector2(274, 62)
+layout_mode = 2
+stretch = true
+
+[node name="RearMirrorViewport" type="SubViewport" parent="MarginContainer/Control/TopCenter/RearMirrorFrame/RearMirrorContainer" unique_id=983210415]
+handle_input_locally = false
+size = Vector2i(274, 62)
+render_target_update_mode = 4
+
+[node name="RearMirrorCamera" type="Camera3D" parent="MarginContainer/Control/TopCenter/RearMirrorFrame/RearMirrorContainer/RearMirrorViewport" unique_id=983210416]
+unique_name_in_owner = true
+current = true
+fov = 68.0
+near = 0.25
+far = 160.0
 
 [node name="RoutePanel" type="PanelContainer" parent="MarginContainer/Control/TopCenter" unique_id=34120912]
 layout_mode = 2
+size_flags_horizontal = 4
 theme_override_styles/panel = SubResource("StyleBoxFlat_panel")
 
 [node name="RouteLabel" type="Label" parent="MarginContainer/Control/TopCenter/RoutePanel" unique_id=89234120]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_colors/font_color = Color(1, 0.69, 0, 1)
-theme_override_font_sizes/font_size = 14
+theme_override_font_sizes/font_size = 13
 text = "ROUTE 77  |  KM 85.0 ──> 77.0"
 horizontal_alignment = 1
 

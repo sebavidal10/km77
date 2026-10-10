@@ -71,23 +71,22 @@ signal paradox_anomaly_triggered
 
 @export_group("Headlight Beams")
 ## Whether high beams are currently active.
-@export var is_high_beams_active: bool = false
+@export var is_high_beam: bool = false
+var is_high_beams_active: bool:
+	get: return is_high_beam
+	set(val): is_high_beam = val
 ## Low beam spot range (meters).
-@export var low_beam_range: float = 65.0
+@export var low_beam_range: float = 42.0
 ## Low beam cone angle (degrees).
-@export var low_beam_angle: float = 58.0
+@export var low_beam_angle: float = 48.0
 ## Low beam intensity energy.
-@export var low_beam_energy: float = 8.5
-## Low beam downward pitch in degrees (illuminates road surface).
-@export var low_beam_pitch_deg: float = 0.0
+@export var low_beam_energy: float = 2.2
 ## High beam spot range (meters).
-@export var high_beam_range: float = 130.0
+@export var high_beam_range: float = 85.0
 ## High beam cone angle (degrees).
-@export var high_beam_angle: float = 38.0
+@export var high_beam_angle: float = 32.0
 ## High beam intensity energy.
-@export var high_beam_energy: float = 16.0
-## High beam downward pitch in degrees (pierces far down highway).
-@export var high_beam_pitch_deg: float = 0.0
+@export var high_beam_energy: float = 5.0
 
 @export_group("Reverse & Coasting")
 ## Maximum reverse speed in m/s (approx 45 km/h).
@@ -200,16 +199,13 @@ var _glitch_toggle_timer: float = 0.0
 @onready var visual_mesh: MeshInstance3D = _find_visual_mesh()
 @onready var headlight_left: SpotLight3D = _find_headlight_left()
 @onready var headlight_right: SpotLight3D = _find_headlight_right()
-@onready var headlight_ground_fill: SpotLight3D = _find_headlight_ground_fill()
 @onready var headlight_left_mesh: MeshInstance3D = get_node_or_null("VisualRoot/HeadlightLeftMesh") as MeshInstance3D
 @onready var headlight_right_mesh: MeshInstance3D = get_node_or_null("VisualRoot/HeadlightRightMesh") as MeshInstance3D
 @onready var taillight_left: MeshInstance3D = _find_taillight_left()
 @onready var taillight_right: MeshInstance3D = _find_taillight_right()
-@onready var brake_omni_light: OmniLight3D = get_node_or_null("BrakeLight") as OmniLight3D
-@onready var reverse_omni_light: OmniLight3D = get_node_or_null("ReverseLight") as OmniLight3D
-@onready var license_plate_light: OmniLight3D = get_node_or_null("LicensePlateLight") as OmniLight3D
 @onready var reverse_light_left: MeshInstance3D = _find_reverse_light_left()
 @onready var reverse_light_right: MeshInstance3D = _find_reverse_light_right()
+var headlights: Array[SpotLight3D] = []
 
 @onready var wheel_fl: Node3D = get_node_or_null("VisualRoot/WheelFL") as Node3D
 @onready var wheel_fr: Node3D = get_node_or_null("VisualRoot/WheelFR") as Node3D
@@ -255,14 +251,6 @@ func _find_headlight_right() -> SpotLight3D:
 		light = find_child("HeadlightRight", true, false) as SpotLight3D
 	return light
 
-func _find_headlight_ground_fill() -> SpotLight3D:
-	var light := get_node_or_null("HeadlightGroundFill") as SpotLight3D
-	if not light and visual_root:
-		light = visual_root.get_node_or_null("HeadlightGroundFill") as SpotLight3D
-	if not light:
-		light = find_child("HeadlightGroundFill", true, false) as SpotLight3D
-	return light
-
 func _find_taillight_left() -> MeshInstance3D:
 	var m := get_node_or_null("VisualRoot/TaillightLeftMesh") as MeshInstance3D
 	if not m:
@@ -291,8 +279,14 @@ func _ready() -> void:
 	var tree := get_tree()
 	if tree and tree.current_scene:
 		_world_env = tree.current_scene.get_node_or_null("WorldEnvironment") as WorldEnvironment
+	headlights.clear()
+	if headlight_left:
+		headlights.append(headlight_left)
+	if headlight_right:
+		headlights.append(headlight_right)
+
 	_apply_headlight_mode_instant()
-	headlights_mode_changed.emit(is_high_beams_active)
+	headlights_mode_changed.emit(is_high_beam)
 
 	current_kilometer = starting_kilometer
 	fuel_changed.emit(current_fuel, max_fuel)
@@ -333,12 +327,12 @@ func _ready() -> void:
 	_create_mud_particles()
 
 func _unhandled_input(event: InputEvent) -> void:
-	if event.is_action_pressed("toggle_high_beams") and not event.is_echo():
-		toggle_high_beams()
+	if event.is_action_pressed("toggle_high_beams") or (event is InputEventKey and event.pressed and not event.is_echo() and (event.keycode == KEY_F or event.keycode == KEY_H or event.keycode == KEY_L or event.physical_keycode == KEY_F or event.physical_keycode == KEY_H or event.physical_keycode == KEY_L)):
+		toggle_headlights()
 
 func _physics_process(delta: float) -> void:
 	if Input.is_action_just_pressed("toggle_high_beams"):
-		toggle_high_beams()
+		toggle_headlights()
 
 	is_drifting = Input.is_action_pressed("handbrake")
 
@@ -448,18 +442,10 @@ func _process_collapse(delta: float) -> void:
 			headlight_left.light_energy = move_toward(headlight_left.light_energy, 0.0, 6.0 * delta)
 		if headlight_right and not right_headlight_broken:
 			headlight_right.light_energy = move_toward(headlight_right.light_energy, 0.0, 6.0 * delta)
-		if headlight_ground_fill:
-			headlight_ground_fill.light_energy = move_toward(headlight_ground_fill.light_energy, 0.0, 6.0 * delta)
 		if _taillight_mat:
 			_taillight_mat.emission_energy_multiplier = move_toward(_taillight_mat.emission_energy_multiplier, 0.0, 3.5 * delta)
-		if brake_omni_light:
-			brake_omni_light.light_energy = move_toward(brake_omni_light.light_energy, 0.0, 3.5 * delta)
 		if _reverse_light_mat:
 			_reverse_light_mat.emission_energy_multiplier = move_toward(_reverse_light_mat.emission_energy_multiplier, 0.0, 3.5 * delta)
-		if reverse_omni_light:
-			reverse_omni_light.light_energy = move_toward(reverse_omni_light.light_energy, 0.0, 3.5 * delta)
-		if license_plate_light:
-			license_plate_light.light_energy = move_toward(license_plate_light.light_energy, 0.0, 3.5 * delta)
 
 		_collapse_timer += delta
 		if _collapse_timer >= 2.2:
@@ -469,14 +455,6 @@ func _process_collapse(delta: float) -> void:
 				headlight_left.visible = false
 			if headlight_right:
 				headlight_right.visible = false
-			if headlight_ground_fill:
-				headlight_ground_fill.visible = false
-			if brake_omni_light:
-				brake_omni_light.visible = false
-			if reverse_omni_light:
-				reverse_omni_light.visible = false
-			if license_plate_light:
-				license_plate_light.visible = false
 	elif _collapse_stage == 2:
 		# Silence and static in the pitch dark
 		_collapse_timer += delta
@@ -506,32 +484,20 @@ func reset_loop_state() -> void:
 	engine_health_changed.emit(current_engine_health, max_engine_health)
 
 	# 4. Restore headlights and taillights
-	is_high_beams_active = false
+	is_high_beam = false
 	left_headlight_broken = false
 	right_headlight_broken = false
 	if headlight_left:
 		headlight_left.visible = true
 	if headlight_right:
 		headlight_right.visible = true
-	if headlight_ground_fill:
-		headlight_ground_fill.visible = true
-		headlight_ground_fill.light_energy = 7.5
 	_apply_headlight_mode_instant()
-	headlights_mode_changed.emit(is_high_beams_active)
+	headlights_mode_changed.emit(is_high_beam)
 
 	if _taillight_mat:
 		_taillight_mat.emission_energy_multiplier = 0.8
-	if brake_omni_light:
-		brake_omni_light.visible = true
-		brake_omni_light.light_energy = 0.35
 	if _reverse_light_mat:
 		_reverse_light_mat.emission_energy_multiplier = 0.0
-	if reverse_omni_light:
-		reverse_omni_light.visible = true
-		reverse_omni_light.light_energy = 0.0
-	if license_plate_light:
-		license_plate_light.visible = true
-		license_plate_light.light_energy = 0.6
 
 	_wheel_roll_angle = 0.0
 	_process_wheel_transformations(0.0)
@@ -649,40 +615,26 @@ func _process_visual_effects(delta: float) -> void:
 			if headlight_right and not right_headlight_broken:
 				headlight_right.visible = true
 
-	# Dynamic rear tail & reactive brake lights
+	# Dynamic rear tail & reactive brake lights (pure emissive meshes, NO omni bleed)
 	if not is_stalled:
 		var is_braking: bool = (Input.is_action_pressed("brake") and forward_speed_state > 0.2) or Input.is_action_pressed("handbrake")
-		var target_emission: float = 4.5 if is_braking else 0.8
-		var target_omni: float = 3.5 if is_braking else 0.25
+		var target_emission: float = 4.0 if is_braking else 0.8
 		if _taillight_mat:
 			_taillight_mat.emission_energy_multiplier = move_toward(
 				_taillight_mat.emission_energy_multiplier,
 				target_emission,
 				14.0 * delta
 			)
-		if brake_omni_light:
-			brake_omni_light.light_energy = move_toward(
-				brake_omni_light.light_energy,
-				target_omni,
-				12.0 * delta
-			)
 
-		# Active reverse lights: bright white rear light and illumination when reversing
+		# Active reverse lights: bright white rear emissive lenses when reversing
 		var throttle := Input.get_axis("brake", "accelerate")
 		var is_reversing: bool = (forward_speed_state < -0.1) or (throttle < -0.05 and forward_speed_state <= 0.4)
 		var target_reverse_emission: float = 3.5 if is_reversing else 0.0
-		var target_reverse_omni: float = 2.0 if is_reversing else 0.0
 		if _reverse_light_mat:
 			_reverse_light_mat.emission_energy_multiplier = move_toward(
 				_reverse_light_mat.emission_energy_multiplier,
 				target_reverse_emission,
 				14.0 * delta
-			)
-		if reverse_omni_light:
-			reverse_omni_light.light_energy = move_toward(
-				reverse_omni_light.light_energy,
-				target_reverse_omni,
-				12.0 * delta
 			)
 
 	# Process headlight low/high beam transition & fog backscatter
@@ -748,77 +700,66 @@ func _ensure_high_beams_action() -> void:
 			InputMap.action_add_event("toggle_high_beams", ev)
 
 ## Toggles between low beam and high beam headlights.
+func toggle_headlights() -> void:
+	is_high_beam = not is_high_beam
+	_apply_headlight_mode_instant()
+	headlights_mode_changed.emit(is_high_beam)
+
+## Backward compatibility alias for toggle_headlights.
 func toggle_high_beams() -> void:
-	is_high_beams_active = not is_high_beams_active
-	headlights_mode_changed.emit(is_high_beams_active)
+	toggle_headlights()
 
 ## Instantly sets headlight parameters to current beam mode without smoothing.
 func _apply_headlight_mode_instant() -> void:
-	var target_range: float = high_beam_range if is_high_beams_active else low_beam_range
-	var target_angle: float = high_beam_angle if is_high_beams_active else low_beam_angle
-	var target_energy: float = high_beam_energy if is_high_beams_active else low_beam_energy
-	var target_pitch: float = deg_to_rad(high_beam_pitch_deg if is_high_beams_active else low_beam_pitch_deg)
-	var target_mesh_emission: float = 6.5 if is_high_beams_active else 3.2
-	var target_fog_energy: float = 5.5 if is_high_beams_active else 3.8
-	var target_fill_energy: float = 10.5 if is_high_beams_active else 7.5
+	var target_range: float = high_beam_range if is_high_beam else low_beam_range
+	var target_angle: float = high_beam_angle if is_high_beam else low_beam_angle
+	var target_energy: float = high_beam_energy if is_high_beam else low_beam_energy
+	var target_fog_energy: float = 4.5 if is_high_beam else 2.0
+	var target_mesh_emission: float = 5.0 if is_high_beam else 2.2
 
 	if headlight_left and not left_headlight_broken:
-		headlight_left.rotation = Vector3(target_pitch, 0.0, 0.0)
+		headlight_left.rotation = Vector3.ZERO
 		headlight_left.spot_range = target_range
 		headlight_left.spot_angle = target_angle
 		headlight_left.light_energy = target_energy
 		headlight_left.light_volumetric_fog_energy = target_fog_energy
 	if headlight_right and not right_headlight_broken:
-		headlight_right.rotation = Vector3(target_pitch, 0.0, 0.0)
+		headlight_right.rotation = Vector3.ZERO
 		headlight_right.spot_range = target_range
 		headlight_right.spot_angle = target_angle
 		headlight_right.light_energy = target_energy
 		headlight_right.light_volumetric_fog_energy = target_fog_energy
-	if headlight_ground_fill:
-		headlight_ground_fill.rotation = Vector3.ZERO
-		headlight_ground_fill.light_energy = target_fill_energy
-		headlight_ground_fill.light_volumetric_fog_energy = 2.0
 	if _headlight_mat:
 		_headlight_mat.emission_energy_multiplier = target_mesh_emission
 
-## Smoothly interpolates beam range, angle, intensity, pitch angle, and fog backscatter.
+## Smoothly interpolates beam range, angle, intensity, and fog backscatter.
 func _process_headlight_beams(delta: float) -> void:
 	if not _world_env:
 		var tree := get_tree()
 		if tree and tree.current_scene:
 			_world_env = tree.current_scene.get_node_or_null("WorldEnvironment") as WorldEnvironment
 
-	var target_range: float = high_beam_range if is_high_beams_active else low_beam_range
-	var target_angle: float = high_beam_angle if is_high_beams_active else low_beam_angle
-	var target_energy: float = high_beam_energy if is_high_beams_active else low_beam_energy
-	var target_pitch: float = deg_to_rad(high_beam_pitch_deg if is_high_beams_active else low_beam_pitch_deg)
-	var target_mesh_emission: float = 6.5 if is_high_beams_active else 3.2
-	var target_fog_energy: float = 5.5 if is_high_beams_active else 3.8
-	var target_fill_energy: float = 10.5 if is_high_beams_active else 7.5
+	var target_range: float = high_beam_range if is_high_beam else low_beam_range
+	var target_angle: float = high_beam_angle if is_high_beam else low_beam_angle
+	var target_energy: float = high_beam_energy if is_high_beam else low_beam_energy
+	var target_fog_energy: float = 4.5 if is_high_beam else 2.0
+	var target_mesh_emission: float = 5.0 if is_high_beam else 2.2
 
 	if not is_stalled:
 		if headlight_left and not left_headlight_broken:
-			headlight_left.rotation.x = move_toward(headlight_left.rotation.x, target_pitch, 8.0 * delta)
-			headlight_left.rotation.y = 0.0
-			headlight_left.rotation.z = 0.0
+			headlight_left.rotation = Vector3.ZERO
 			headlight_left.spot_range = move_toward(headlight_left.spot_range, target_range, 90.0 * delta)
 			headlight_left.spot_angle = move_toward(headlight_left.spot_angle, target_angle, 45.0 * delta)
 			headlight_left.light_volumetric_fog_energy = target_fog_energy
 			if not _is_flickering_glitch:
 				headlight_left.light_energy = move_toward(headlight_left.light_energy, target_energy, 18.0 * delta)
 		if headlight_right and not right_headlight_broken:
-			headlight_right.rotation.x = move_toward(headlight_right.rotation.x, target_pitch, 8.0 * delta)
-			headlight_right.rotation.y = 0.0
-			headlight_right.rotation.z = 0.0
+			headlight_right.rotation = Vector3.ZERO
 			headlight_right.spot_range = move_toward(headlight_right.spot_range, target_range, 90.0 * delta)
 			headlight_right.spot_angle = move_toward(headlight_right.spot_angle, target_angle, 45.0 * delta)
 			headlight_right.light_volumetric_fog_energy = target_fog_energy
 			if not _is_flickering_glitch:
 				headlight_right.light_energy = move_toward(headlight_right.light_energy, target_energy, 18.0 * delta)
-
-		if headlight_ground_fill:
-			headlight_ground_fill.rotation = Vector3.ZERO
-			headlight_ground_fill.light_energy = move_toward(headlight_ground_fill.light_energy, target_fill_energy, 14.0 * delta)
 
 		if _headlight_mat:
 			_headlight_mat.emission_energy_multiplier = move_toward(
@@ -829,7 +770,7 @@ func _process_headlight_beams(delta: float) -> void:
 
 	# Volumetric fog backscatter effect: high beams illuminate atmospheric fog layers
 	if _world_env and _world_env.environment and not _is_fog_anomaly:
-		var target_density: float = 0.055 if is_high_beams_active else 0.040
+		var target_density: float = 0.055 if is_high_beam else 0.040
 		_world_env.environment.volumetric_fog_density = move_toward(
 			_world_env.environment.volumetric_fog_density,
 			target_density,
@@ -931,7 +872,7 @@ func repair_vehicle(health_amount: float = 40.0) -> void:
 		is_stalled = false
 	engine_health_changed.emit(current_engine_health, max_engine_health)
 
-	var current_energy: float = high_beam_energy if is_high_beams_active else low_beam_energy
+	var current_energy: float = high_beam_energy if is_high_beam else low_beam_energy
 	if left_headlight_broken and headlight_left:
 		left_headlight_broken = false
 		headlight_left.visible = true

@@ -17,6 +17,7 @@ const COLOR_LOW_BEAM_GREEN := Color(0.2, 1.0, 0.4, 0.85)
 @onready var speed_value_label: Label = %SpeedValue
 @onready var drift_badge: Label = %DriftBadge
 @onready var headlight_badge: Label = %HeadlightBadge
+@onready var rear_mirror_camera: Camera3D = %RearMirrorCamera
 @onready var route_label: Label = %RouteLabel
 @onready var fuel_bar: ProgressBar = %FuelBar
 @onready var fuel_percent_label: Label = %FuelPercent
@@ -146,6 +147,22 @@ func _process(delta: float) -> void:
 
 	# Direct sync fallback to ensure 100% visual responsiveness
 	_sync_van_state()
+
+	# Synchronize retro rear-view mirror camera to vehicle orientation
+	_update_rear_mirror()
+
+func _update_rear_mirror() -> void:
+	if not rear_mirror_camera or not is_instance_valid(rear_mirror_camera):
+		return
+	if not target_van or not is_instance_valid(target_van):
+		return
+	var mount: Marker3D = target_van.get_node_or_null("RearMirrorMount") as Marker3D
+	if mount and is_instance_valid(mount):
+		rear_mirror_camera.global_transform = mount.global_transform
+	else:
+		var van_basis := target_van.global_transform.basis
+		rear_mirror_camera.global_position = target_van.global_position + (van_basis * Vector3(0.0, 1.95, 2.22))
+		rear_mirror_camera.global_transform.basis = van_basis * Basis(Vector3.UP, PI)
 
 func _process_forensic_log(delta: float) -> void:
 	if not forensic_panel or not forensic_panel.visible:
