@@ -70,6 +70,11 @@ roughness = 0.05
 metallic = 0.95
 metallic_specular = 1.0
 
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_bumper"]
+albedo_color = Color(0.133333, 0.133333, 0.133333, 1)
+roughness = 0.7
+metallic = 0.35
+
 [sub_resource type="BoxMesh" id="BoxMesh_mirror_arm"]
 material = SubResource("StandardMaterial3D_bumper")
 size = Vector3(0.22, 0.04, 0.04)
@@ -81,11 +86,6 @@ size = Vector3(0.07, 0.28, 0.18)
 [sub_resource type="BoxMesh" id="BoxMesh_mirror_glass"]
 material = SubResource("StandardMaterial3D_mirror_glass")
 size = Vector3(0.055, 0.25, 0.015)
-
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_bumper"]
-albedo_color = Color(0.133333, 0.133333, 0.133333, 1)
-roughness = 0.7
-metallic = 0.35
 
 [sub_resource type="BoxMesh" id="BoxMesh_door_handle"]
 material = SubResource("StandardMaterial3D_bumper")

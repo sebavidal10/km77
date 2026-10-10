@@ -1124,7 +1124,7 @@ func _process_longitudinal(fwd_speed: float, delta: float) -> float:
 		if current_fuel <= 0.0:
 			# Engine stalled out of fuel: coast to stop
 			fwd_speed = move_toward(fwd_speed, 0.0, coast_deceleration * delta)
-		elif fwd_speed < -0.5:
+		elif fwd_speed < -0.1:
 			# Traveling in reverse while throttle pressed: apply service brake to halt reverse
 			fwd_speed = move_toward(fwd_speed, 0.0, braking_force * delta)
 		else:
@@ -1137,7 +1137,7 @@ func _process_longitudinal(fwd_speed: float, delta: float) -> float:
 			var effective_accel: float = acceleration_rate * launch_factor * drag_taper * throttle
 			fwd_speed = move_toward(fwd_speed, max_speed, effective_accel * delta)
 	elif throttle < 0.0:
-		if fwd_speed > 0.25:
+		if fwd_speed > 0.1:
 			# Service braking from forward motion: realistic stopping distance
 			fwd_speed = move_toward(fwd_speed, 0.0, braking_force * delta)
 		elif current_fuel <= 0.0:
