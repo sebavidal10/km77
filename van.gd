@@ -76,17 +76,17 @@ var is_high_beams_active: bool:
 	get: return is_high_beam
 	set(val): is_high_beam = val
 ## Low beam spot range (meters).
-@export var low_beam_range: float = 42.0
+@export var low_beam_range: float = 45.0
 ## Low beam cone angle (degrees).
-@export var low_beam_angle: float = 48.0
+@export var low_beam_angle: float = 45.0
 ## Low beam intensity energy.
-@export var low_beam_energy: float = 2.2
+@export var low_beam_energy: float = 3.5
 ## High beam spot range (meters).
 @export var high_beam_range: float = 85.0
 ## High beam cone angle (degrees).
 @export var high_beam_angle: float = 32.0
 ## High beam intensity energy.
-@export var high_beam_energy: float = 5.0
+@export var high_beam_energy: float = 6.0
 
 @export_group("Reverse & Coasting")
 ## Maximum reverse speed in m/s (approx 45 km/h).
@@ -326,14 +326,11 @@ func _ready() -> void:
 
 	_create_mud_particles()
 
-func _unhandled_input(event: InputEvent) -> void:
+func _input(event: InputEvent) -> void:
 	if event.is_action_pressed("toggle_high_beams") or (event is InputEventKey and event.pressed and not event.is_echo() and (event.keycode == KEY_F or event.keycode == KEY_H or event.keycode == KEY_L or event.physical_keycode == KEY_F or event.physical_keycode == KEY_H or event.physical_keycode == KEY_L)):
-		toggle_headlights()
+		toggle_beams()
 
 func _physics_process(delta: float) -> void:
-	if Input.is_action_just_pressed("toggle_high_beams"):
-		toggle_headlights()
-
 	is_drifting = Input.is_action_pressed("handbrake")
 
 	# Check stall condition (fuel depleted or engine destroyed)
@@ -710,6 +707,10 @@ func toggle_headlights() -> void:
 func toggle_high_beams() -> void:
 	toggle_headlights()
 
+## User-facing alias for toggle_headlights.
+func toggle_beams() -> void:
+	toggle_headlights()
+
 ## Instantly sets headlight parameters to current beam mode without smoothing.
 func _apply_headlight_mode_instant() -> void:
 	var target_range: float = high_beam_range if is_high_beam else low_beam_range
@@ -723,12 +724,14 @@ func _apply_headlight_mode_instant() -> void:
 		headlight_left.spot_range = target_range
 		headlight_left.spot_angle = target_angle
 		headlight_left.light_energy = target_energy
+		headlight_left.shadow_enabled = true
 		headlight_left.light_volumetric_fog_energy = target_fog_energy
 	if headlight_right and not right_headlight_broken:
 		headlight_right.rotation = Vector3.ZERO
 		headlight_right.spot_range = target_range
 		headlight_right.spot_angle = target_angle
 		headlight_right.light_energy = target_energy
+		headlight_right.shadow_enabled = true
 		headlight_right.light_volumetric_fog_energy = target_fog_energy
 	if _headlight_mat:
 		_headlight_mat.emission_energy_multiplier = target_mesh_emission
@@ -749,6 +752,7 @@ func _process_headlight_beams(delta: float) -> void:
 	if not is_stalled:
 		if headlight_left and not left_headlight_broken:
 			headlight_left.rotation = Vector3.ZERO
+			headlight_left.shadow_enabled = true
 			headlight_left.spot_range = move_toward(headlight_left.spot_range, target_range, 90.0 * delta)
 			headlight_left.spot_angle = move_toward(headlight_left.spot_angle, target_angle, 45.0 * delta)
 			headlight_left.light_volumetric_fog_energy = target_fog_energy
@@ -756,6 +760,7 @@ func _process_headlight_beams(delta: float) -> void:
 				headlight_left.light_energy = move_toward(headlight_left.light_energy, target_energy, 18.0 * delta)
 		if headlight_right and not right_headlight_broken:
 			headlight_right.rotation = Vector3.ZERO
+			headlight_right.shadow_enabled = true
 			headlight_right.spot_range = move_toward(headlight_right.spot_range, target_range, 90.0 * delta)
 			headlight_right.spot_angle = move_toward(headlight_right.spot_angle, target_angle, 45.0 * delta)
 			headlight_right.light_volumetric_fog_energy = target_fog_energy

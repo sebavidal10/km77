@@ -459,12 +459,18 @@ func _on_drift_state_changed(is_active: bool) -> void:
 		else:
 			drift_badge.modulate = Color(0.4, 0.45, 0.48, 0.35)
 
-func _on_headlights_mode_changed(is_high: bool) -> void:
+## Updates the headlight beam indicator on the HUD.
+func update_beam_indicator(high: bool) -> void:
 	if not headlight_badge:
 		return
-	if is_high:
-		headlight_badge.text = "▲ HIGH BEAM [F/H]"
-		headlight_badge.add_theme_color_override("font_color", COLOR_HIGH_BEAM_BLUE)
+	if high:
+		headlight_badge.text = "● HIGH BEAM [F/H]"
+		headlight_badge.modulate = Color("#40a0ff")
+		headlight_badge.add_theme_color_override("font_color", Color("#40a0ff"))
 	else:
 		headlight_badge.text = "● LOW BEAM [F/H]"
-		headlight_badge.add_theme_color_override("font_color", COLOR_LOW_BEAM_GREEN)
+		headlight_badge.modulate = Color("#00ff66")
+		headlight_badge.add_theme_color_override("font_color", Color("#00ff66"))
+
+func _on_headlights_mode_changed(is_high: bool) -> void:
+	update_beam_indicator(is_high)
