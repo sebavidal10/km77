@@ -1,11 +1,19 @@
 class_name RoadEventSpawner
 extends Node
 
+const SupplyStopScene = preload("res://supply_stop.tscn")
+
 @export_group("Obstacle Probabilities")
 ## Chance (0.0 to 1.0) to spawn a wrecked/crashed vehicle on a chunk.
 @export var crashed_car_probability: float = 0.30
 ## Chance (0.0 to 1.0) to spawn a cluster of traffic cones / debris on a chunk.
 @export var debris_probability: float = 0.35
+
+@export_group("Supply Stop Balancing")
+## Maximum segments allowed without a supply stop (at least once every 8 segments).
+@export var max_segments_without_supply_stop: int = 8
+## Fuel percentage threshold below which a supply stop is guaranteed to spawn soon.
+@export var emergency_fuel_threshold: float = 35.0
 
 @export_group("Roadside Anomalies Probabilities")
 ## Chance (0.0 to 1.0) to spawn a rustic lamppost on a chunk.
@@ -31,6 +39,7 @@ extends Node
 var current_kilometer: int = 85
 var milestone_counter: int = 0
 var chunks_since_roadside_event: int = 0
+var chunks_since_supply_stop: int = 0
 
 # Shared cached materials for performance
 static var _rust_metal_mat: StandardMaterial3D
@@ -61,6 +70,7 @@ func reset_spawner() -> void:
 	current_kilometer = starting_kilometer
 	milestone_counter = 0
 	chunks_since_roadside_event = 0
+	chunks_since_supply_stop = 0
 
 static func _get_blood_crimson_mat() -> StandardMaterial3D:
 	if not _blood_crimson_mat:
@@ -211,11 +221,24 @@ func spawn_events_for_segment(segment: RoadSegment, chunk_index: int, rng: Rando
 	if not segment:
 		return
 
-	# Don't spawn hazardous obstacles on the initial runway or on chunks with a supply stop
-	var allow_obstacles: bool = chunk_index > 2 and not has_supply_stop
 	var slice_count: int = segment.get_slice_count()
 	if slice_count < 3:
 		return
+
+	# Supply Stop Pacing Guarantee: spawn at least once every max_segments_without_supply_stop (8) segments,
+	# or immediately (within 2 chunks) if player fuel drops below emergency_fuel_threshold (35%).
+	if has_supply_stop:
+		chunks_since_supply_stop = 0
+	else:
+		chunks_since_supply_stop += 1
+		var force_supply_stop: bool = (chunks_since_supply_stop >= max_segments_without_supply_stop) or (_is_player_low_on_fuel() and chunks_since_supply_stop >= 2)
+		if chunk_index >= 2 and force_supply_stop:
+			_spawn_supply_stop_on_segment(segment)
+			has_supply_stop = true
+			chunks_since_supply_stop = 0
+
+	# Don't spawn hazardous obstacles on the initial runway or on chunks with a supply stop
+	var allow_obstacles: bool = chunk_index > 2 and not has_supply_stop
 
 	# Track occupied slices to avoid overlapping obstacles
 	var occupied_slices: Array[int] = []
@@ -285,6 +308,33 @@ func spawn_events_for_segment(segment: RoadSegment, chunk_index: int, rng: Rando
 	if rng.randf() < distant_cabin_probability:
 		var slice_idx: int = rng.randi_range(1, slice_count - 2)
 		_spawn_distant_cabin(segment, slice_idx, rng)
+
+## Spawns a SupplyStop instance on the right shoulder of the given segment.
+func _spawn_supply_stop_on_segment(segment: RoadSegment) -> void:
+	var slice_count: int = segment.get_slice_count()
+	if slice_count < 2:
+		return
+	var slice_idx: int = slice_count / 2
+	var slice_tr: Transform3D = segment.get_slice_transform(slice_idx)
+
+	var stop_inst := SupplyStopScene.instantiate() as SupplyStop
+	var local_offset := Vector3(7.8, 0.5, 0.0)
+	stop_inst.transform = slice_tr * Transform3D(Basis.IDENTITY, local_offset)
+	segment.add_child(stop_inst)
+
+## Checks whether the player vehicle is below the emergency fuel threshold (< 35%).
+func _is_player_low_on_fuel() -> bool:
+	var tree := get_tree()
+	if not tree:
+		return false
+	var vans := tree.get_nodes_in_group("player_van")
+	if not vans.is_empty() and vans[0] is Van:
+		return (vans[0] as Van).current_fuel <= emergency_fuel_threshold
+	if tree.current_scene:
+		var van_node := tree.current_scene.find_child("Van", true, false) as Van
+		if van_node:
+			return van_node.current_fuel <= emergency_fuel_threshold
+	return false
 
 ## Spawns an abandoned/crashed car blocking one lane with heavy collision.
 func _spawn_crashed_vehicle(segment: RoadSegment, slice_idx: int, rng: RandomNumberGenerator) -> void:

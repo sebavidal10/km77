@@ -303,11 +303,14 @@ func _spawn_segment(type: RoadSegment.SegmentType) -> RoadSegment:
 	segment.global_transform = target_transform
 	segment.build_segment()
 
-	# Check supply stop spawn eligibility (guaranteed regular appearance)
+	# Check supply stop spawn eligibility (guaranteed regular appearance or before fuel drops below 30%)
 	var has_supply_stop: bool = false
 	if enable_supply_stops and total_segments_spawned >= 3:
 		chunks_since_last_supply_stop += 1
-		if chunks_since_last_supply_stop >= next_supply_stop_interval:
+		var low_fuel_urgent: bool = false
+		if target_vehicle is Van and (target_vehicle as Van).current_fuel <= 35.0 and chunks_since_last_supply_stop >= 2:
+			low_fuel_urgent = true
+		if chunks_since_last_supply_stop >= next_supply_stop_interval or low_fuel_urgent:
 			chunks_since_last_supply_stop = 0
 			next_supply_stop_interval = rng.randi_range(supply_stop_min_chunks, supply_stop_max_chunks)
 			has_supply_stop = true
@@ -373,8 +376,8 @@ func _spawn_supply_stop(segment: RoadSegment) -> void:
 	var slice_tr: Transform3D = segment.get_slice_transform(slice_idx)
 
 	var stop_inst := SupplyStopScene.instantiate() as SupplyStop
-	# Positioned right along the open right shoulder/berm at ground level
-	var local_offset := Vector3(8.0, 0.2, 0.0)
+	# Positioned right along the open right shoulder/berm at road surface level (Y = 0.5)
+	var local_offset := Vector3(7.8, 0.5, 0.0)
 	stop_inst.transform = slice_tr * Transform3D(Basis.IDENTITY, local_offset)
 	segment.add_child(stop_inst)
 

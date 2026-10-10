@@ -6,30 +6,33 @@ signal scavenge_completed
 signal threat_triggered_signal
 
 @export_group("Scavenge Parameters")
-## Required time in seconds to hold interact input to complete scavenging.
-@export var scavenge_required_time: float = 3.0
-## Amount of fuel restored upon completion.
-@export var fuel_reward: float = 35.0
+## Required time in seconds to complete progressive refueling (2 to 3 seconds).
+@export var scavenge_required_time: float = 2.5
+## Amount of fuel restored upon completion (100% full tank).
+@export var fuel_reward: float = 100.0
 ## Amount of engine health restored upon completion.
-@export var health_repair_reward: float = 40.0
-## Maximum speed in km/h allowed while scavenging.
-@export var max_scavenge_speed_kmh: float = 2.0
+@export var health_repair_reward: float = 50.0
+## Maximum speed in km/h allowed while refueling (< 5 km/h).
+@export var max_scavenge_speed_kmh: float = 5.0
 
 @export_group("Threat / Risk Parameters")
 ## Duration in seconds lingering stopped before the eerie threat silhouette appears.
-@export var threat_delay_seconds: float = 6.0
+@export var threat_delay_seconds: float = 6.5
 
 # Node references
 @onready var interaction_area: Area3D = %InteractionArea
 @onready var flare_light: OmniLight3D = %FlareLight
 @onready var flare_tip: MeshInstance3D = %FlareTip
 @onready var threat_silhouette: Node3D = %ThreatSilhouette
+@onready var supply_beacon_light: OmniLight3D = get_node_or_null("%SupplyBeaconLight") as OmniLight3D
+@onready var fuel_canister: MeshInstance3D = get_node_or_null("%FuelCanister") as MeshInstance3D
 
 # Internal state
 var van_in_zone: Van = null
 var is_depleted: bool = false
 var is_flare_active: bool = true
 var scavenge_time: float = 0.0
+var stopped_idle_time: float = 0.0
 var threat_timer: float = 0.0
 var threat_triggered: bool = false
 var _flare_noise_time: float = 0.0
@@ -76,8 +79,11 @@ func _process_flare_effects(delta: float) -> void:
 				_tip_material.emission_enabled = false
 		if flare_light.light_energy <= 0.01:
 			flare_light.visible = false
+		if supply_beacon_light:
+			supply_beacon_light.set_process(false)
+			supply_beacon_light.light_energy = move_toward(supply_beacon_light.light_energy, 0.5, 6.0 * delta)
 
-## Handles vehicle speed checks, scavenging hold progression, and threat tension.
+## Handles vehicle speed checks, progressive refueling, HUD prompts, and threat tension.
 func _process_interaction(delta: float) -> void:
 	if not van_in_zone:
 		return
@@ -91,28 +97,38 @@ func _process_interaction(delta: float) -> void:
 		if threat_timer >= threat_delay_seconds and not threat_triggered:
 			_trigger_threat()
 
-		# 2. Scavenge Progression
+		# 2. Refueling Progression (starts immediately on [E] hold or automatically after brief stop)
 		if not is_depleted:
-			if Input.is_action_pressed("interact"):
+			stopped_idle_time += delta
+			var holding_interact: bool = Input.is_action_pressed("interact") or Input.is_key_pressed(KEY_E)
+			if holding_interact or stopped_idle_time >= 0.35 or scavenge_time > 0.0:
 				if scavenge_time == 0.0:
 					scavenge_started.emit()
 					if RadioManager.instance:
 						RadioManager.instance.report_supply_stop_started()
 				scavenge_time += delta
 				var ratio := clampf(scavenge_time / scavenge_required_time, 0.0, 1.0)
-				_update_hud_prompt("SCAVENGING SUPPLIES...", ratio)
+				_update_hud_prompt("REFUELING VEHICLE...", ratio)
 
-				if scavenge_time >= scavenge_required_time:
+				# Progressively refill fuel gauge back to 100% over scavenge_required_time (2.5s)
+				var fuel_step: float = (van_in_zone.max_fuel / maxf(scavenge_required_time, 0.1)) * delta
+				van_in_zone.add_fuel(fuel_step)
+				var repair_step: float = (health_repair_reward / maxf(scavenge_required_time, 0.1)) * delta
+				van_in_zone.repair_vehicle(repair_step)
+
+				if scavenge_time >= scavenge_required_time or van_in_zone.current_fuel >= van_in_zone.max_fuel:
 					_complete_scavenge()
 			else:
-				if scavenge_time > 0.0:
-					scavenge_time = 0.0
-				_update_hud_prompt("HOLD [E] TO SCAVENGE FUEL / REPAIR", 0.0)
+				_update_hud_prompt("[E] HOLD TO REFUEL", 0.0)
 	else:
-		# Vehicle is moving: reset hold progress and hide prompt
+		# Vehicle is moving inside trigger zone: show prompt to stop if not depleted
+		stopped_idle_time = 0.0
 		if scavenge_time > 0.0:
 			scavenge_time = 0.0
-		_hide_hud_prompt()
+		if not is_depleted:
+			_update_hud_prompt("[E] HOLD TO REFUEL (STOP VEHICLE < 5 KM/H)", 0.0)
+		else:
+			_hide_hud_prompt()
 
 		# Fleeing from threat silhouette
 		if threat_triggered and current_speed > 5.0:
@@ -156,8 +172,12 @@ func _complete_scavenge() -> void:
 	scavenge_time = 0.0
 
 	if van_in_zone:
-		van_in_zone.add_fuel(fuel_reward)
+		# Ensure fuel gauge reaches 100% upon completion
+		van_in_zone.add_fuel(van_in_zone.max_fuel)
 		van_in_zone.repair_vehicle(health_repair_reward)
+
+	if fuel_canister:
+		fuel_canister.visible = false
 
 	# Disable area to prevent repeated use
 	if interaction_area:
@@ -168,20 +188,28 @@ func _complete_scavenge() -> void:
 
 	var hud := _find_hud()
 	if hud:
-		hud.show_scavenge_success("[ SUPPLIES SECURED: +35 FUEL | REPAIRS COMPLETE ]", 3.0)
+		hud.show_scavenge_success("[ VEHICLE REFUELED TO 100% | REPAIRS COMPLETE ]", 3.0)
 
 	scavenge_completed.emit()
 
 func _on_body_entered(body: Node3D) -> void:
 	if body is Van:
 		van_in_zone = body
+		stopped_idle_time = 0.0
 		threat_timer = 0.0
 		threat_triggered = false
+		if not is_depleted:
+			var current_speed: float = van_in_zone.velocity.length() * 3.6
+			if current_speed < max_scavenge_speed_kmh:
+				_update_hud_prompt("[E] HOLD TO REFUEL", 0.0)
+			else:
+				_update_hud_prompt("[E] HOLD TO REFUEL (STOP VEHICLE < 5 KM/H)", 0.0)
 
 func _on_body_exited(body: Node3D) -> void:
 	if body == van_in_zone:
 		van_in_zone = null
 		scavenge_time = 0.0
+		stopped_idle_time = 0.0
 		threat_timer = 0.0
 		_hide_hud_prompt()
 		_dismiss_threat()
