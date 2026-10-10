@@ -120,19 +120,19 @@ var is_high_beams_active: bool:
 ## Enables suspension dynamics: body pitch, centrifugal roll, and idle vibration shiver.
 @export var enable_suspension_dynamics: bool = true
 ## Maximum roll angle in degrees during hard cornering.
-@export var max_body_roll_deg: float = 4.2
+@export var max_body_roll_deg: float = 5.2
 ## Speed of roll smoothing.
 @export var body_roll_speed: float = 8.5
 ## Maximum pitch angle in degrees during hard acceleration or braking.
-@export var max_body_pitch_deg: float = 3.6
+@export var max_body_pitch_deg: float = 4.2
 ## Speed of pitch smoothing.
-@export var body_pitch_speed: float = 7.5
+@export var body_pitch_speed: float = 8.0
 ## Sensitivity factor translating acceleration (m/s^2) to pitch angle.
-@export var pitch_acceleration_factor: float = 0.024
+@export var pitch_acceleration_factor: float = 0.028
 ## Frequency multiplier for engine idle vibration shiver.
-@export var idle_shiver_frequency: float = 25.0
+@export var idle_shiver_frequency: float = 28.0
 ## Maximum vertical displacement in meters for idle shiver.
-@export var idle_shiver_amplitude: float = 0.0035
+@export var idle_shiver_amplitude: float = 0.0045
 
 # Backward compatibility alias
 var enable_body_roll: bool:
@@ -1190,37 +1190,45 @@ func _process_suspension_dynamics(delta: float, fwd_speed: float) -> void:
 	if not target_node:
 		return
 
-	# 1. Pitch (longitudinal cabeceo): nose dips under heavy braking, nose lifts under acceleration
+	# 1. Pitch (longitudinal): nose dips forward when braking hard, front lifts slightly under strong acceleration
 	var accel_long: float = 0.0
 	if delta > 0.0:
 		accel_long = (fwd_speed - _prev_forward_speed) / delta
 	_prev_forward_speed = fwd_speed
 
+	var throttle_input: float = Input.get_axis("brake", "accelerate")
+	var input_pitch_bias: float = 0.0
+	if not is_stalled and current_fuel > 0.0:
+		if throttle_input < -0.1 and fwd_speed > 0.5:
+			input_pitch_bias = -deg_to_rad(max_body_pitch_deg * 0.55)
+		elif throttle_input > 0.1 and fwd_speed >= 0.0:
+			input_pitch_bias = deg_to_rad(max_body_pitch_deg * 0.35)
+
 	var target_pitch: float = clampf(
-		accel_long * pitch_acceleration_factor,
+		(accel_long * pitch_acceleration_factor) + input_pitch_bias,
 		-deg_to_rad(max_body_pitch_deg),
 		deg_to_rad(max_body_pitch_deg)
 	)
-	_current_pitch = lerpf(_current_pitch, target_pitch, body_pitch_speed * delta)
+	_current_pitch = lerpf(_current_pitch, target_pitch, clampf(body_pitch_speed * delta, 0.0, 1.0))
 
-	# 2. Roll (balanceo lateral): body tilts toward outside of curves according to centrifugal force
+	# 2. Roll (lateral): chassis leans gently away from sharp turns proportional to cornering speed
 	var base_max_angle: float = deg_to_rad(max_steer_angle) if max_steer_angle > 1.5 else max_steer_angle
 	var steer_ratio: float = clampf(current_steer_angle / maxf(base_max_angle, 0.001), -1.0, 1.0)
 	var speed_ratio: float = clampf(absf(fwd_speed) / max_speed, 0.0, 1.0)
 	var drift_extra: float = 1.35 if is_drifting else 1.0
 
 	var target_roll: float = -steer_ratio * deg_to_rad(max_body_roll_deg) * speed_ratio * drift_extra
-	_current_roll = lerpf(_current_roll, target_roll, body_roll_speed * delta)
+	_current_roll = lerpf(_current_roll, target_roll, clampf(body_roll_speed * delta, 0.0, 1.0))
 
-	# 3. Idle Shiver: subtle vertical procedural vibration via sin(time * 25.0) when vehicle is stopped (< 1.0 km/h)
-	var is_idling: bool = absf(fwd_speed) < 0.28 and not is_stalled and current_fuel > 0.0
+	# 3. Idle Engine Vibration: subtle micro-oscillation in local Y when stopped with engine on
+	var is_idling: bool = absf(fwd_speed) < 0.35 and not is_stalled and current_fuel > 0.0
 	if is_idling:
 		_idle_shiver_time += delta * idle_shiver_frequency
-		_idle_shiver_offset = sin(_idle_shiver_time) * idle_shiver_amplitude
+		_idle_shiver_offset = (sin(_idle_shiver_time) * 0.7 + sin(_idle_shiver_time * 2.3) * 0.3) * idle_shiver_amplitude
 	else:
 		_idle_shiver_offset = move_toward(_idle_shiver_offset, 0.0, 0.05 * delta)
 
-	# 4. Apply interpolated pitch, roll, and idle shiver to VisualRoot (CollisionShape3D remains static)
+	# 4. Apply interpolated pitch, roll, and idle vibration to VisualRoot (root CollisionShape3D stays rigid)
 	target_node.rotation.x = _current_pitch
 	target_node.rotation.z = _current_roll
 	target_node.position.y = _base_visual_root_y + _idle_shiver_offset
