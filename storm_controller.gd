@@ -8,8 +8,8 @@ extends Node3D
 @export var lightning_light: DirectionalLight3D
 
 @export_group("Rain Parameters")
-## Total particle count for torrential rain downpour.
-@export var rain_amount: int = 2400
+## Total particle count for atmospheric rain downpour.
+@export var rain_amount: int = 750
 ## Half-extents of the overhead rain emitter box in meters (28m x 7m x 28m).
 @export var rain_box_extents: Vector3 = Vector3(14.0, 3.5, 14.0)
 ## Downward terminal velocity of falling raindrops.
@@ -54,15 +54,15 @@ func _create_rain_particles() -> void:
 	_rain_particles.local_coords = false
 	_rain_particles.visibility_aabb = AABB(Vector3(-25.0, -20.0, -25.0), Vector3(50.0, 40.0, 50.0))
 
-	# Particle mesh: thin, elongated translucent cold gray/white quads
+	# Particle mesh: thin, semi-transparent cool slate drops
 	var drop_mesh := QuadMesh.new()
-	drop_mesh.size = Vector2(0.03, 0.8)
+	drop_mesh.size = Vector2(0.016, 0.65)
 
 	var drop_mat := StandardMaterial3D.new()
 	drop_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	drop_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	drop_mat.cull_mode = BaseMaterial3D.CULL_DISABLED
-	drop_mat.albedo_color = Color(0.7, 0.75, 0.85, 0.25)
+	drop_mat.albedo_color = Color(0.40, 0.46, 0.56, 0.14)
 	drop_mat.distance_fade_mode = BaseMaterial3D.DISTANCE_FADE_PIXEL_ALPHA
 	drop_mat.distance_fade_min_distance = 1.8
 	drop_mat.distance_fade_max_distance = 3.8
@@ -78,7 +78,7 @@ func _create_rain_particles() -> void:
 	proc_mat.initial_velocity_min = rain_fall_speed * 0.95
 	proc_mat.initial_velocity_max = rain_fall_speed * 1.05
 	proc_mat.gravity = Vector3(0.0, -14.0, 0.0)
-	proc_mat.color = Color(1.0, 1.0, 1.0, 1.0)
+	proc_mat.color = Color(0.85, 0.90, 0.95, 1.0)
 	_rain_particles.process_material = proc_mat
 
 	add_child(_rain_particles)

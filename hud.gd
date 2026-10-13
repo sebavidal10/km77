@@ -485,6 +485,7 @@ func _on_distance_updated(_meters: float, current_km: float) -> void:
 
 func _on_drift_state_changed(is_active: bool) -> void:
 	if drift_badge:
+		drift_badge.text = "[ SLIP ]"
 		if is_active:
 			drift_badge.modulate = COLOR_ANALOG_AMBER
 		else:

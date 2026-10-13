@@ -34,22 +34,27 @@ signal paradox_anomaly_triggered
 ## Base vehicle wheelbase in meters used for bicycle steering geometry.
 @export var wheelbase: float = 3.3
 
-@export_group("Drift & Lateral Grip")
-## Normal lateral tire grip (higher = vehicle sticks firmly to heading).
-@export var lateral_grip: float = 16.0
-## Lateral tire grip while handbraking (lower = vehicle slides sideways with inertia).
-@export var drift_lateral_grip: float = 2.4
-## Multiplier applied to steering responsiveness while handbraking (promotes oversteer).
-@export var drift_oversteer_multiplier: float = 1.6
-## Extra steering authority when countersteering into the slide to catch and balance the drift.
-@export var countersteer_boost: float = 1.3
-## Longitudinal speed scrubbed per second due to tire friction while sliding sideways.
-@export var drift_drag: float = 3.5
-## Speed at which tire grip recovers when handbrake is released.
-@export var grip_recovery_speed: float = 12.0
+@export_group("Traction & Handling")
+## Normal lateral tire grip on paved asphalt (higher = vehicle sticks firmly to heading).
+@export var lateral_grip: float = 18.0
+## Reduced lateral grip when tires slip / aquaplane on wet asphalt at high speeds.
+@export var wet_slip_grip: float = 8.5
+## Speed in km/h above which sharp steering induces wet-road traction loss & understeer.
+@export var aquaplane_speed_threshold_kmh: float = 80.0
+## Angular yaw velocity smoothing rate for weighted, mechanical steering inertia.
+@export var steering_angular_damping: float = 6.2
+## Speed at which tire grip recovers when traction is regained.
+@export var grip_recovery_speed: float = 10.0
 ## Minimum speed (m/s) required to turn the vehicle.
 @export var min_steer_speed: float = 0.5
-## Backward compatibility aliases for friction factor.
+## Mechanical handbrake deceleration force (m/s^2).
+@export var handbrake_force: float = 22.0
+
+# Backward compatibility aliases
+@export var drift_lateral_grip: float = 8.5
+@export var drift_oversteer_multiplier: float = 1.0
+@export var countersteer_boost: float = 1.0
+@export var drift_drag: float = 0.0
 @export var drift_friction: float = 0.88
 @export var normal_friction: float = 0.98
 
@@ -120,9 +125,9 @@ var is_high_beams_active: bool:
 ## Enables suspension dynamics: body pitch, centrifugal roll, and idle vibration shiver.
 @export var enable_suspension_dynamics: bool = true
 ## Maximum roll angle in degrees during hard cornering.
-@export var max_body_roll_deg: float = 5.2
-## Speed of roll smoothing.
-@export var body_roll_speed: float = 8.5
+@export var max_body_roll_deg: float = 4.8
+## Speed of roll smoothing and stabilization (smooth damping prevents abrupt snapping).
+@export var body_roll_speed: float = 4.2
 ## Maximum pitch angle in degrees during hard acceleration or braking.
 @export var max_body_pitch_deg: float = 4.2
 ## Speed of pitch smoothing.
@@ -160,13 +165,23 @@ var normal_lateral_grip: float:
 
 # Runtime state
 var current_steer_angle: float = 0.0
-var current_grip: float = 16.0
-var is_drifting: bool = false
+var _current_yaw_velocity: float = 0.0
+var current_grip: float = 18.0
+var is_handbraking: bool = false
+var is_traction_loss: bool = false
+var _was_traction_loss: bool = false
 var forward_speed_state: float = 0.0
 var current_speed_kmh: float = 0.0
 var distance_traveled_meters: float = 0.0
 var current_kilometer: float = 85.0
-var is_actively_drifting: bool = false
+
+# Backward compatibility aliases
+var is_drifting: bool:
+	get: return is_traction_loss or is_handbraking
+	set(val): is_traction_loss = val
+var is_actively_drifting: bool:
+	get: return is_traction_loss
+	set(val): is_traction_loss = val
 var _was_drifting: bool = false
 
 # Roadside ditch / Mud zone state
@@ -383,7 +398,7 @@ func _unhandled_key_input(event: InputEvent) -> void:
 			toggle_beams()
 
 func _physics_process(delta: float) -> void:
-	is_drifting = Input.is_action_pressed("handbrake")
+	is_handbraking = Input.is_action_pressed("handbrake")
 
 	# Check stall condition (fuel depleted or engine destroyed)
 	if not is_stalled and (current_fuel <= 0.0 or current_engine_health <= 0.0):
@@ -1090,44 +1105,44 @@ func _create_spray_particles() -> void:
 	var mist_mat := StandardMaterial3D.new()
 	mist_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	mist_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	mist_mat.albedo_color = Color(0.85, 0.88, 0.92, 0.28)
+	mist_mat.albedo_color = Color(0.72, 0.78, 0.86, 0.10)
 	mist_mat.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
 
 	var mist_mesh := QuadMesh.new()
-	mist_mesh.size = Vector2(0.45, 0.45)
+	mist_mesh.size = Vector2(0.12, 0.12)
 	mist_mesh.material = mist_mat
 
 	var proc_mat := ParticleProcessMaterial.new()
-	proc_mat.direction = Vector3(0.0, 0.45, 1.0)
-	proc_mat.spread = 22.0
-	proc_mat.initial_velocity_min = 5.0
-	proc_mat.initial_velocity_max = 9.0
-	proc_mat.gravity = Vector3(0.0, -1.8, 0.0)
-	proc_mat.scale_min = 0.6
-	proc_mat.scale_max = 1.6
-	proc_mat.color = Color(0.85, 0.88, 0.92, 0.35)
+	proc_mat.direction = Vector3(0.0, 0.25, 1.0)
+	proc_mat.spread = 16.0
+	proc_mat.initial_velocity_min = 3.0
+	proc_mat.initial_velocity_max = 5.5
+	proc_mat.gravity = Vector3(0.0, -1.0, 0.0)
+	proc_mat.scale_min = 0.5
+	proc_mat.scale_max = 1.0
+	proc_mat.color = Color(1.0, 1.0, 1.0, 1.0)
 
 	if not _spray_particles_left:
 		_spray_particles_left = GPUParticles3D.new()
 		_spray_particles_left.name = "SprayParticlesLeft"
-		_spray_particles_left.amount = 24
-		_spray_particles_left.lifetime = 0.4
+		_spray_particles_left.amount = 18
+		_spray_particles_left.lifetime = 0.25
 		_spray_particles_left.local_coords = false
 		_spray_particles_left.draw_pass_1 = mist_mesh
 		_spray_particles_left.process_material = proc_mat
-		_spray_particles_left.position = Vector3(-0.95, 0.25, 1.7)
+		_spray_particles_left.position = Vector3(-0.95, 0.18, 1.6)
 		_spray_particles_left.emitting = false
 		add_child(_spray_particles_left)
 
 	if not _spray_particles_right:
 		_spray_particles_right = GPUParticles3D.new()
 		_spray_particles_right.name = "SprayParticlesRight"
-		_spray_particles_right.amount = 24
-		_spray_particles_right.lifetime = 0.4
+		_spray_particles_right.amount = 18
+		_spray_particles_right.lifetime = 0.25
 		_spray_particles_right.local_coords = false
 		_spray_particles_right.draw_pass_1 = mist_mesh
 		_spray_particles_right.process_material = proc_mat
-		_spray_particles_right.position = Vector3(0.95, 0.25, 1.7)
+		_spray_particles_right.position = Vector3(0.95, 0.18, 1.6)
 		_spray_particles_right.emitting = false
 		add_child(_spray_particles_right)
 
@@ -1175,7 +1190,7 @@ func _find_road_manager() -> RoadManager:
 			return rm
 	return null
 
-## Handles smooth progressive steering with speed-sensitive angle limits and drift oversteer.
+## Handles smooth progressive steering with speed-sensitive angle limits and realistic wet-road understeer.
 func _process_steering(delta: float) -> void:
 	var steer_input := Input.get_axis("steer_right", "steer_left")
 	var forward_dir := -transform.basis.z
@@ -1189,11 +1204,10 @@ func _process_steering(delta: float) -> void:
 	# 1. Speed-sensitive steering: scale down max steer angle at high speeds to prevent violent snap spins
 	var speed_ratio: float = clampf(abs_fwd_speed / max_speed, 0.0, 1.0)
 	var base_max_angle: float = deg_to_rad(max_steer_angle) if max_steer_angle > 1.5 else max_steer_angle
-	# Nonlinear progressive curve: high stability at highway speed, nimble at parking/low speeds
 	var speed_steer_factor: float = lerpf(1.0, high_speed_steer_ratio, pow(speed_ratio, 0.75))
 	var dynamic_max_angle: float = base_max_angle * speed_steer_factor
 
-	# 2. Smooth steering accumulator: progressive turn in with heavy van inertia and natural return
+	# 2. Smooth steering accumulator: weighted progressive turn in with heavy van mechanical steering inertia
 	var target_steer_angle: float = steer_input * dynamic_max_angle
 	if absf(steer_input) > 0.01:
 		current_steer_angle = move_toward(current_steer_angle, target_steer_angle, steer_speed * delta)
@@ -1201,30 +1215,28 @@ func _process_steering(delta: float) -> void:
 		current_steer_angle = move_toward(current_steer_angle, 0.0, steer_return_speed * delta)
 
 	# 3. Minimum motion threshold: vehicles cannot pivot in place when stationary
-	var motion_speed := abs_fwd_speed
-	if is_drifting:
-		# During a drift, lateral inertia allows the chassis to continue swinging
-		motion_speed = maxf(motion_speed, absf(lat_speed) * 0.85)
-
-	if motion_speed < min_steer_speed:
+	if abs_fwd_speed < min_steer_speed and absf(lat_speed) < min_steer_speed:
+		_current_yaw_velocity = move_toward(_current_yaw_velocity, 0.0, steering_angular_damping * delta)
 		return
 
-	# 4. Turn rate calculation based on bicycle geometry (v / L) with damped high-speed yaw
-	var turn_factor := clampf(motion_speed / wheelbase, 0.0, 2.8)
-	var effective_oversteer: float = 1.0
+	# 4. Realistic wet-road traction loss & understeer at speeds > 80 km/h:
+	# Heavy utility van tires lose front bite on wet tarmac when turning sharply at highway speed
+	var understeer_factor: float = 1.0
+	if current_speed_kmh > aquaplane_speed_threshold_kmh and absf(steer_input) > 0.35:
+		var slip_severity: float = clampf((current_speed_kmh - aquaplane_speed_threshold_kmh) / 25.0, 0.0, 1.0)
+		understeer_factor = lerpf(1.0, 0.58, slip_severity * clampf(absf(steer_input) * 1.4, 0.0, 1.0))
+		is_traction_loss = is_on_floor() and slip_severity > 0.08
+	else:
+		is_traction_loss = false
 
-	if is_drifting:
-		effective_oversteer *= drift_oversteer_multiplier
-
-		# Countersteering detection: sliding right while steering left, or sliding left while steering right
-		var is_countersteering: bool = (lat_speed > 0.4 and current_steer_angle > 0.0) or \
-									   (lat_speed < -0.4 and current_steer_angle < 0.0)
-		if is_countersteering:
-			effective_oversteer *= countersteer_boost
-
+	# 5. Turn rate calculation based on wheelbase bicycle geometry with understeer attenuation
+	var turn_factor := clampf(abs_fwd_speed / wheelbase, 0.0, 2.5)
 	var direction_sign: float = signf(fwd_speed) if abs_fwd_speed > 0.2 else 1.0
-	var delta_yaw: float = current_steer_angle * turn_factor * effective_oversteer * direction_sign * delta
-	rotate_y(delta_yaw)
+	var target_yaw_velocity: float = current_steer_angle * turn_factor * direction_sign * understeer_factor
+
+	# 6. Smooth angular steering velocity interpolation (lerp) for weighted, mechanical chassis rotation
+	_current_yaw_velocity = lerpf(_current_yaw_velocity, target_yaw_velocity, clampf(steering_angular_damping * delta, 0.0, 1.0))
+	rotate_y(_current_yaw_velocity * delta)
 
 ## Updates forward/reverse speed based on throttle, heavy engine torque, fuel, and drag curves.
 func _process_longitudinal(fwd_speed: float, delta: float) -> float:
@@ -1264,9 +1276,9 @@ func _process_longitudinal(fwd_speed: float, delta: float) -> float:
 		# Passive coasting: vehicle inertia carries momentum
 		fwd_speed = move_toward(fwd_speed, 0.0, coast_deceleration * delta)
 
-	# Tire friction scrub during high-angle drift
-	if is_drifting and absf(fwd_speed) > 1.0:
-		fwd_speed = move_toward(fwd_speed, 0.0, drift_drag * delta)
+	# Mechanical handbrake drag when engaged
+	if is_handbraking and absf(fwd_speed) > 0.1:
+		fwd_speed = move_toward(fwd_speed, 0.0, handbrake_force * delta)
 
 	return fwd_speed
 
@@ -1297,25 +1309,25 @@ func _process_odometer(delta: float) -> void:
 			current_kilometer = calculated_km
 			distance_updated.emit(distance_traveled_meters, current_kilometer)
 
-## Updates speed in km/h and tracks active drift state changes.
+## Updates speed in km/h and tracks active wet traction loss state changes.
 func _process_telemetry() -> void:
 	var h_vel := Vector3(velocity.x, 0.0, velocity.z)
 	current_speed_kmh = h_vel.length() * 3.6
 	speed_updated.emit(current_speed_kmh)
 
-	var right_dir := transform.basis.x
-	var lat_speed := absf(h_vel.dot(right_dir))
-	var currently_drifting: bool = is_drifting and lat_speed > 1.2
-	if currently_drifting != _was_drifting:
-		_was_drifting = currently_drifting
-		is_actively_drifting = currently_drifting
-		drift_state_changed.emit(is_actively_drifting)
+	if is_traction_loss != _was_traction_loss:
+		_was_traction_loss = is_traction_loss
+		drift_state_changed.emit(is_traction_loss)
 
-## Applies grip damping to lateral sliding velocity.
+## Applies grip damping to lateral sliding velocity with wet-road traction loss.
 func _process_lateral(lat_speed: float, delta: float) -> float:
-	var target_grip: float = drift_lateral_grip if is_drifting else lateral_grip
+	var target_grip: float = lateral_grip
+	if is_handbraking:
+		target_grip *= 0.65
+	if is_traction_loss:
+		target_grip = wet_slip_grip
 	if in_shoulder_zone:
-		# Compromised lateral traction on loose gravel / dirt shoulder promotes oversteer & drift
+		# Compromised lateral traction on loose gravel / dirt shoulder
 		target_grip *= 0.48
 	elif in_mud_zone:
 		target_grip *= 0.30
@@ -1357,9 +1369,8 @@ func _process_suspension_dynamics(delta: float, fwd_speed: float) -> void:
 	var base_max_angle: float = deg_to_rad(max_steer_angle) if max_steer_angle > 1.5 else max_steer_angle
 	var steer_ratio: float = clampf(current_steer_angle / maxf(base_max_angle, 0.001), -1.0, 1.0)
 	var speed_ratio: float = clampf(absf(fwd_speed) / max_speed, 0.0, 1.0)
-	var drift_extra: float = 1.35 if is_drifting else 1.0
 
-	var target_roll: float = -steer_ratio * deg_to_rad(max_body_roll_deg) * speed_ratio * drift_extra
+	var target_roll: float = -steer_ratio * deg_to_rad(max_body_roll_deg) * speed_ratio
 	_current_roll = lerpf(_current_roll, target_roll, clampf(body_roll_speed * delta, 0.0, 1.0))
 
 	# 3. Procedural idle engine rumble: low-frequency micro-shake on chassis when stopped with engine on

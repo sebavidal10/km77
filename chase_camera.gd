@@ -9,9 +9,9 @@ extends Camera3D
 
 @export_group("Dynamic Speed Dynamics")
 ## Base camera FOV at 0 km/h.
-@export var base_fov: float = 70.0
+@export var base_fov: float = 65.0
 ## Widened camera FOV at highway cruising speeds (~110 km/h).
-@export var max_fov: float = 78.0
+@export var max_fov: float = 70.0
 ## Smooth interpolation rate for FOV widening.
 @export var fov_lerp_speed: float = 3.5
 ## Maximum high-frequency micro-shake offset distance at top speed.
@@ -47,7 +47,7 @@ func _physics_process(delta: float) -> void:
 	# 1. Smoothly follow the CameraTarget position
 	global_position = global_position.lerp(target_node.global_position, follow_speed * delta)
 
-	# 2. Orient camera towards vehicle heading and upcoming road
+	# 2. Orient camera towards vehicle heading and highway ahead with slight downward pitch over van roof
 	var van_node := target_node.get_parent() as Node3D
 	var speed_kmh: float = 0.0
 	if van_node:
@@ -59,7 +59,7 @@ func _physics_process(delta: float) -> void:
 			var v: Vector3 = van_node.velocity
 			speed_kmh = Vector3(v.x, 0.0, v.z).length() * 3.6
 
-		var look_target: Vector3 = van_node.global_position + (Vector3.UP * 0.85) - (van_node.global_transform.basis.z * 7.5)
+		var look_target: Vector3 = van_node.global_position + (Vector3.UP * 0.45) - (van_node.global_transform.basis.z * 16.5)
 		var target_transform: Transform3D = transform.looking_at(look_target, Vector3.UP)
 		transform.basis = transform.basis.slerp(target_transform.basis, rotation_speed * delta)
 

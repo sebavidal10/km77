@@ -75,15 +75,15 @@ render_mode blend_mix, depth_draw_opaque, cull_back, diffuse_burley, specular_sc
 uniform sampler2D noise_puddles : hint_default_white, filter_linear_mipmap, repeat_enable;
 uniform sampler2D noise_normal : hint_normal, filter_linear_mipmap, repeat_enable;
 
-uniform vec3 gravel_color : source_color = vec3(0.125, 0.13, 0.145);
-uniform vec3 puddle_color : source_color = vec3(0.045, 0.048, 0.055);
-uniform float puddle_threshold : hint_range(0.0, 1.0) = 0.44;
+uniform vec3 gravel_color : source_color = vec3(0.065, 0.070, 0.082);
+uniform vec3 puddle_color : source_color = vec3(0.022, 0.025, 0.032);
+uniform float puddle_threshold : hint_range(0.0, 1.0) = 0.45;
 uniform float puddle_blend_softness : hint_range(0.01, 0.5) = 0.12;
 
-uniform float gravel_roughness : hint_range(0.0, 1.0) = 0.85;
-uniform float puddle_roughness : hint_range(0.0, 1.0) = 0.08;
+uniform float gravel_roughness : hint_range(0.0, 1.0) = 0.94;
+uniform float puddle_roughness : hint_range(0.0, 1.0) = 0.06;
 
-uniform float gravel_specular : hint_range(0.0, 1.0) = 0.22;
+uniform float gravel_specular : hint_range(0.0, 1.0) = 0.05;
 uniform float puddle_specular : hint_range(0.0, 1.0) = 0.96;
 
 void fragment() {
@@ -94,10 +94,10 @@ void fragment() {
 	ALBEDO = mix(gravel_color, puddle_color, puddle_factor);
 	ROUGHNESS = mix(gravel_roughness, puddle_roughness, puddle_factor);
 	SPECULAR = mix(gravel_specular, puddle_specular, puddle_factor);
-	METALLIC = mix(0.02, 0.14, puddle_factor);
+	METALLIC = mix(0.0, 0.04, puddle_factor);
 
 	vec3 gravel_norm = texture(noise_normal, UV * vec2(16.0, 64.0)).rgb * 2.0 - 1.0;
-	NORMAL = mix(normalize(NORMAL + gravel_norm * 0.24), NORMAL, puddle_factor);
+	NORMAL = mix(normalize(NORMAL + gravel_norm * 0.18), NORMAL, puddle_factor);
 }
 """
 		_road_material = ShaderMaterial.new()
@@ -139,8 +139,8 @@ shader_type spatial;
 render_mode blend_mix, depth_draw_opaque, cull_back;
 
 uniform sampler2D noise_wear : hint_default_white, filter_linear_mipmap, repeat_enable;
-uniform vec4 paint_color : source_color = vec4(1.0, 0.85, 0.05, 1.0);
-uniform float emission_energy : hint_range(0.0, 5.0) = 0.85;
+uniform vec4 paint_color : source_color = vec4(0.88, 0.74, 0.14, 1.0);
+uniform float emission_energy : hint_range(0.0, 5.0) = 0.0;
 uniform float wear_threshold : hint_range(0.0, 1.0) = 0.32;
 
 void fragment() {
@@ -149,9 +149,9 @@ void fragment() {
 		discard;
 	}
 	float wear_factor = smoothstep(wear_threshold, wear_threshold + 0.28, n);
-	ALBEDO = paint_color.rgb * mix(0.70, 1.0, wear_factor);
-	ROUGHNESS = mix(0.68, 0.20, wear_factor);
-	SPECULAR = mix(0.18, 0.75, wear_factor);
+	ALBEDO = paint_color.rgb * mix(0.70, 0.95, wear_factor);
+	ROUGHNESS = mix(0.85, 0.58, wear_factor);
+	SPECULAR = mix(0.08, 0.28, wear_factor);
 	EMISSION = paint_color.rgb * (emission_energy * wear_factor);
 }
 """
@@ -161,8 +161,8 @@ static func get_marking_material() -> Material:
 	if not _marking_material:
 		var mat := ShaderMaterial.new()
 		mat.shader = _get_worn_marking_shader()
-		mat.set_shader_parameter("paint_color", Color(1.0, 0.85, 0.05, 1.0))
-		mat.set_shader_parameter("emission_energy", 0.95)
+		mat.set_shader_parameter("paint_color", Color(0.88, 0.74, 0.14, 1.0))
+		mat.set_shader_parameter("emission_energy", 0.0)
 		mat.set_shader_parameter("wear_threshold", 0.34)
 
 		var noise := FastNoiseLite.new()
@@ -182,8 +182,8 @@ static func get_fog_line_material() -> Material:
 	if not _fog_line_material:
 		var mat := ShaderMaterial.new()
 		mat.shader = _get_worn_marking_shader()
-		mat.set_shader_parameter("paint_color", Color(0.92, 0.92, 0.90, 1.0))
-		mat.set_shader_parameter("emission_energy", 0.55)
+		mat.set_shader_parameter("paint_color", Color(0.82, 0.84, 0.84, 1.0))
+		mat.set_shader_parameter("emission_energy", 0.0)
 		mat.set_shader_parameter("wear_threshold", 0.30)
 
 		var noise := FastNoiseLite.new()
@@ -214,7 +214,7 @@ static func get_stud_reflector_material() -> StandardMaterial3D:
 		_stud_reflector_mat.roughness = 0.12
 		_stud_reflector_mat.emission_enabled = true
 		_stud_reflector_mat.emission = Color(1.0, 0.68, 0.05, 1.0)
-		_stud_reflector_mat.emission_energy_multiplier = 3.5
+		_stud_reflector_mat.emission_energy_multiplier = 0.8
 	return _stud_reflector_mat
 
 static func get_curb_asphalt_material() -> StandardMaterial3D:
@@ -422,13 +422,13 @@ func build_segment() -> void:
 
 		# 2. Center Dividing Line (Two-lane road markings)
 		var marking_mat := get_marking_material()
-		var marking_y: float = (road_thickness * 0.5) + 0.015 # Slightly above asphalt to avoid z-fighting
+		var marking_y: float = (road_thickness * 0.5) + 0.003 # Flush with asphalt top surface
 
 		if segment_type == SegmentType.STRAIGHT:
 			# Dashed yellow line on straights (e.g. 5.5m dash per 10m slice)
 			var dash_length: float = slice_length * 0.55
 			var dash_mesh := BoxMesh.new()
-			dash_mesh.size = Vector3(0.24, 0.02, dash_length)
+			dash_mesh.size = Vector3(0.24, 0.006, dash_length)
 			dash_mesh.material = marking_mat
 
 			var dash_instance := MeshInstance3D.new()
@@ -444,7 +444,7 @@ func build_segment() -> void:
 
 			# Left solid stripe
 			var stripe_left_mesh := BoxMesh.new()
-			stripe_left_mesh.size = Vector3(stripe_width, 0.02, slice_box_length)
+			stripe_left_mesh.size = Vector3(stripe_width, 0.006, slice_box_length)
 			stripe_left_mesh.material = marking_mat
 
 			var stripe_left_inst := MeshInstance3D.new()
@@ -456,7 +456,7 @@ func build_segment() -> void:
 
 			# Right solid stripe
 			var stripe_right_mesh := BoxMesh.new()
-			stripe_right_mesh.size = Vector3(stripe_width, 0.02, slice_box_length)
+			stripe_right_mesh.size = Vector3(stripe_width, 0.006, slice_box_length)
 			stripe_right_mesh.material = marking_mat
 
 			var stripe_right_inst := MeshInstance3D.new()
@@ -478,7 +478,7 @@ func build_segment() -> void:
 
 		# Left fog line
 		var fog_left_mesh := BoxMesh.new()
-		fog_left_mesh.size = Vector3(fog_line_width, 0.02, slice_box_length)
+		fog_left_mesh.size = Vector3(fog_line_width, 0.006, slice_box_length)
 		fog_left_mesh.material = fog_line_mat
 
 		var fog_left_inst := MeshInstance3D.new()
@@ -490,7 +490,7 @@ func build_segment() -> void:
 
 		# Right fog line
 		var fog_right_mesh := BoxMesh.new()
-		fog_right_mesh.size = Vector3(fog_line_width, 0.02, slice_box_length)
+		fog_right_mesh.size = Vector3(fog_line_width, 0.006, slice_box_length)
 		fog_right_mesh.material = fog_line_mat
 
 		var fog_right_inst := MeshInstance3D.new()
