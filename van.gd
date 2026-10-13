@@ -17,38 +17,40 @@ signal loop_reset_triggered
 signal paradox_anomaly_triggered
 
 @export_group("Handling Tuning")
-## Maximum forward speed in meters per second (30.5 m/s = approx 110 km/h).
-@export var max_speed: float = 30.5
-## Base forward acceleration rate in m/s^2 (weighted by launch inertia and aerodynamic drag).
-@export var acceleration_rate: float = 7.5
+## Maximum forward speed in meters per second (33.0 m/s = approx 119 km/h).
+@export var max_speed: float = 33.0
+## Base forward acceleration rate in m/s^2 (boosted drive force for prompt launch off the line).
+@export var acceleration_rate: float = 48.0
 ## Deceleration rate applied when pressing the service brake (m/s^2).
-@export var braking_force: float = 14.0
-## Steering wheel turn speed in radians/s towards player input (smooth progressive rate).
-@export var steer_speed: float = 1.8
+@export var braking_force: float = 22.0
+## Steering wheel turn speed in radians/s towards player input (snappy, responsive rate).
+@export var steer_speed: float = 9.0
 ## Steering wheel auto-center speed in radians/s when steering input is released.
-@export var steer_return_speed: float = 2.6
-## Maximum front wheel steering angle in radians (approx 28 degrees).
-@export var max_steer_angle: float = deg_to_rad(28.0)
-## High-speed steering ratio (reduces max steer angle at top speed to avoid violent snaps).
-@export var high_speed_steer_ratio: float = 0.20
+@export var steer_return_speed: float = 11.0
+## Maximum front wheel steering angle in radians (approx 30 degrees).
+@export var max_steer_angle: float = deg_to_rad(30.0)
+## High-speed steering ratio (retains solid highway control without violent snap spins).
+@export var high_speed_steer_ratio: float = 0.68
 ## Base vehicle wheelbase in meters used for bicycle steering geometry.
 @export var wheelbase: float = 3.3
 
 @export_group("Traction & Handling")
 ## Normal lateral tire grip on paved asphalt (higher = vehicle sticks firmly to heading).
 @export var lateral_grip: float = 18.0
+## Drastically reduced rear lateral tire friction during handbrake powerslide (Space).
+@export var handbrake_drift_grip: float = 0.15
 ## Reduced lateral grip when tires slip / aquaplane on wet asphalt at high speeds.
 @export var wet_slip_grip: float = 8.5
 ## Speed in km/h above which sharp steering induces wet-road traction loss & understeer.
 @export var aquaplane_speed_threshold_kmh: float = 80.0
 ## Angular yaw velocity smoothing rate for weighted, mechanical steering inertia.
-@export var steering_angular_damping: float = 6.2
-## Speed at which tire grip recovers when traction is regained.
-@export var grip_recovery_speed: float = 10.0
+@export var steering_angular_damping: float = 11.0
+## Speed at which tire grip recovers when traction is regained or handbrake released.
+@export var grip_recovery_speed: float = 12.0
 ## Minimum speed (m/s) required to turn the vehicle.
 @export var min_steer_speed: float = 0.5
-## Mechanical handbrake deceleration force (m/s^2).
-@export var handbrake_force: float = 22.0
+## Mechanical handbrake deceleration force (m/s^2) - preserves forward momentum during slides.
+@export var handbrake_force: float = 2.5
 
 # Backward compatibility aliases
 @export var drift_lateral_grip: float = 8.5
@@ -100,8 +102,8 @@ var is_high_beams_active: bool:
 @export_group("Reverse & Coasting")
 ## Maximum reverse speed in m/s (approx 52 km/h).
 @export var reverse_max_speed: float = 14.5
-## Acceleration rate when reversing (high torque to pull out of ditches).
-@export var reverse_acceleration: float = 16.5
+## Acceleration rate when reversing (solid instantaneous torque without lagging).
+@export var reverse_acceleration: float = 28.0
 ## Passive coasting slowdown rate when neither throttle nor brake is pressed.
 @export var coast_deceleration: float = 3.5
 
@@ -319,6 +321,7 @@ func _ready() -> void:
 	if visual_root:
 		_base_visual_root_y = visual_root.position.y
 	_ensure_high_beams_action()
+	_ensure_handbrake_action()
 	var tree := get_tree()
 	if tree and tree.current_scene:
 		_world_env = tree.current_scene.get_node_or_null("WorldEnvironment") as WorldEnvironment
@@ -398,7 +401,7 @@ func _unhandled_key_input(event: InputEvent) -> void:
 			toggle_beams()
 
 func _physics_process(delta: float) -> void:
-	is_handbraking = Input.is_action_pressed("handbrake")
+	is_handbraking = Input.is_action_pressed("handbrake") or Input.is_key_pressed(KEY_SPACE) or Input.is_action_pressed("ui_select")
 
 	# Check stall condition (fuel depleted or engine destroyed)
 	if not is_stalled and (current_fuel <= 0.0 or current_engine_health <= 0.0):
@@ -827,6 +830,19 @@ func _ensure_high_beams_action() -> void:
 			ev.physical_keycode = k
 			InputMap.action_add_event("toggle_high_beams", ev)
 
+func _ensure_handbrake_action() -> void:
+	if not InputMap.has_action("handbrake"):
+		InputMap.add_action("handbrake")
+	var has_space := false
+	for ev in InputMap.action_get_events("handbrake"):
+		if ev is InputEventKey and (ev.physical_keycode == KEY_SPACE or ev.keycode == KEY_SPACE):
+			has_space = true
+			break
+	if not has_space:
+		var ev := InputEventKey.new()
+		ev.physical_keycode = KEY_SPACE
+		InputMap.action_add_event("handbrake", ev)
+
 ## Toggles between low beam and high beam headlights.
 func toggle_beams() -> void:
 	is_high_beam = !is_high_beam
@@ -1190,7 +1206,7 @@ func _find_road_manager() -> RoadManager:
 			return rm
 	return null
 
-## Handles smooth progressive steering with speed-sensitive angle limits and realistic wet-road understeer.
+## Handles snappy responsive steering with speed-sensitive authority, wet understeer, and handbrake slide amplification.
 func _process_steering(delta: float) -> void:
 	var steer_input := Input.get_axis("steer_right", "steer_left")
 	var forward_dir := -transform.basis.z
@@ -1201,44 +1217,47 @@ func _process_steering(delta: float) -> void:
 	var lat_speed := current_h_vel.dot(right_dir)
 	var abs_fwd_speed := absf(fwd_speed)
 
-	# 1. Speed-sensitive steering: scale down max steer angle at high speeds to prevent violent snap spins
+	# 1. Speed-sensitive steering: sharp turning authority at low-to-medium speeds (20–60 km/h), slightly tighter at top speed (100+ km/h) to maintain control
 	var speed_ratio: float = clampf(abs_fwd_speed / max_speed, 0.0, 1.0)
 	var base_max_angle: float = deg_to_rad(max_steer_angle) if max_steer_angle > 1.5 else max_steer_angle
-	var speed_steer_factor: float = lerpf(1.0, high_speed_steer_ratio, pow(speed_ratio, 0.75))
+	var speed_steer_factor: float = lerpf(1.0, high_speed_steer_ratio, pow(speed_ratio, 1.25))
 	var dynamic_max_angle: float = base_max_angle * speed_steer_factor
 
-	# 2. Smooth steering accumulator: weighted progressive turn in with heavy van mechanical steering inertia
+	# 2. Snappy steering angle interpolation: lerp_angle weight ~ 9.0 * delta for immediate steering response
 	var target_steer_angle: float = steer_input * dynamic_max_angle
-	if absf(steer_input) > 0.01:
-		current_steer_angle = move_toward(current_steer_angle, target_steer_angle, steer_speed * delta)
-	else:
-		current_steer_angle = move_toward(current_steer_angle, 0.0, steer_return_speed * delta)
+	var steer_weight: float = clampf((steer_speed if absf(steer_input) > 0.01 else steer_return_speed) * delta, 0.0, 1.0)
+	current_steer_angle = lerp_angle(current_steer_angle, target_steer_angle, steer_weight)
 
 	# 3. Minimum motion threshold: vehicles cannot pivot in place when stationary
 	if abs_fwd_speed < min_steer_speed and absf(lat_speed) < min_steer_speed:
 		_current_yaw_velocity = move_toward(_current_yaw_velocity, 0.0, steering_angular_damping * delta)
 		return
 
-	# 4. Realistic wet-road traction loss & understeer at speeds > 80 km/h:
-	# Heavy utility van tires lose front bite on wet tarmac when turning sharply at highway speed
+	# 4. Realistic wet-road traction loss & understeer at highway cruising speeds (> 80 km/h)
 	var understeer_factor: float = 1.0
-	if current_speed_kmh > aquaplane_speed_threshold_kmh and absf(steer_input) > 0.35:
+	if current_speed_kmh > aquaplane_speed_threshold_kmh and absf(steer_input) > 0.35 and not is_handbraking:
 		var slip_severity: float = clampf((current_speed_kmh - aquaplane_speed_threshold_kmh) / 25.0, 0.0, 1.0)
 		understeer_factor = lerpf(1.0, 0.58, slip_severity * clampf(absf(steer_input) * 1.4, 0.0, 1.0))
 		is_traction_loss = is_on_floor() and slip_severity > 0.08
 	else:
 		is_traction_loss = false
 
-	# 5. Turn rate calculation based on wheelbase bicycle geometry with understeer attenuation
-	var turn_factor := clampf(abs_fwd_speed / wheelbase, 0.0, 2.5)
+	# 5. Turn rate calculation based on wheelbase geometry with handbrake powerslide yaw amplification
+	var turn_factor := clampf(abs_fwd_speed / wheelbase, 0.0, 3.2)
 	var direction_sign: float = signf(fwd_speed) if abs_fwd_speed > 0.2 else 1.0
-	var target_yaw_velocity: float = current_steer_angle * turn_factor * direction_sign * understeer_factor
 
-	# 6. Smooth angular steering velocity interpolation (lerp) for weighted, mechanical chassis rotation
+	# Amplify yaw rotation rate when steering while handbraking so the rear swings out into a slide
+	var handbrake_yaw_mult: float = 1.0
+	if is_handbraking and absf(steer_input) > 0.05 and abs_fwd_speed > 2.0:
+		handbrake_yaw_mult = 2.4
+
+	var target_yaw_velocity: float = current_steer_angle * turn_factor * direction_sign * understeer_factor * handbrake_yaw_mult
+
+	# 6. Snappy angular steering velocity interpolation (lerp) for crisp chassis turning response
 	_current_yaw_velocity = lerpf(_current_yaw_velocity, target_yaw_velocity, clampf(steering_angular_damping * delta, 0.0, 1.0))
 	rotate_y(_current_yaw_velocity * delta)
 
-## Updates forward/reverse speed based on throttle, heavy engine torque, fuel, and drag curves.
+## Updates forward/reverse speed based on throttle, engine torque, drag curve, and handbrake momentum preservation.
 func _process_longitudinal(fwd_speed: float, delta: float) -> float:
 	var throttle := Input.get_axis("brake", "accelerate")
 
@@ -1250,33 +1269,31 @@ func _process_longitudinal(fwd_speed: float, delta: float) -> float:
 		if current_fuel <= 0.0:
 			# Engine stalled out of fuel: coast to stop
 			fwd_speed = move_toward(fwd_speed, 0.0, coast_deceleration * delta)
-		elif fwd_speed < -0.1:
+		elif fwd_speed < -0.2:
 			# Traveling in reverse while throttle pressed: apply service brake to halt reverse
 			fwd_speed = move_toward(fwd_speed, 0.0, braking_force * delta)
 		else:
-			# Progressive acceleration curve with strong low-end recovery torque:
-			var launch_factor: float = lerpf(0.88, 1.0, clampf(fwd_speed / 4.5, 0.0, 1.0))
-			# - Drag taper approaching cruising (80-90 km/h) and top speed (~110 km/h)
+			# Boosted forward drive force: reaches ~115–120 km/h smoothly within 4 to 5 seconds of continuous throttle
 			var speed_ratio: float = clampf(fwd_speed / max_speed, 0.0, 1.0)
-			var drag_taper: float = clampf(1.0 - (speed_ratio * speed_ratio * 0.82), 0.18, 1.0)
-			var effective_accel: float = acceleration_rate * launch_factor * drag_taper * throttle
+			var drag_taper: float = clampf(1.0 - pow(speed_ratio, 1.6) * 0.92, 0.08, 1.0)
+			var effective_accel: float = acceleration_rate * 0.30 * drag_taper * throttle
 			fwd_speed = move_toward(fwd_speed, max_speed, effective_accel * delta)
 	elif throttle < 0.0:
-		if fwd_speed > 0.1:
-			# Service braking from forward motion: realistic stopping distance
+		if fwd_speed > 0.25:
+			# Service braking from forward motion: realistic stopping authority
 			fwd_speed = move_toward(fwd_speed, 0.0, braking_force * delta)
 		elif current_fuel <= 0.0:
 			# Engine stalled out of fuel: cannot reverse
 			fwd_speed = move_toward(fwd_speed, 0.0, coast_deceleration * delta)
 		else:
-			# Reversing with prompt vehicle torque
+			# Reverse gear from 0 km/h has solid instantaneous torque without lagging
 			var reverse_ratio: float = -throttle
 			fwd_speed = move_toward(fwd_speed, -reverse_max_speed, reverse_acceleration * reverse_ratio * delta)
 	else:
 		# Passive coasting: vehicle inertia carries momentum
 		fwd_speed = move_toward(fwd_speed, 0.0, coast_deceleration * delta)
 
-	# Mechanical handbrake drag when engaged
+	# Handbrake powerslide: do NOT freeze or zero out velocity vector! Preserve forward momentum.
 	if is_handbraking and absf(fwd_speed) > 0.1:
 		fwd_speed = move_toward(fwd_speed, 0.0, handbrake_force * delta)
 
@@ -1309,30 +1326,37 @@ func _process_odometer(delta: float) -> void:
 			current_kilometer = calculated_km
 			distance_updated.emit(distance_traveled_meters, current_kilometer)
 
-## Updates speed in km/h and tracks active wet traction loss state changes.
+## Updates speed in km/h and tracks active slide / drift telemetry state changes.
 func _process_telemetry() -> void:
 	var h_vel := Vector3(velocity.x, 0.0, velocity.z)
 	current_speed_kmh = h_vel.length() * 3.6
 	speed_updated.emit(current_speed_kmh)
 
-	if is_traction_loss != _was_traction_loss:
-		_was_traction_loss = is_traction_loss
-		drift_state_changed.emit(is_traction_loss)
+	var is_sliding: bool = is_handbraking or is_traction_loss
+	if is_sliding != _was_traction_loss:
+		_was_traction_loss = is_sliding
+		drift_state_changed.emit(is_sliding)
 
-## Applies grip damping to lateral sliding velocity with wet-road traction loss.
+## Applies grip damping to lateral sliding velocity with wet-road traction loss and authentic handbrake powersliding.
 func _process_lateral(lat_speed: float, delta: float) -> float:
 	var target_grip: float = lateral_grip
 	if is_handbraking:
-		target_grip *= 0.65
-	if is_traction_loss:
-		target_grip = wet_slip_grip
-	if in_shoulder_zone:
-		# Compromised lateral traction on loose gravel / dirt shoulder
-		target_grip *= 0.48
-	elif in_mud_zone:
-		target_grip *= 0.30
-	current_grip = move_toward(current_grip, target_grip, grip_recovery_speed * delta)
-	return lerpf(lat_speed, 0.0, 1.0 - exp(-current_grip * delta))
+		# Drastically and immediately reduce rear lateral tire friction so the rear swings out into a powerslide
+		current_grip = handbrake_drift_grip
+		target_grip = handbrake_drift_grip
+	else:
+		if is_traction_loss:
+			target_grip = wet_slip_grip
+		elif in_shoulder_zone:
+			# Compromised lateral traction on loose gravel / dirt shoulder
+			target_grip *= 0.48
+		elif in_mud_zone:
+			target_grip *= 0.30
+
+		# When releasing the handbrake and steering into the slide, smoothly restore grip so the van straightens out
+		current_grip = move_toward(current_grip, target_grip, grip_recovery_speed * delta)
+
+	return lerpf(lat_speed, 0.0, clampf(current_grip * delta, 0.0, 1.0))
 
 ## Applies visual suspension dynamics (pitch, roll, and idle vibration shiver) to VisualRoot.
 func _process_suspension_dynamics(delta: float, fwd_speed: float) -> void:

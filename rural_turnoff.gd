@@ -56,9 +56,7 @@ static func _get_foliage_mat() -> StandardMaterial3D:
 
 static func _apply_dither_fade(mat: StandardMaterial3D) -> StandardMaterial3D:
 	if mat:
-		mat.distance_fade_mode = BaseMaterial3D.DISTANCE_FADE_PIXEL_DITHER
-		mat.distance_fade_min_distance = 55.0
-		mat.distance_fade_max_distance = 75.0
+		mat.distance_fade_mode = BaseMaterial3D.DISTANCE_FADE_DISABLED
 	return mat
 
 static func _get_log_mat() -> StandardMaterial3D:

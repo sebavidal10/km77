@@ -109,9 +109,7 @@ static func _get_taillight_red_mat() -> StandardMaterial3D:
 
 static func _apply_dither_fade(mat: StandardMaterial3D) -> StandardMaterial3D:
 	if mat:
-		mat.distance_fade_mode = BaseMaterial3D.DISTANCE_FADE_PIXEL_DITHER
-		mat.distance_fade_min_distance = 55.0
-		mat.distance_fade_max_distance = 75.0
+		mat.distance_fade_mode = BaseMaterial3D.DISTANCE_FADE_DISABLED
 	return mat
 
 static func _get_rust_material() -> StandardMaterial3D:
@@ -672,14 +670,14 @@ func _spawn_lamppost(segment: RoadSegment, slice_idx: int, rng: RandomNumberGene
 	var lamppost_root := Node3D.new()
 	lamppost_root.name = "Lamppost_%d" % slice_idx
 
-	# Vertical timber/iron post
+	# Vertical timber/iron post with proper height (Y: ~5.5m to 6.5m)
 	var post_mesh := BoxMesh.new()
-	post_mesh.size = Vector3(0.3, 5.8, 0.3)
+	post_mesh.size = Vector3(0.3, 6.0, 0.3)
 	post_mesh.material = _get_wood_post_mat()
 
 	var post_inst := MeshInstance3D.new()
 	post_inst.mesh = post_mesh
-	post_inst.position = Vector3(0.0, 2.9, 0.0)
+	post_inst.position = Vector3(0.0, 3.0, 0.0)
 	lamppost_root.add_child(post_inst)
 
 	# Solid physical collision for lamppost
@@ -691,9 +689,9 @@ func _spawn_lamppost(segment: RoadSegment, slice_idx: int, rng: RandomNumberGene
 
 	var post_col := CollisionShape3D.new()
 	var post_shape := BoxShape3D.new()
-	post_shape.size = Vector3(0.35, 5.8, 0.35)
+	post_shape.size = Vector3(0.35, 6.0, 0.35)
 	post_col.shape = post_shape
-	post_col.position = Vector3(0.0, 2.9, 0.0)
+	post_col.position = Vector3(0.0, 3.0, 0.0)
 	post_body.add_child(post_col)
 	lamppost_root.add_child(post_body)
 
@@ -705,7 +703,7 @@ func _spawn_lamppost(segment: RoadSegment, slice_idx: int, rng: RandomNumberGene
 	var arm_inst := MeshInstance3D.new()
 	arm_inst.mesh = arm_mesh
 	var arm_offset_x: float = 0.5 if on_left_verge else -0.5
-	arm_inst.position = Vector3(arm_offset_x, 5.5, 0.0)
+	arm_inst.position = Vector3(arm_offset_x, 5.9, 0.0)
 	lamppost_root.add_child(arm_inst)
 
 	# Lantern fixture box
@@ -716,13 +714,13 @@ func _spawn_lamppost(segment: RoadSegment, slice_idx: int, rng: RandomNumberGene
 	var lantern_inst := MeshInstance3D.new()
 	lantern_inst.mesh = lantern_mesh
 	var lantern_x: float = 1.0 if on_left_verge else -1.0
-	lantern_inst.position = Vector3(lantern_x, 5.3, 0.0)
+	lantern_inst.position = Vector3(lantern_x, 5.82, 0.0)
 	lamppost_root.add_child(lantern_inst)
 
-	# OmniLight3D with FlickerLight controller
+	# OmniLight3D strictly positioned at elevated lamp arm bracket (Y = 5.8m)
 	var light := FlickerLight.new()
 	light.name = "FlickerLight"
-	light.position = Vector3(lantern_x, 5.0, 0.0)
+	light.position = Vector3(lantern_x, 5.8, 0.0)
 	light.light_color = Color(1.0, 0.78, 0.45, 1.0) # Sodium-vapor amber
 	light.base_energy = 2.4
 	light.omni_range = 16.0
@@ -1529,13 +1527,13 @@ func _spawn_shoulder_breakdown(segment: RoadSegment, slice_idx: int, rng: Random
 		l_inst.position = Vector3(rear_x, 0.65, 2.05)
 		car_root.add_child(l_inst)
 
-	# Pulsating amber hazard light casting glowing flares into the rain/fog
+	# Pulsating amber hazard light casting glowing flares into the rain/fog (positioned at elevated deck Y > 1.0)
 	var hazard_light := FlickerLight.new()
-	hazard_light.position = Vector3(0.0, 0.75, 2.2)
+	hazard_light.position = Vector3(0.0, 1.25, 2.2)
 	hazard_light.light_color = Color(1.0, 0.55, 0.05, 1.0)
-	hazard_light.base_energy = 5.0
+	hazard_light.base_energy = 3.2
 	hazard_light.min_energy = 0.2
-	hazard_light.omni_range = 14.0
+	hazard_light.omni_range = 4.5
 	hazard_light.flicker_probability = 0.8
 	car_root.add_child(hazard_light)
 

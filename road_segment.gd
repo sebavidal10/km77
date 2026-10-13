@@ -231,9 +231,6 @@ static func get_transformer_metal_material() -> StandardMaterial3D:
 		_transformer_metal_mat.albedo_color = Color(0.32, 0.34, 0.38, 1.0)
 		_transformer_metal_mat.metallic = 0.75
 		_transformer_metal_mat.roughness = 0.40
-		_transformer_metal_mat.distance_fade_mode = BaseMaterial3D.DISTANCE_FADE_PIXEL_DITHER
-		_transformer_metal_mat.distance_fade_min_distance = 55.0
-		_transformer_metal_mat.distance_fade_max_distance = 75.0
 	return _transformer_metal_mat
 
 static func get_streetlight_metal_material() -> StandardMaterial3D:
@@ -242,9 +239,6 @@ static func get_streetlight_metal_material() -> StandardMaterial3D:
 		_streetlight_metal_mat.albedo_color = Color(0.22, 0.24, 0.26, 1.0)
 		_streetlight_metal_mat.roughness = 0.55
 		_streetlight_metal_mat.metallic = 0.75
-		_streetlight_metal_mat.distance_fade_mode = BaseMaterial3D.DISTANCE_FADE_PIXEL_DITHER
-		_streetlight_metal_mat.distance_fade_min_distance = 55.0
-		_streetlight_metal_mat.distance_fade_max_distance = 75.0
 	return _streetlight_metal_mat
 
 static func get_streetlight_lens_material() -> StandardMaterial3D:
@@ -254,9 +248,6 @@ static func get_streetlight_lens_material() -> StandardMaterial3D:
 		_streetlight_lens_mat.emission_enabled = true
 		_streetlight_lens_mat.emission = Color(1.0, 0.69, 0.29, 1.0)
 		_streetlight_lens_mat.emission_energy_multiplier = 3.5
-		_streetlight_lens_mat.distance_fade_mode = BaseMaterial3D.DISTANCE_FADE_PIXEL_DITHER
-		_streetlight_lens_mat.distance_fade_min_distance = 55.0
-		_streetlight_lens_mat.distance_fade_max_distance = 75.0
 	return _streetlight_lens_mat
 
 static func get_shoulder_material() -> StandardMaterial3D:
@@ -300,9 +291,6 @@ static func get_reflector_amber_material() -> StandardMaterial3D:
 		_reflector_amber_mat.emission_enabled = true
 		_reflector_amber_mat.emission = Color(1.0, 0.6, 0.02, 1.0)
 		_reflector_amber_mat.emission_energy_multiplier = 1.35
-		_reflector_amber_mat.distance_fade_mode = BaseMaterial3D.DISTANCE_FADE_PIXEL_DITHER
-		_reflector_amber_mat.distance_fade_min_distance = 55.0
-		_reflector_amber_mat.distance_fade_max_distance = 75.0
 	return _reflector_amber_mat
 
 static func get_sign_post_material() -> StandardMaterial3D:
@@ -310,9 +298,6 @@ static func get_sign_post_material() -> StandardMaterial3D:
 		_sign_post_mat = StandardMaterial3D.new()
 		_sign_post_mat.albedo_color = Color(0.12, 0.12, 0.14, 1.0)
 		_sign_post_mat.roughness = 0.85
-		_sign_post_mat.distance_fade_mode = BaseMaterial3D.DISTANCE_FADE_PIXEL_DITHER
-		_sign_post_mat.distance_fade_min_distance = 55.0
-		_sign_post_mat.distance_fade_max_distance = 75.0
 	return _sign_post_mat
 
 static func get_telegraph_wood_material() -> StandardMaterial3D:
@@ -320,9 +305,6 @@ static func get_telegraph_wood_material() -> StandardMaterial3D:
 		_telegraph_wood_mat = StandardMaterial3D.new()
 		_telegraph_wood_mat.albedo_color = Color(0.18, 0.15, 0.12, 1.0)
 		_telegraph_wood_mat.roughness = 0.92
-		_telegraph_wood_mat.distance_fade_mode = BaseMaterial3D.DISTANCE_FADE_PIXEL_DITHER
-		_telegraph_wood_mat.distance_fade_min_distance = 55.0
-		_telegraph_wood_mat.distance_fade_max_distance = 75.0
 	return _telegraph_wood_mat
 
 static func get_cable_wire_material() -> StandardMaterial3D:
@@ -330,9 +312,6 @@ static func get_cable_wire_material() -> StandardMaterial3D:
 		_cable_wire_mat = StandardMaterial3D.new()
 		_cable_wire_mat.albedo_color = Color(0.05, 0.05, 0.06, 1.0)
 		_cable_wire_mat.roughness = 0.8
-		_cable_wire_mat.distance_fade_mode = BaseMaterial3D.DISTANCE_FADE_PIXEL_DITHER
-		_cable_wire_mat.distance_fade_min_distance = 55.0
-		_cable_wire_mat.distance_fade_max_distance = 75.0
 	return _cable_wire_mat
 
 static func get_insulator_material() -> StandardMaterial3D:
@@ -341,9 +320,6 @@ static func get_insulator_material() -> StandardMaterial3D:
 		_insulator_mat.albedo_color = Color(0.72, 0.82, 0.78, 1.0)
 		_insulator_mat.roughness = 0.1
 		_insulator_mat.metallic = 0.25
-		_insulator_mat.distance_fade_mode = BaseMaterial3D.DISTANCE_FADE_PIXEL_DITHER
-		_insulator_mat.distance_fade_min_distance = 55.0
-		_insulator_mat.distance_fade_max_distance = 75.0
 	return _insulator_mat
 
 func _ready() -> void:
@@ -912,17 +888,17 @@ func build_segment() -> void:
 			var pole_root := Node3D.new()
 			pole_root.name = "TelegraphPole_%d" % i
 
-			# Vertical wooden pole (CylinderMesh)
+			# Vertical wooden pole (CylinderMesh) with proper height (Y: ~5.5m to 6.5m)
 			var pole_mesh := CylinderMesh.new()
 			pole_mesh.top_radius = 0.14
 			pole_mesh.bottom_radius = 0.20
-			pole_mesh.height = 7.6
+			pole_mesh.height = 6.0
 			pole_mesh.material = wood_mat
 
 			var pole_inst := MeshInstance3D.new()
 			pole_inst.name = "PoleShaft"
 			pole_inst.mesh = pole_mesh
-			pole_inst.position = Vector3(0.0, 3.8, 0.0)
+			pole_inst.position = Vector3(0.0, 3.0, 0.0)
 			pole_root.add_child(pole_inst)
 
 			# Horizontal wooden crossarm
@@ -933,7 +909,7 @@ func build_segment() -> void:
 			var crossarm_inst := MeshInstance3D.new()
 			crossarm_inst.name = "Crossarm"
 			crossarm_inst.mesh = crossarm_mesh
-			crossarm_inst.position = Vector3(0.0, 7.1, 0.0)
+			crossarm_inst.position = Vector3(0.0, 5.8, 0.0)
 			pole_root.add_child(crossarm_inst)
 
 			# Diagonal crossarm support braces
@@ -942,13 +918,13 @@ func build_segment() -> void:
 			brace_mesh.material = wood_mat
 			var brace_l := MeshInstance3D.new()
 			brace_l.mesh = brace_mesh
-			brace_l.position = Vector3(-0.45, 6.75, 0.0)
+			brace_l.position = Vector3(-0.45, 5.5, 0.0)
 			brace_l.rotation.z = deg_to_rad(35.0)
 			pole_root.add_child(brace_l)
 
 			var brace_r := MeshInstance3D.new()
 			brace_r.mesh = brace_mesh
-			brace_r.position = Vector3(0.45, 6.75, 0.0)
+			brace_r.position = Vector3(0.45, 5.5, 0.0)
 			brace_r.rotation.z = deg_to_rad(-35.0)
 			pole_root.add_child(brace_r)
 
@@ -963,7 +939,7 @@ func build_segment() -> void:
 
 				var ins_inst := MeshInstance3D.new()
 				ins_inst.mesh = ins_mesh
-				ins_inst.position = Vector3(ins_x, 7.27, 0.0)
+				ins_inst.position = Vector3(ins_x, 5.95, 0.0)
 				pole_root.add_child(ins_inst)
 
 			# Utility transformer canister on selected poles (Requirement 4)
@@ -977,7 +953,7 @@ func build_segment() -> void:
 				var trans_inst := MeshInstance3D.new()
 				trans_inst.name = "Transformer"
 				trans_inst.mesh = trans_mesh
-				trans_inst.position = Vector3(0.42, 5.8, 0.0)
+				trans_inst.position = Vector3(0.42, 4.8, 0.0)
 				pole_root.add_child(trans_inst)
 
 				var bracket_mesh := BoxMesh.new()
@@ -985,7 +961,7 @@ func build_segment() -> void:
 				bracket_mesh.material = get_transformer_metal_material()
 				var bracket_inst := MeshInstance3D.new()
 				bracket_inst.mesh = bracket_mesh
-				bracket_inst.position = Vector3(0.22, 5.8, 0.0)
+				bracket_inst.position = Vector3(0.22, 4.8, 0.0)
 				pole_root.add_child(bracket_inst)
 
 			# 7. Functional Rural Streetlight on ~1 out of every 3-4 poles (e.g. pole_global_idx % 3 == 0)
@@ -993,6 +969,7 @@ func build_segment() -> void:
 			if is_streetlight:
 				var metal_mat := get_streetlight_metal_material()
 				var lens_mat := get_streetlight_lens_material()
+				var arm_offset_x: float = 1.82
 
 				# Low-poly angled extension pipe arm extending over the road shoulder (+X)
 				var arm_mesh := CylinderMesh.new()
@@ -1004,7 +981,7 @@ func build_segment() -> void:
 				var arm_inst := MeshInstance3D.new()
 				arm_inst.name = "StreetlightArm"
 				arm_inst.mesh = arm_mesh
-				arm_inst.position = Vector3(0.92, 6.75, 0.0)
+				arm_inst.position = Vector3(0.92, 5.9, 0.0)
 				arm_inst.rotation.z = deg_to_rad(85.0)
 				pole_root.add_child(arm_inst)
 
@@ -1015,7 +992,7 @@ func build_segment() -> void:
 				var strut_inst := MeshInstance3D.new()
 				strut_inst.name = "StreetlightStrut"
 				strut_inst.mesh = strut_mesh
-				strut_inst.position = Vector3(0.45, 6.4, 0.0)
+				strut_inst.position = Vector3(0.45, 5.55, 0.0)
 				strut_inst.rotation.z = deg_to_rad(-45.0)
 				pole_root.add_child(strut_inst)
 
@@ -1027,7 +1004,7 @@ func build_segment() -> void:
 				var head_inst := MeshInstance3D.new()
 				head_inst.name = "LampHeadHousing"
 				head_inst.mesh = head_mesh
-				head_inst.position = Vector3(1.82, 6.65, 0.0)
+				head_inst.position = Vector3(arm_offset_x, 5.88, 0.0)
 				head_inst.rotation.z = deg_to_rad(-12.0)
 				pole_root.add_child(head_inst)
 
@@ -1039,14 +1016,14 @@ func build_segment() -> void:
 				var lens_inst := MeshInstance3D.new()
 				lens_inst.name = "LampBulbLens"
 				lens_inst.mesh = lens_mesh
-				lens_inst.position = Vector3(1.82, 6.56, 0.0)
+				lens_inst.position = Vector3(arm_offset_x, 5.82, 0.0)
 				lens_inst.rotation.z = deg_to_rad(-12.0)
 				pole_root.add_child(lens_inst)
 
-				# OmniLight3D with subtle rural grid flicker controller
+				# Elevated light node positioned strictly at the top lamp arm bracket (Y = 5.8m)
 				var light := FlickerLight.new()
 				light.name = "Streetlight"
-				light.position = Vector3(1.82, 6.42, 0.0)
+				light.position = Vector3(arm_offset_x, 5.8, 0.0)
 				light.light_color = Color("#ffb04a")
 				light.light_energy = 4.2
 				light.base_energy = 4.2
@@ -1082,7 +1059,7 @@ func build_segment() -> void:
 		var cable_inst1 := MeshInstance3D.new()
 		cable_inst1.name = "CableOuter_%d" % i
 		cable_inst1.mesh = cable_wire_mesh
-		var c1_local := Vector3(pole_verge_x - 0.85, 7.25 + sag_offset_y, 0.0)
+		var c1_local := Vector3(pole_verge_x - 0.85, 5.95 + sag_offset_y, 0.0)
 		cable_inst1.transform = Transform3D(slice_basis, slice_center + slice_basis * c1_local)
 		static_body.add_child(cable_inst1)
 
@@ -1090,7 +1067,7 @@ func build_segment() -> void:
 		var cable_inst2 := MeshInstance3D.new()
 		cable_inst2.name = "CableInner_%d" % i
 		cable_inst2.mesh = cable_wire_mesh
-		var c2_local := Vector3(pole_verge_x + 0.85, 7.25 + sag_offset_y, 0.0)
+		var c2_local := Vector3(pole_verge_x + 0.85, 5.95 + sag_offset_y, 0.0)
 		cable_inst2.transform = Transform3D(slice_basis, slice_center + slice_basis * c2_local)
 		static_body.add_child(cable_inst2)
 

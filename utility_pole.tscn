@@ -3,9 +3,6 @@
 [ext_resource type="Script" path="res://flicker_light.gd" id="1_flicker"]
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_wood"]
-distance_fade_mode = 2
-distance_fade_min_distance = 55.0
-distance_fade_max_distance = 75.0
 albedo_color = Color(0.18, 0.15, 0.12, 1)
 roughness = 0.92
 
@@ -13,7 +10,7 @@ roughness = 0.92
 material = SubResource("StandardMaterial3D_wood")
 top_radius = 0.14
 bottom_radius = 0.2
-height = 7.6
+height = 6.0
 
 [sub_resource type="BoxMesh" id="BoxMesh_crossarm"]
 material = SubResource("StandardMaterial3D_wood")
@@ -24,9 +21,6 @@ material = SubResource("StandardMaterial3D_wood")
 size = Vector3(0.06, 0.65, 0.06)
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_insulator"]
-distance_fade_mode = 2
-distance_fade_min_distance = 55.0
-distance_fade_max_distance = 75.0
 albedo_color = Color(0.72, 0.82, 0.78, 1)
 roughness = 0.1
 metallic = 0.25
@@ -38,9 +32,6 @@ bottom_radius = 0.06
 height = 0.18
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_metal"]
-distance_fade_mode = 2
-distance_fade_min_distance = 55.0
-distance_fade_max_distance = 75.0
 albedo_color = Color(0.22, 0.24, 0.26, 1)
 roughness = 0.55
 metallic = 0.75
@@ -60,9 +51,6 @@ material = SubResource("StandardMaterial3D_metal")
 size = Vector3(0.48, 0.16, 0.28)
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_lens"]
-distance_fade_mode = 2
-distance_fade_min_distance = 55.0
-distance_fade_max_distance = 75.0
 albedo_color = Color(1, 0.69, 0.29, 1)
 emission_enabled = true
 emission = Color(1, 0.69, 0.29, 1)
@@ -73,7 +61,7 @@ material = SubResource("StandardMaterial3D_lens")
 size = Vector3(0.36, 0.04, 0.2)
 
 [sub_resource type="CylinderShape3D" id="CylinderShape3D_pole"]
-height = 7.6
+height = 6.0
 radius = 0.25
 
 [node name="UtilityPole" type="StaticBody3D"]
@@ -81,55 +69,55 @@ collision_layer = 1
 collision_mask = 1
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3.8, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3.0, 0)
 shape = SubResource("CylinderShape3D_pole")
 
 [node name="PoleShaft" type="MeshInstance3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3.8, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3.0, 0)
 mesh = SubResource("CylinderMesh_shaft")
 
 [node name="Crossarm" type="MeshInstance3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 7.1, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 5.8, 0)
 mesh = SubResource("BoxMesh_crossarm")
 
 [node name="BraceLeft" type="MeshInstance3D" parent="."]
-transform = Transform3D(0.819152, -0.573576, 0, 0.573576, 0.819152, 0, 0, 0, 1, -0.45, 6.75, 0)
+transform = Transform3D(0.819152, -0.573576, 0, 0.573576, 0.819152, 0, 0, 0, 1, -0.45, 5.5, 0)
 mesh = SubResource("BoxMesh_brace")
 
 [node name="BraceRight" type="MeshInstance3D" parent="."]
-transform = Transform3D(0.819152, 0.573576, 0, -0.573576, 0.819152, 0, 0, 0, 1, 0.45, 6.75, 0)
+transform = Transform3D(0.819152, 0.573576, 0, -0.573576, 0.819152, 0, 0, 0, 1, 0.45, 5.5, 0)
 mesh = SubResource("BoxMesh_brace")
 
 [node name="InsulatorLeft" type="MeshInstance3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.85, 7.27, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.85, 5.95, 0)
 mesh = SubResource("CylinderMesh_insulator")
 
 [node name="InsulatorMid" type="MeshInstance3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 7.27, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 5.95, 0)
 mesh = SubResource("CylinderMesh_insulator")
 
 [node name="InsulatorRight" type="MeshInstance3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.85, 7.27, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.85, 5.95, 0)
 mesh = SubResource("CylinderMesh_insulator")
 
 [node name="StreetlightArm" type="MeshInstance3D" parent="."]
-transform = Transform3D(0.0871557, -0.996195, 0, 0.996195, 0.0871557, 0, 0, 0, 1, 0.92, 6.75, 0)
+transform = Transform3D(0.0871557, -0.996195, 0, 0.996195, 0.0871557, 0, 0, 0, 1, 0.92, 5.9, 0)
 mesh = SubResource("CylinderMesh_arm")
 
 [node name="StreetlightStrut" type="MeshInstance3D" parent="."]
-transform = Transform3D(0.707107, 0.707107, 0, -0.707107, 0.707107, 0, 0, 0, 1, 0.45, 6.4, 0)
+transform = Transform3D(0.707107, 0.707107, 0, -0.707107, 0.707107, 0, 0, 0, 1, 0.45, 5.55, 0)
 mesh = SubResource("BoxMesh_strut")
 
 [node name="LampHeadHousing" type="MeshInstance3D" parent="."]
-transform = Transform3D(0.978148, 0.207912, 0, -0.207912, 0.978148, 0, 0, 0, 1, 1.82, 6.65, 0)
+transform = Transform3D(0.978148, 0.207912, 0, -0.207912, 0.978148, 0, 0, 0, 1, 1.82, 5.88, 0)
 mesh = SubResource("BoxMesh_housing")
 
 [node name="LampBulbLens" type="MeshInstance3D" parent="."]
-transform = Transform3D(0.978148, 0.207912, 0, -0.207912, 0.978148, 0, 0, 0, 1, 1.82, 6.56, 0)
+transform = Transform3D(0.978148, 0.207912, 0, -0.207912, 0.978148, 0, 0, 0, 1, 1.82, 5.82, 0)
 mesh = SubResource("BoxMesh_lens")
 
 [node name="Streetlight" type="OmniLight3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.82, 6.42, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.82, 5.8, 0)
 light_color = Color(1, 0.690196, 0.290196, 1)
 light_energy = 4.2
 omni_range = 18.0
