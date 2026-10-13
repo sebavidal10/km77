@@ -9,7 +9,7 @@ roughness = 0.95
 
 [sub_resource type="BoxMesh" id="BoxMesh_turnout"]
 material = SubResource("StandardMaterial3D_turnout")
-size = Vector3(5.2, 0.15, 18)
+size = Vector3(5.6, 0.15, 20)
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_pump_island"]
 albedo_color = Color(0.28, 0.28, 0.3, 1)
@@ -17,33 +17,125 @@ roughness = 0.9
 
 [sub_resource type="BoxMesh" id="BoxMesh_pump_island"]
 material = SubResource("StandardMaterial3D_pump_island")
-size = Vector3(2.2, 0.24, 5.5)
+size = Vector3(2.4, 0.28, 6.4)
 
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_gas_pump"]
-albedo_color = Color(0.75, 0.22, 0.12, 1)
-roughness = 0.65
-metallic = 0.3
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_dispenser_beige"]
+albedo_color = Color(0.74, 0.70, 0.62, 1)
+roughness = 0.75
+metallic = 0.25
 
-[sub_resource type="BoxMesh" id="BoxMesh_gas_pump"]
-material = SubResource("StandardMaterial3D_gas_pump")
-size = Vector3(0.75, 2.2, 0.55)
+[sub_resource type="BoxMesh" id="BoxMesh_dispenser_body"]
+material = SubResource("StandardMaterial3D_dispenser_beige")
+size = Vector3(0.75, 2.1, 0.55)
 
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_supply_sign"]
-albedo_color = Color(1, 0.55, 0.08, 1)
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_dispenser_glass"]
+albedo_color = Color(0.05, 0.07, 0.06, 1)
+roughness = 0.2
+metallic = 0.5
+
+[sub_resource type="BoxMesh" id="BoxMesh_dispenser_glass"]
+material = SubResource("StandardMaterial3D_dispenser_glass")
+size = Vector3(0.52, 0.36, 0.04)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_rubber_black"]
+albedo_color = Color(0.08, 0.08, 0.09, 1)
+roughness = 0.9
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_hose"]
+material = SubResource("StandardMaterial3D_rubber_black")
+top_radius = 0.035
+bottom_radius = 0.035
+height = 1.35
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_metal_cast"]
+albedo_color = Color(0.25, 0.26, 0.28, 1)
+roughness = 0.4
+metallic = 0.85
+
+[sub_resource type="BoxMesh" id="BoxMesh_nozzle"]
+material = SubResource("StandardMaterial3D_metal_cast")
+size = Vector3(0.08, 0.24, 0.12)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_canopy_rust"]
+albedo_color = Color(0.28, 0.20, 0.16, 1)
+roughness = 0.82
+metallic = 0.35
+
+[sub_resource type="BoxMesh" id="BoxMesh_canopy_roof"]
+material = SubResource("StandardMaterial3D_canopy_rust")
+size = Vector3(5.6, 0.35, 9.4)
+
+[sub_resource type="BoxMesh" id="BoxMesh_canopy_pillar"]
+material = SubResource("StandardMaterial3D_metal_cast")
+size = Vector3(0.22, 4.3, 0.22)
+
+[sub_resource type="BoxMesh" id="BoxMesh_canopy_brace"]
+material = SubResource("StandardMaterial3D_metal_cast")
+size = Vector3(0.12, 0.85, 0.12)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_fluorescent_fixture"]
+albedo_color = Color(0.2, 0.22, 0.25, 1)
+roughness = 0.6
+metallic = 0.7
+
+[sub_resource type="BoxMesh" id="BoxMesh_fluorescent_housing"]
+material = SubResource("StandardMaterial3D_fluorescent_fixture")
+size = Vector3(0.35, 0.14, 2.6)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_fluorescent_emission"]
+albedo_color = Color(1, 0.82, 0.45, 1)
 emission_enabled = true
-emission = Color(1, 0.55, 0.08, 1)
+emission = Color(1, 0.82, 0.45, 1)
 emission_energy_multiplier = 4.5
 
-[sub_resource type="BoxMesh" id="BoxMesh_supply_sign"]
-material = SubResource("StandardMaterial3D_supply_sign")
-size = Vector3(0.95, 0.55, 0.25)
+[sub_resource type="BoxMesh" id="BoxMesh_fluorescent_bulb"]
+material = SubResource("StandardMaterial3D_fluorescent_emission")
+size = Vector3(0.18, 0.05, 2.4)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_shack_wood"]
+albedo_color = Color(0.18, 0.15, 0.12, 1)
+roughness = 0.95
+
+[sub_resource type="BoxMesh" id="BoxMesh_shack_body"]
+material = SubResource("StandardMaterial3D_shack_wood")
+size = Vector3(3.2, 2.7, 4.2)
+
+[sub_resource type="BoxMesh" id="BoxMesh_shack_roof"]
+material = SubResource("StandardMaterial3D_canopy_rust")
+size = Vector3(3.6, 0.18, 4.6)
+
+[sub_resource type="BoxMesh" id="BoxMesh_board_plank"]
+material = SubResource("StandardMaterial3D_shack_wood")
+size = Vector3(1.15, 0.14, 0.04)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_payphone"]
+albedo_color = Color(0.14, 0.18, 0.22, 1)
+roughness = 0.45
+metallic = 0.6
+
+[sub_resource type="BoxMesh" id="BoxMesh_payphone_box"]
+material = SubResource("StandardMaterial3D_payphone")
+size = Vector3(0.35, 0.55, 0.26)
+
+[sub_resource type="BoxMesh" id="BoxMesh_payphone_receiver"]
+material = SubResource("StandardMaterial3D_rubber_black")
+size = Vector3(0.08, 0.28, 0.08)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_oil_can_red"]
+albedo_color = Color(0.85, 0.15, 0.10, 1)
+roughness = 0.4
+metallic = 0.35
+
+[sub_resource type="BoxMesh" id="BoxMesh_oil_canister"]
+material = SubResource("StandardMaterial3D_oil_can_red")
+size = Vector3(0.26, 0.38, 0.22)
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_fuel_canister"]
 albedo_color = Color(1, 0.25, 0.05, 1)
 roughness = 0.45
 emission_enabled = true
 emission = Color(1, 0.22, 0.04, 1)
-emission_energy_multiplier = 1.8
+emission_energy_multiplier = 2.0
 
 [sub_resource type="BoxMesh" id="BoxMesh_fuel_canister"]
 material = SubResource("StandardMaterial3D_fuel_canister")
@@ -71,31 +163,18 @@ size = Vector3(1.9, 0.85, 2.3)
 material = SubResource("StandardMaterial3D_rust")
 size = Vector3(1.8, 0.08, 1.3)
 
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_wheel"]
-albedo_color = Color(0.08, 0.08, 0.08, 1)
-roughness = 0.9
-
 [sub_resource type="CylinderMesh" id="CylinderMesh_wheel"]
-material = SubResource("StandardMaterial3D_wheel")
+material = SubResource("StandardMaterial3D_rubber_black")
 top_radius = 0.36
 bottom_radius = 0.36
 height = 0.26
 
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_wood"]
-albedo_color = Color(0.22, 0.18, 0.14, 1)
-roughness = 0.9
-
 [sub_resource type="BoxMesh" id="BoxMesh_crate1"]
-material = SubResource("StandardMaterial3D_wood")
+material = SubResource("StandardMaterial3D_shack_wood")
 size = Vector3(1.2, 0.9, 1.2)
 
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_case"]
-albedo_color = Color(0.18, 0.2, 0.19, 1)
-roughness = 0.6
-metallic = 0.4
-
 [sub_resource type="BoxMesh" id="BoxMesh_crate2"]
-material = SubResource("StandardMaterial3D_case")
+material = SubResource("StandardMaterial3D_metal_cast")
 size = Vector3(0.9, 0.6, 0.9)
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_jerry_red"]
@@ -144,10 +223,16 @@ material = SubResource("StandardMaterial3D_flare_tip")
 size = Vector3(0.1, 0.1, 0.1)
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_interaction"]
-size = Vector3(9.5, 4.5, 18)
+size = Vector3(9.5, 4.5, 20)
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_turnout_pad"]
-size = Vector3(5.2, 0.5, 18)
+size = Vector3(5.6, 0.5, 20)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_service_island"]
+size = Vector3(2.4, 4.6, 6.4)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_shack"]
+size = Vector3(3.4, 3.2, 4.4)
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_wrecked_vehicle"]
 size = Vector3(2.2, 1.8, 4.4)
@@ -188,37 +273,168 @@ collision_mask = 1
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.15, 0)
 shape = SubResource("BoxShape3D_turnout_pad")
 
-[node name="SupplyPost" type="Node3D" parent="." unique_id=9812440]
+[node name="ServiceIsland" type="StaticBody3D" parent="." groups=["heavy_obstacle"] unique_id=9812440]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.8, 0, 0)
+collision_layer = 1
+collision_mask = 1
 
-[node name="PumpIsland" type="MeshInstance3D" parent="SupplyPost" unique_id=9812441]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.12, 0)
+[node name="IslandCol" type="CollisionShape3D" parent="ServiceIsland"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.3, 0)
+shape = SubResource("BoxShape3D_service_island")
+
+[node name="PumpIslandCurb" type="MeshInstance3D" parent="ServiceIsland" unique_id=9812441]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.14, 0)
 mesh = SubResource("BoxMesh_pump_island")
 
-[node name="GasPump" type="MeshInstance3D" parent="SupplyPost" unique_id=9812442]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.3, 0)
-mesh = SubResource("BoxMesh_gas_pump")
+[node name="FuelDispenserNorth" type="Node3D" parent="ServiceIsland"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.28, -1.6)
 
-[node name="SupplySign" type="MeshInstance3D" parent="SupplyPost" unique_id=9812443]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.75, 0)
-mesh = SubResource("BoxMesh_supply_sign")
+[node name="PumpBody" type="MeshInstance3D" parent="ServiceIsland/FuelDispenserNorth"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.05, 0)
+mesh = SubResource("BoxMesh_dispenser_body")
 
-[node name="SupplyBeaconLight" type="OmniLight3D" parent="SupplyPost" unique_id=9812444]
+[node name="GlassFront" type="MeshInstance3D" parent="ServiceIsland/FuelDispenserNorth"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.38, 1.45, 0)
+mesh = SubResource("BoxMesh_dispenser_glass")
+
+[node name="GlassBack" type="MeshInstance3D" parent="ServiceIsland/FuelDispenserNorth"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.38, 1.45, 0)
+mesh = SubResource("BoxMesh_dispenser_glass")
+
+[node name="HoseLoop" type="MeshInstance3D" parent="ServiceIsland/FuelDispenserNorth"]
+transform = Transform3D(1, 0, 0, 0, 0.9848077, -0.1736482, 0, 0.1736482, 0.9848077, -0.42, 0.8, 0.2)
+mesh = SubResource("CylinderMesh_hose")
+
+[node name="Nozzle" type="MeshInstance3D" parent="ServiceIsland/FuelDispenserNorth"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.42, 1.25, 0.2)
+mesh = SubResource("BoxMesh_nozzle")
+
+[node name="FuelDispenserSouth" type="Node3D" parent="ServiceIsland"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.28, 1.6)
+
+[node name="PumpBody" type="MeshInstance3D" parent="ServiceIsland/FuelDispenserSouth"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.05, 0)
+mesh = SubResource("BoxMesh_dispenser_body")
+
+[node name="GlassFront" type="MeshInstance3D" parent="ServiceIsland/FuelDispenserSouth"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.38, 1.45, 0)
+mesh = SubResource("BoxMesh_dispenser_glass")
+
+[node name="GlassBack" type="MeshInstance3D" parent="ServiceIsland/FuelDispenserSouth"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.38, 1.45, 0)
+mesh = SubResource("BoxMesh_dispenser_glass")
+
+[node name="HoseLoop" type="MeshInstance3D" parent="ServiceIsland/FuelDispenserSouth"]
+transform = Transform3D(1, 0, 0, 0, 0.9848077, 0.1736482, 0, -0.1736482, 0.9848077, -0.42, 0.8, -0.2)
+mesh = SubResource("CylinderMesh_hose")
+
+[node name="Nozzle" type="MeshInstance3D" parent="ServiceIsland/FuelDispenserSouth"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.42, 1.25, -0.2)
+mesh = SubResource("BoxMesh_nozzle")
+
+[node name="CanopyPillarFL" type="MeshInstance3D" parent="ServiceIsland"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.6, 2.15, -3.8)
+mesh = SubResource("BoxMesh_canopy_pillar")
+
+[node name="CanopyPillarFR" type="MeshInstance3D" parent="ServiceIsland"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.6, 2.15, -3.8)
+mesh = SubResource("BoxMesh_canopy_pillar")
+
+[node name="CanopyPillarRL" type="MeshInstance3D" parent="ServiceIsland"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.6, 2.15, 3.8)
+mesh = SubResource("BoxMesh_canopy_pillar")
+
+[node name="CanopyPillarRR" type="MeshInstance3D" parent="ServiceIsland"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.6, 2.15, 3.8)
+mesh = SubResource("BoxMesh_canopy_pillar")
+
+[node name="CanopyRoof" type="MeshInstance3D" parent="ServiceIsland"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 4.45, 0)
+mesh = SubResource("BoxMesh_canopy_roof")
+
+[node name="FluorescentFixture" type="Node3D" parent="ServiceIsland"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 4.2, 0)
+
+[node name="Housing" type="MeshInstance3D" parent="ServiceIsland/FluorescentFixture"]
+mesh = SubResource("BoxMesh_fluorescent_housing")
+
+[node name="Bulb" type="MeshInstance3D" parent="ServiceIsland/FluorescentFixture"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.06, 0)
+mesh = SubResource("BoxMesh_fluorescent_bulb")
+
+[node name="SupplyBeaconLight" type="OmniLight3D" parent="ServiceIsland" unique_id=9812444]
 unique_name_in_owner = true
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3.1, 0)
-light_color = Color(1, 0.55, 0.1, 1)
-light_energy = 12.0
-omni_range = 28.0
-omni_attenuation = 0.85
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3.9, 0)
+light_color = Color(1, 0.65, 0.18, 1)
+light_energy = 14.0
+shadow_enabled = true
+omni_range = 30.0
+omni_attenuation = 0.9
 script = ExtResource("2_flicker")
-base_energy = 12.0
-min_energy = 4.5
-flicker_probability = 0.25
+base_energy = 14.0
+min_energy = 5.0
+flicker_probability = 0.3
 
-[node name="FuelCanister" type="MeshInstance3D" parent="SupplyPost" unique_id=9812445]
+[node name="FuelCanister" type="MeshInstance3D" parent="ServiceIsland" unique_id=9812445]
 unique_name_in_owner = true
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.55, 0.62, 1.2)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.65, 0.65, 0)
 mesh = SubResource("BoxMesh_fuel_canister")
+
+[node name="WeatheredKiosk" type="StaticBody3D" parent="." groups=["heavy_obstacle"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.8, 0, 4.8)
+collision_layer = 1
+collision_mask = 1
+
+[node name="KioskCol" type="CollisionShape3D" parent="WeatheredKiosk"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.6, 0)
+shape = SubResource("BoxShape3D_shack")
+
+[node name="ShackBody" type="MeshInstance3D" parent="WeatheredKiosk"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.35, 0)
+mesh = SubResource("BoxMesh_shack_body")
+
+[node name="ShackRoof" type="MeshInstance3D" parent="WeatheredKiosk"]
+transform = Transform3D(0.9902681, 0.1391731, 0, -0.1391731, 0.9902681, 0, 0, 0, 1, 0, 2.75, 0)
+mesh = SubResource("BoxMesh_shack_roof")
+
+[node name="BoardedWindow" type="Node3D" parent="WeatheredKiosk"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.62, 1.5, 0)
+
+[node name="Plank1" type="MeshInstance3D" parent="WeatheredKiosk/BoardedWindow"]
+transform = Transform3D(0, 0, 1, 0.258819, 0.9659258, 0, -0.9659258, 0.258819, 0, 0, 0, 0)
+mesh = SubResource("BoxMesh_board_plank")
+
+[node name="Plank2" type="MeshInstance3D" parent="WeatheredKiosk/BoardedWindow"]
+transform = Transform3D(0, 0, 1, -0.258819, 0.9659258, 0, -0.9659258, -0.258819, 0, 0, 0, 0)
+mesh = SubResource("BoxMesh_board_plank")
+
+[node name="Plank3" type="MeshInstance3D" parent="WeatheredKiosk/BoardedWindow"]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 0, 0.22, 0)
+mesh = SubResource("BoxMesh_board_plank")
+
+[node name="PayphoneBox" type="Node3D" parent="WeatheredKiosk"]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -1.62, 1.35, -1.4)
+
+[node name="PhoneBody" type="MeshInstance3D" parent="WeatheredKiosk/PayphoneBox"]
+mesh = SubResource("BoxMesh_payphone_box")
+
+[node name="PhoneReceiver" type="MeshInstance3D" parent="WeatheredKiosk/PayphoneBox"]
+transform = Transform3D(1, 0, 0, 0, 0.9659258, 0.258819, 0, -0.258819, 0.9659258, -0.22, 0, 0.08)
+mesh = SubResource("BoxMesh_payphone_receiver")
+
+[node name="OilCanStack" type="Node3D" parent="WeatheredKiosk"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.35, 0.2, 1.6)
+
+[node name="Can1" type="MeshInstance3D" parent="WeatheredKiosk/OilCanStack"]
+mesh = SubResource("BoxMesh_oil_canister")
+
+[node name="Can2" type="MeshInstance3D" parent="WeatheredKiosk/OilCanStack"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.32, 0, 0)
+mesh = SubResource("BoxMesh_oil_canister")
+
+[node name="Can3" type="MeshInstance3D" parent="WeatheredKiosk/OilCanStack"]
+transform = Transform3D(0.9659258, 0, 0.258819, 0, 1, 0, -0.258819, 0, 0.9659258, 0.16, 0.38, 0)
+mesh = SubResource("BoxMesh_oil_canister")
 
 [node name="WreckedVehicle" type="StaticBody3D" parent="." groups=["heavy_obstacle"] unique_id=9812403]
 transform = Transform3D(0.9702957, 0, -0.2419219, 0, 1, 0, 0.2419219, 0, 0.9702957, 1.1, 0, -6.5)

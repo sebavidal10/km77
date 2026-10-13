@@ -2,12 +2,17 @@ class_name RoadEventSpawner
 extends Node
 
 const SupplyStopScene = preload("res://supply_stop.tscn")
+const HitchhikerScene = preload("res://hitchhiker.tscn")
 
 @export_group("Obstacle Probabilities")
 ## Chance (0.0 to 1.0) to spawn a wrecked/crashed vehicle on a chunk.
-@export var crashed_car_probability: float = 0.30
+@export var crashed_car_probability: float = 0.28
 ## Chance (0.0 to 1.0) to spawn a cluster of traffic cones / debris on a chunk.
-@export var debris_probability: float = 0.35
+@export var debris_probability: float = 0.30
+## Chance (0.0 to 1.0) to spawn a broken-down vehicle with blinking hazards on the shoulder.
+@export var shoulder_breakdown_probability: float = 0.32
+## Chance (0.0 to 1.0) to spawn strange organic roadkill near the centerline requiring lane swerves.
+@export var roadkill_probability: float = 0.25
 
 @export_group("Supply Stop Balancing")
 ## Maximum segments allowed without a supply stop (at least once every 8 segments).
@@ -55,7 +60,14 @@ static var _silhouette_mat: StandardMaterial3D
 static var _milestone_concrete_mat: StandardMaterial3D
 static var _milestone_red_mat: StandardMaterial3D
 static var _tree_bark_mat: StandardMaterial3D
-static var _tree_foliage_mat: StandardMaterial3D
+static var _tree_wind_shader: Shader
+static var _tree_foliage_mat: ShaderMaterial
+static var _grass_wind_shader: Shader
+static var _grass_wind_mat: ShaderMaterial
+static var _fern_mat: StandardMaterial3D
+static var _wet_log_mat: StandardMaterial3D
+static var _organic_flesh_mat: StandardMaterial3D
+static var _hazard_amber_blink_mat: StandardMaterial3D
 static var _bus_stop_mat: StandardMaterial3D
 static var _bus_stop_wood_mat: StandardMaterial3D
 static var _cabin_wall_mat: StandardMaterial3D
@@ -177,12 +189,92 @@ static func _get_tree_bark_mat() -> StandardMaterial3D:
 		_tree_bark_mat.roughness = 0.95
 	return _tree_bark_mat
 
-static func _get_tree_foliage_mat() -> StandardMaterial3D:
+static func _get_tree_foliage_mat() -> Material:
 	if not _tree_foliage_mat:
-		_tree_foliage_mat = StandardMaterial3D.new()
-		_tree_foliage_mat.albedo_color = Color(0.035, 0.06, 0.04, 1.0) # Deep blackish green needles
-		_tree_foliage_mat.roughness = 0.95
+		if not _tree_wind_shader:
+			_tree_wind_shader = Shader.new()
+			_tree_wind_shader.code = """
+shader_type spatial;
+render_mode blend_mix, cull_disabled, diffuse_burley;
+
+uniform vec4 foliage_color : source_color = vec4(0.032, 0.058, 0.038, 1.0);
+uniform float wind_speed = 1.6;
+uniform float wind_amplitude = 0.07;
+
+void vertex() {
+	float h = max(0.0, VERTEX.y - 1.0);
+	float wave = sin(TIME * wind_speed + NODE_POSITION_WORLD.x * 0.25 + VERTEX.y * 0.5) * wind_amplitude * h;
+	VERTEX.x += wave;
+	VERTEX.z += cos(TIME * wind_speed * 0.75 + NODE_POSITION_WORLD.z * 0.25 + VERTEX.y * 0.4) * (wind_amplitude * 0.75) * h;
+}
+
+void fragment() {
+	ALBEDO = foliage_color.rgb;
+	ROUGHNESS = 0.94;
+	SPECULAR = 0.12;
+}
+"""
+		_tree_foliage_mat = ShaderMaterial.new()
+		_tree_foliage_mat.shader = _tree_wind_shader
 	return _tree_foliage_mat
+
+static func _get_grass_wind_mat() -> Material:
+	if not _grass_wind_mat:
+		if not _grass_wind_shader:
+			_grass_wind_shader = Shader.new()
+			_grass_wind_shader.code = """
+shader_type spatial;
+render_mode blend_mix, cull_disabled;
+
+uniform vec4 grass_color : source_color = vec4(0.05, 0.085, 0.045, 1.0);
+
+void vertex() {
+	float h = clamp(VERTEX.y, 0.0, 1.0);
+	float sway = sin(TIME * 2.2 + NODE_POSITION_WORLD.x * 0.4) * 0.05 * h;
+	VERTEX.x += sway;
+}
+
+void fragment() {
+	ALBEDO = grass_color.rgb;
+	ROUGHNESS = 0.95;
+	SPECULAR = 0.1;
+}
+"""
+		_grass_wind_mat = ShaderMaterial.new()
+		_grass_wind_mat.shader = _grass_wind_shader
+	return _grass_wind_mat
+
+static func _get_fern_mat() -> StandardMaterial3D:
+	if not _fern_mat:
+		_fern_mat = StandardMaterial3D.new()
+		_fern_mat.albedo_color = Color(0.04, 0.075, 0.035, 1.0)
+		_fern_mat.roughness = 0.88
+	return _fern_mat
+
+static func _get_wet_log_mat() -> StandardMaterial3D:
+	if not _wet_log_mat:
+		_wet_log_mat = StandardMaterial3D.new()
+		_wet_log_mat.albedo_color = Color(0.14, 0.11, 0.08, 1.0)
+		_wet_log_mat.roughness = 0.65
+		_wet_log_mat.metallic = 0.05
+	return _wet_log_mat
+
+static func _get_organic_flesh_mat() -> StandardMaterial3D:
+	if not _organic_flesh_mat:
+		_organic_flesh_mat = StandardMaterial3D.new()
+		_organic_flesh_mat.albedo_color = Color(0.25, 0.04, 0.05, 1.0)
+		_organic_flesh_mat.roughness = 0.25
+		_organic_flesh_mat.metallic = 0.1
+	return _organic_flesh_mat
+
+static func _get_hazard_amber_blink_mat() -> StandardMaterial3D:
+	if not _hazard_amber_blink_mat:
+		_hazard_amber_blink_mat = StandardMaterial3D.new()
+		_hazard_amber_blink_mat.albedo_color = Color(1.0, 0.55, 0.05, 1.0)
+		_hazard_amber_blink_mat.emission_enabled = true
+		_hazard_amber_blink_mat.emission = Color(1.0, 0.5, 0.02, 1.0)
+		_hazard_amber_blink_mat.emission_energy_multiplier = 4.0
+	return _hazard_amber_blink_mat
 
 static func _get_bus_stop_mat() -> StandardMaterial3D:
 	if not _bus_stop_mat:
@@ -291,6 +383,20 @@ func spawn_events_for_segment(segment: RoadSegment, chunk_index: int, rng: Rando
 		if not occupied_slices.has(slice_idx):
 			occupied_slices.append(slice_idx)
 			_spawn_debris_cluster(segment, slice_idx, rng)
+
+	# 2b. Broken-down vehicle parked on shoulder with hazard lights blinking
+	if not has_supply_stop and rng.randf() < shoulder_breakdown_probability:
+		var slice_idx: int = rng.randi_range(1, slice_count - 2)
+		if not occupied_slices.has(slice_idx):
+			occupied_slices.append(slice_idx)
+			_spawn_shoulder_breakdown(segment, slice_idx, rng)
+
+	# 2c. Roadkill or strange organic obstruction near centerline requiring lane swerves
+	if allow_obstacles and rng.randf() < roadkill_probability:
+		var slice_idx: int = rng.randi_range(1, slice_count - 2)
+		if not occupied_slices.has(slice_idx):
+			occupied_slices.append(slice_idx)
+			_spawn_roadkill_obstruction(segment, slice_idx, rng)
 
 	# 3. Rustic Lampposts with Erratic Flicker
 	if rng.randf() < lamppost_probability:
@@ -737,82 +843,80 @@ func _spawn_milestone_marker(segment: RoadSegment, slice_idx: int, km_value: int
 	marker_root.transform = slice_tr * Transform3D(Basis.IDENTITY, local_offset)
 	segment.add_child(marker_root)
 
-## Spawns an eerie polygonal hitchhiker on the right verge with an outstretched thumb.
+## Spawns an eerie composite hitchhiker on the right verge with dynamic tracking and micro-interactions.
 func _spawn_hitchhiker(segment: RoadSegment, slice_idx: int, rng: RandomNumberGenerator) -> void:
 	var slice_tr: Transform3D = segment.get_slice_transform(slice_idx)
 	# Positioned right on the open gravel shoulder (X = 7.8m), completely accessible
 	var verge_x: float = 7.8 + rng.randf_range(-0.1, 0.1)
 
-	var hitchhiker_root := Hitchhiker.new()
+	var hitchhiker_root: Node3D = null
+	if HitchhikerScene:
+		hitchhiker_root = HitchhikerScene.instantiate()
+
+	if not hitchhiker_root:
+		# Fallback procedural generation if scene failed to load
+		hitchhiker_root = Hitchhiker.new()
+
+		var legs_mesh := BoxMesh.new()
+		legs_mesh.size = Vector3(0.36, 0.76, 0.28)
+		legs_mesh.material = _get_silhouette_mat()
+		var legs_inst := MeshInstance3D.new()
+		legs_inst.mesh = legs_mesh
+		legs_inst.position = Vector3(0.0, 0.38, 0.0)
+		hitchhiker_root.add_child(legs_inst)
+
+		var torso_mesh := BoxMesh.new()
+		torso_mesh.size = Vector3(0.46, 0.68, 0.32)
+		torso_mesh.material = _get_silhouette_mat()
+		var torso_inst := MeshInstance3D.new()
+		torso_inst.name = "Torso"
+		torso_inst.mesh = torso_mesh
+		torso_inst.position = Vector3(0.0, 1.10, 0.0)
+		hitchhiker_root.add_child(torso_inst)
+
+		var head_mesh := BoxMesh.new()
+		head_mesh.size = Vector3(0.28, 0.30, 0.28)
+		head_mesh.material = _get_silhouette_mat()
+		var head_inst := MeshInstance3D.new()
+		head_inst.name = "Head"
+		head_inst.mesh = head_mesh
+		head_inst.position = Vector3(0.0, 1.59, 0.0)
+		hitchhiker_root.add_child(head_inst)
+
+		var arm_mesh := BoxMesh.new()
+		arm_mesh.size = Vector3(0.70, 0.14, 0.14)
+		arm_mesh.material = _get_silhouette_mat()
+		var arm_inst := MeshInstance3D.new()
+		arm_inst.name = "RightArm"
+		arm_inst.mesh = arm_mesh
+		arm_inst.position = Vector3(-0.46, 1.20, 0.15)
+		hitchhiker_root.add_child(arm_inst)
+
+		var thumb_mesh := BoxMesh.new()
+		thumb_mesh.size = Vector3(0.10, 0.18, 0.10)
+		thumb_mesh.material = _get_silhouette_mat()
+		var thumb_inst := MeshInstance3D.new()
+		thumb_inst.mesh = thumb_mesh
+		thumb_inst.position = Vector3(-0.76, 1.32, 0.15)
+		hitchhiker_root.add_child(thumb_inst)
+
+		var hitch_body := StaticBody3D.new()
+		hitch_body.name = "HitchhikerCollision"
+		hitch_body.collision_layer = 1
+		hitch_body.collision_mask = 1
+		var hitch_col := CollisionShape3D.new()
+		var hitch_shape := BoxShape3D.new()
+		hitch_shape.size = Vector3(0.5, 1.8, 0.4)
+		hitch_col.shape = hitch_shape
+		hitch_col.position = Vector3(0.0, 0.9, 0.0)
+		hitch_body.add_child(hitch_col)
+		hitchhiker_root.add_child(hitch_body)
+
 	hitchhiker_root.name = "Hitchhiker_%d" % slice_idx
-
-	# Legs (BoxMesh) - 0.76m height
-	var legs_mesh := BoxMesh.new()
-	legs_mesh.size = Vector3(0.36, 0.76, 0.28)
-	legs_mesh.material = _get_silhouette_mat()
-
-	var legs_inst := MeshInstance3D.new()
-	legs_inst.mesh = legs_mesh
-	legs_inst.position = Vector3(0.0, 0.38, 0.0)
-	hitchhiker_root.add_child(legs_inst)
-
-	# Torso (BoxMesh) - 0.68m height
-	var torso_mesh := BoxMesh.new()
-	torso_mesh.size = Vector3(0.46, 0.68, 0.32)
-	torso_mesh.material = _get_silhouette_mat()
-
-	var torso_inst := MeshInstance3D.new()
-	torso_inst.name = "Torso"
-	torso_inst.mesh = torso_mesh
-	torso_inst.position = Vector3(0.0, 1.10, 0.0)
-	hitchhiker_root.add_child(torso_inst)
-
-	# Head (BoxMesh) - 0.30m height (total humanoid height ~1.8m)
-	var head_mesh := BoxMesh.new()
-	head_mesh.size = Vector3(0.28, 0.30, 0.28)
-	head_mesh.material = _get_silhouette_mat()
-
-	var head_inst := MeshInstance3D.new()
-	head_inst.name = "Head"
-	head_inst.mesh = head_mesh
-	head_inst.position = Vector3(0.0, 1.59, 0.0)
-	hitchhiker_root.add_child(head_inst)
-
-	# Outstretched hitchhiking arm (BoxMesh) pointing towards road / oncoming traffic
-	var arm_mesh := BoxMesh.new()
-	arm_mesh.size = Vector3(0.70, 0.14, 0.14)
-	arm_mesh.material = _get_silhouette_mat()
-
-	var arm_inst := MeshInstance3D.new()
-	arm_inst.mesh = arm_mesh
-	arm_inst.position = Vector3(-0.46, 1.20, 0.15)
-	hitchhiker_root.add_child(arm_inst)
-
-	# Thumb sticking up (BoxMesh)
-	var thumb_mesh := BoxMesh.new()
-	thumb_mesh.size = Vector3(0.10, 0.18, 0.10)
-	thumb_mesh.material = _get_silhouette_mat()
-
-	var thumb_inst := MeshInstance3D.new()
-	thumb_inst.mesh = thumb_mesh
-	thumb_inst.position = Vector3(-0.76, 1.32, 0.15)
-	hitchhiker_root.add_child(thumb_inst)
-
-	# Solid collision for hitchhiker
-	var hitch_body := StaticBody3D.new()
-	hitch_body.name = "HitchhikerCollision"
-	hitch_body.collision_layer = 1
-	hitch_body.collision_mask = 1
-	var hitch_col := CollisionShape3D.new()
-	var hitch_shape := BoxShape3D.new()
-	hitch_shape.size = Vector3(0.5, 1.8, 0.4)
-	hitch_col.shape = hitch_shape
-	hitch_col.position = Vector3(0.0, 0.9, 0.0)
-	hitch_body.add_child(hitch_col)
-	hitchhiker_root.add_child(hitch_body)
-
 	var local_offset := Vector3(verge_x, 0.2, 0.0)
-	hitchhiker_root.transform = slice_tr * Transform3D(Basis.IDENTITY, local_offset)
+	# Initially angled facing oncoming traffic (165 degrees on Y axis)
+	var initial_basis := Basis(Vector3.UP, deg_to_rad(165.0))
+	hitchhiker_root.transform = slice_tr * Transform3D(initial_basis, local_offset)
 	segment.add_child(hitchhiker_root)
 
 ## Spawns an open rural bus stop shelter with 3 walls, slanted roof, and optional interior presence.
@@ -964,11 +1068,14 @@ func _spawn_bus_stop(segment: RoadSegment, slice_idx: int, rng: RandomNumberGene
 	shelter_root.transform = slice_tr * Transform3D(Basis.IDENTITY, local_offset)
 	segment.add_child(shelter_root)
 
-## Spawns dense pine forest tree silhouettes along outer road margins in 3 depth layers.
+## Spawns dense pine forest tree silhouettes along outer road margins in 3 depth layers with undergrowth.
 func _spawn_woods_for_segment(segment: RoadSegment, rng: RandomNumberGenerator) -> void:
 	var slice_count: int = segment.get_slice_count()
 	var bark_mat := _get_tree_bark_mat()
 	var foliage_mat := _get_tree_foliage_mat()
+	var grass_mat := _get_grass_wind_mat()
+	var fern_mat := _get_fern_mat()
+	var log_mat := _get_wet_log_mat()
 
 	for i in range(slice_count):
 		var slice_tr: Transform3D = segment.get_slice_transform(i)
@@ -1009,16 +1116,79 @@ func _spawn_woods_for_segment(segment: RoadSegment, rng: RandomNumberGenerator) 
 			var z_dist: float = rng.randf_range(-4.0, 4.0)
 			_spawn_tree(segment, slice_tr, Vector3(x_dist, 0.0, z_dist), bark_mat, foliage_mat, rng, false, 11.0, 16.5)
 
-## Helper to build an individual pine tree from CylinderMesh primitives.
-func _spawn_tree(segment: RoadSegment, slice_tr: Transform3D, local_offset: Vector3, bark_mat: StandardMaterial3D, foliage_mat: StandardMaterial3D, rng: RandomNumberGenerator, has_collision: bool = true, min_h: float = 6.5, max_h: float = 9.5) -> void:
+		# Undergrowth: roadside grass tufts along the verge and ditch banks
+		var grass_count: int = rng.randi_range(2, 4)
+		for g in range(grass_count):
+			var g_left: bool = rng.randf() < 0.5
+			var g_x: float = rng.randf_range(-13.5, -9.0) if g_left else rng.randf_range(9.0, 13.5)
+			var g_z: float = rng.randf_range(-4.5, 4.5)
+
+			var grass_root := Node3D.new()
+			for blade_i in range(2):
+				var blade := BoxMesh.new()
+				blade.size = Vector3(0.42, 0.45, 0.02)
+				blade.material = grass_mat
+				var b_inst := MeshInstance3D.new()
+				b_inst.mesh = blade
+				b_inst.position = Vector3(0.0, 0.22, 0.0)
+				b_inst.rotation.y = float(blade_i) * (PI * 0.5) + rng.randf_range(-0.3, 0.3)
+				grass_root.add_child(b_inst)
+
+			grass_root.transform = slice_tr * Transform3D(Basis.IDENTITY, Vector3(g_x, 0.2, g_z))
+			segment.add_child(grass_root)
+
+		# Roadside ferns near ditch banks
+		if rng.randf() < 0.45:
+			var f_left: bool = rng.randf() < 0.5
+			var f_x: float = rng.randf_range(-14.0, -10.5) if f_left else rng.randf_range(10.5, 14.0)
+			var f_z: float = rng.randf_range(-4.0, 4.0)
+			var fern_root := Node3D.new()
+			for f_i in range(4):
+				var f_angle: float = float(f_i) * (TAU / 4.0)
+				var frond := PrismMesh.new()
+				frond.size = Vector3(0.24, 0.55, 0.02)
+				frond.material = fern_mat
+				var frond_inst := MeshInstance3D.new()
+				frond_inst.mesh = frond
+				frond_inst.position = Vector3(sin(f_angle) * 0.25, 0.18, cos(f_angle) * 0.25)
+				frond_inst.rotation.y = f_angle
+				frond_inst.rotation.x = deg_to_rad(35.0)
+				fern_root.add_child(frond_inst)
+
+			fern_root.transform = slice_tr * Transform3D(Basis.IDENTITY, Vector3(f_x, 0.15, f_z))
+			segment.add_child(fern_root)
+
+		# Fallen wet mossy logs along roadside perimeter
+		if rng.randf() < 0.25:
+			var l_left: bool = rng.randf() < 0.5
+			var l_x: float = rng.randf_range(-18.0, -13.0) if l_left else rng.randf_range(13.0, 18.0)
+			var l_z: float = rng.randf_range(-3.5, 3.5)
+			var log_mesh := CylinderMesh.new()
+			log_mesh.top_radius = rng.randf_range(0.20, 0.28)
+			log_mesh.bottom_radius = log_mesh.top_radius * 1.15
+			log_mesh.height = rng.randf_range(3.2, 4.8)
+			log_mesh.material = log_mat
+			var log_inst := MeshInstance3D.new()
+			log_inst.mesh = log_mesh
+			log_inst.position = Vector3(0.0, log_mesh.top_radius * 0.9, 0.0)
+			log_inst.rotation.x = deg_to_rad(90.0)
+			log_inst.rotation.y = rng.randf_range(-0.6, 0.6)
+
+			var log_root := Node3D.new()
+			log_root.add_child(log_inst)
+			log_root.transform = slice_tr * Transform3D(Basis.IDENTITY, Vector3(l_x, 0.1, l_z))
+			segment.add_child(log_root)
+
+## Helper to build a composite layered conifer pine model with 4 staggered tiers and root swells.
+func _spawn_tree(segment: RoadSegment, slice_tr: Transform3D, local_offset: Vector3, bark_mat: StandardMaterial3D, foliage_mat: Material, rng: RandomNumberGenerator, has_collision: bool = true, min_h: float = 6.5, max_h: float = 9.5) -> void:
 	var tree_root := Node3D.new()
 	var height: float = rng.randf_range(min_h, max_h)
-	var trunk_h: float = height * 0.45
+	var trunk_h: float = height * 0.42
 
 	# Trunk (CylinderMesh)
 	var trunk_mesh := CylinderMesh.new()
-	trunk_mesh.top_radius = 0.2
-	trunk_mesh.bottom_radius = 0.32
+	trunk_mesh.top_radius = 0.18
+	trunk_mesh.bottom_radius = 0.35
 	trunk_mesh.height = trunk_h
 	trunk_mesh.material = bark_mat
 
@@ -1027,8 +1197,20 @@ func _spawn_tree(segment: RoadSegment, slice_tr: Transform3D, local_offset: Vect
 	trunk_inst.position = Vector3(0.0, trunk_h * 0.5, 0.0)
 	tree_root.add_child(trunk_inst)
 
+	# Exposed root swell wedges at the base spreading into ditch banks
+	for r_i in range(3):
+		var root_angle: float = float(r_i) * (TAU / 3.0) + rng.randf_range(-0.2, 0.2)
+		var root_mesh := PrismMesh.new()
+		root_mesh.size = Vector3(0.18, 0.35, 0.55)
+		root_mesh.material = bark_mat
+		var root_inst := MeshInstance3D.new()
+		root_inst.mesh = root_mesh
+		root_inst.position = Vector3(sin(root_angle) * 0.28, 0.15, cos(root_angle) * 0.28)
+		root_inst.rotation.y = root_angle
+		root_inst.rotation.x = deg_to_rad(20.0)
+		tree_root.add_child(root_inst)
+
 	if has_collision:
-		# Solid trunk collision to punish off-road crashes against trees
 		var tree_body := StaticBody3D.new()
 		tree_body.name = "TreeCollision"
 		tree_body.collision_layer = 1
@@ -1038,24 +1220,34 @@ func _spawn_tree(segment: RoadSegment, slice_tr: Transform3D, local_offset: Vect
 		var tree_col := CollisionShape3D.new()
 		var tree_shape := CylinderShape3D.new()
 		tree_shape.height = trunk_h
-		tree_shape.radius = 0.35
+		tree_shape.radius = 0.38
 		tree_col.shape = tree_shape
 		tree_col.position = Vector3(0.0, trunk_h * 0.5, 0.0)
 		tree_body.add_child(tree_col)
 		tree_root.add_child(tree_body)
 
-	# Foliage cone (CylinderMesh with top_radius = 0)
-	var foliage_h: float = height * 0.7
-	var foliage_mesh := CylinderMesh.new()
-	foliage_mesh.top_radius = 0.0
-	foliage_mesh.bottom_radius = rng.randf_range(1.6, 2.5) * (height / 8.0)
-	foliage_mesh.height = foliage_h
-	foliage_mesh.material = foliage_mat
+	# Composite Layered Conifer Canopy: 4 staggered intersecting conical tiers
+	var base_r: float = rng.randf_range(1.6, 2.5) * (height / 8.0)
+	var tier_count: int = 4
+	var canopy_base_y: float = trunk_h * 0.70
+	var tier_step: float = (height - canopy_base_y) / float(tier_count + 0.5)
 
-	var foliage_inst := MeshInstance3D.new()
-	foliage_inst.mesh = foliage_mesh
-	foliage_inst.position = Vector3(0.0, trunk_h + (foliage_h * 0.45), 0.0)
-	tree_root.add_child(foliage_inst)
+	var tier_radii: Array[float] = [base_r, base_r * 0.78, base_r * 0.56, base_r * 0.34]
+	var tier_heights: Array[float] = [tier_step * 1.5, tier_step * 1.35, tier_step * 1.2, tier_step * 1.1]
+
+	for t_idx in range(tier_count):
+		var tier_mesh := CylinderMesh.new()
+		tier_mesh.top_radius = 0.0
+		tier_mesh.bottom_radius = tier_radii[t_idx]
+		tier_mesh.height = tier_heights[t_idx]
+		tier_mesh.material = foliage_mat
+
+		var tier_inst := MeshInstance3D.new()
+		tier_inst.mesh = tier_mesh
+		var tier_y: float = canopy_base_y + (float(t_idx) * tier_step) + (tier_heights[t_idx] * 0.45)
+		tier_inst.position = Vector3(0.0, tier_y, 0.0)
+		tier_inst.rotation.y = rng.randf_range(-PI, PI)
+		tree_root.add_child(tier_inst)
 
 	tree_root.transform = slice_tr * Transform3D(Basis.IDENTITY, local_offset)
 	segment.add_child(tree_root)
@@ -1238,3 +1430,147 @@ func _spawn_highway_guide_sign(segment: RoadSegment, slice_idx: int, rng: Random
 	var local_offset := Vector3(verge_x, 0.2, 0.0)
 	sign_root.transform = slice_tr * Transform3D(Basis.IDENTITY, local_offset)
 	segment.add_child(sign_root)
+
+## Spawns a broken-down vehicle parked on the shoulder with hazard lights blinking and open door.
+func _spawn_shoulder_breakdown(segment: RoadSegment, slice_idx: int, rng: RandomNumberGenerator) -> void:
+	var slice_tr: Transform3D = segment.get_slice_transform(slice_idx)
+	var shoulder_x: float = 7.9
+
+	var car_root := StaticBody3D.new()
+	car_root.name = "ShoulderBreakdown_%d" % slice_idx
+	car_root.collision_layer = 1
+	car_root.collision_mask = 1
+	car_root.add_to_group("heavy_obstacle")
+
+	var rust_mat := _get_rust_material()
+	var glass_mat := _get_cabin_glass_mat()
+	var hazard_mat := _get_hazard_amber_blink_mat()
+
+	# Lower body / chassis
+	var body_mesh := BoxMesh.new()
+	body_mesh.size = Vector3(1.9, 0.65, 4.1)
+	body_mesh.material = rust_mat
+	var body_inst := MeshInstance3D.new()
+	body_inst.mesh = body_mesh
+	body_inst.position = Vector3(0.0, 0.55, 0.0)
+	car_root.add_child(body_inst)
+
+	# Cabin with dark glass
+	var cabin_mesh := BoxMesh.new()
+	cabin_mesh.size = Vector3(1.65, 0.55, 1.9)
+	cabin_mesh.material = glass_mat
+	var cabin_inst := MeshInstance3D.new()
+	cabin_inst.mesh = cabin_mesh
+	cabin_inst.position = Vector3(0.0, 1.15, -0.1)
+	car_root.add_child(cabin_inst)
+
+	# Open driver door casting a silhouette into the fog
+	var door_mesh := BoxMesh.new()
+	door_mesh.size = Vector3(0.12, 0.85, 1.1)
+	door_mesh.material = rust_mat
+	var door_inst := MeshInstance3D.new()
+	door_inst.mesh = door_mesh
+	door_inst.position = Vector3(-0.95, 0.85, 0.2)
+	door_inst.rotation.y = deg_to_rad(-55.0)
+	car_root.add_child(door_inst)
+
+	# 4 dark tires
+	for wheel_pos in [Vector3(-0.95, 0.35, -1.2), Vector3(0.95, 0.35, -1.2), Vector3(-0.95, 0.35, 1.2), Vector3(0.95, 0.35, 1.2)]:
+		var wheel_mesh := CylinderMesh.new()
+		wheel_mesh.top_radius = 0.34
+		wheel_mesh.bottom_radius = 0.34
+		wheel_mesh.height = 0.24
+		wheel_mesh.material = _get_silhouette_mat()
+		var wheel_inst := MeshInstance3D.new()
+		wheel_inst.mesh = wheel_mesh
+		wheel_inst.rotation.z = deg_to_rad(90.0)
+		wheel_inst.position = wheel_pos
+		car_root.add_child(wheel_inst)
+
+	# Blinking amber hazard taillights
+	for rear_x in [-0.82, 0.82]:
+		var light_box := BoxMesh.new()
+		light_box.size = Vector3(0.16, 0.12, 0.06)
+		light_box.material = hazard_mat
+		var l_inst := MeshInstance3D.new()
+		l_inst.mesh = light_box
+		l_inst.position = Vector3(rear_x, 0.65, 2.05)
+		car_root.add_child(l_inst)
+
+	# Pulsating amber hazard light casting glowing flares into the rain/fog
+	var hazard_light := FlickerLight.new()
+	hazard_light.position = Vector3(0.0, 0.75, 2.2)
+	hazard_light.light_color = Color(1.0, 0.55, 0.05, 1.0)
+	hazard_light.base_energy = 5.0
+	hazard_light.min_energy = 0.2
+	hazard_light.omni_range = 14.0
+	hazard_light.flicker_probability = 0.8
+	car_root.add_child(hazard_light)
+
+	var col_shape := BoxShape3D.new()
+	col_shape.size = Vector3(2.2, 1.4, 4.3)
+	var col := CollisionShape3D.new()
+	col.shape = col_shape
+	col.position = Vector3(0.0, 0.7, 0.0)
+	car_root.add_child(col)
+
+	var yaw: float = rng.randf_range(deg_to_rad(-8.0), deg_to_rad(8.0))
+	var local_tr := Transform3D(Basis(Vector3.UP, yaw), Vector3(shoulder_x, 0.0, 0.0))
+	car_root.transform = slice_tr * local_tr
+	segment.add_child(car_root)
+
+## Spawns strange low-poly organic roadkill/obstruction near the centerline requiring lane swerves.
+func _spawn_roadkill_obstruction(segment: RoadSegment, slice_idx: int, rng: RandomNumberGenerator) -> void:
+	var slice_tr: Transform3D = segment.get_slice_transform(slice_idx)
+	var center_offset_x: float = rng.randf_range(-1.4, 1.4)
+
+	var roadkill_root := StaticBody3D.new()
+	roadkill_root.name = "RoadkillObstruction_%d" % slice_idx
+	roadkill_root.collision_layer = 1
+	roadkill_root.collision_mask = 1
+	roadkill_root.add_to_group("heavy_obstacle")
+
+	var flesh_mat := _get_organic_flesh_mat()
+	var blood_mat := _get_blood_crimson_mat()
+
+	# Large slick puddle of coagulated crimson blood on asphalt
+	var puddle_mesh := BoxMesh.new()
+	puddle_mesh.size = Vector3(2.4, 0.015, 2.8)
+	puddle_mesh.material = blood_mat
+	var puddle_inst := MeshInstance3D.new()
+	puddle_inst.mesh = puddle_mesh
+	puddle_inst.position = Vector3(0.0, 0.51, 0.0)
+	roadkill_root.add_child(puddle_inst)
+
+	# Distorted organic body mass
+	var body_mesh := BoxMesh.new()
+	body_mesh.size = Vector3(1.3, 0.48, 1.6)
+	body_mesh.material = flesh_mat
+	var body_inst := MeshInstance3D.new()
+	body_inst.mesh = body_mesh
+	body_inst.position = Vector3(0.0, 0.72, 0.0)
+	body_inst.rotation.y = rng.randf_range(-PI, PI)
+	roadkill_root.add_child(body_inst)
+
+	# Projecting organic horns / twisted limbs
+	for limb_i in range(3):
+		var limb_mesh := PrismMesh.new()
+		limb_mesh.size = Vector3(0.24, 0.65, 0.24)
+		limb_mesh.material = flesh_mat
+		var limb_inst := MeshInstance3D.new()
+		limb_inst.mesh = limb_mesh
+		limb_inst.position = Vector3(rng.randf_range(-0.4, 0.4), 0.85, rng.randf_range(-0.5, 0.5))
+		limb_inst.rotation = Vector3(rng.randf_range(-0.4, 0.4), rng.randf_range(-PI, PI), rng.randf_range(-0.4, 0.4))
+		roadkill_root.add_child(limb_inst)
+
+	# Solid collider
+	var col_shape := BoxShape3D.new()
+	col_shape.size = Vector3(1.6, 0.8, 1.8)
+	var col := CollisionShape3D.new()
+	col.shape = col_shape
+	col.position = Vector3(0.0, 0.7, 0.0)
+	roadkill_root.add_child(col)
+
+	var local_tr := Transform3D(Basis.IDENTITY, Vector3(center_offset_x, 0.0, 0.0))
+	roadkill_root.transform = slice_tr * local_tr
+	segment.add_child(roadkill_root)

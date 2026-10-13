@@ -40,47 +40,199 @@ var static_body: StaticBody3D
 var exit_marker: Marker3D
 var slice_transforms: Array[Transform3D] = []
 
-# Static shared materials to optimize draw calls and shader memory
-static var _road_material: StandardMaterial3D
+# Static shared materials and shaders to optimize draw calls and shader memory
+static var _road_shader: Shader
+static var _road_material: ShaderMaterial
+static var _worn_marking_shader: Shader
+static var _marking_material: ShaderMaterial
+static var _fog_line_material: ShaderMaterial
+static var _stud_housing_mat: StandardMaterial3D
+static var _stud_reflector_mat: StandardMaterial3D
+static var _curb_asphalt_mat: StandardMaterial3D
+static var _transformer_metal_mat: StandardMaterial3D
+
 static var _shoulder_material: StandardMaterial3D
 static var _ditch_material: StandardMaterial3D
 static var _barrier_material: StandardMaterial3D
 static var _guardrail_post_mat: StandardMaterial3D
-static var _marking_material: StandardMaterial3D
-static var _fog_line_material: StandardMaterial3D
 static var _reflector_amber_mat: StandardMaterial3D
 static var _sign_post_mat: StandardMaterial3D
 static var _telegraph_wood_mat: StandardMaterial3D
 static var _cable_wire_mat: StandardMaterial3D
 static var _insulator_mat: StandardMaterial3D
 
-static func get_road_material() -> StandardMaterial3D:
+static func get_road_material() -> Material:
 	if not _road_material:
-		_road_material = StandardMaterial3D.new()
-		# Wet dark rural asphalt with glossy rain puddle noise
-		_road_material.albedo_color = Color(0.125, 0.13, 0.145, 1.0)
-		_road_material.roughness = 0.24 # Glossy wet asphalt baseline
-		_road_material.metallic = 0.05
-		_road_material.metallic_specular = 0.85
+		if not _road_shader:
+			_road_shader = Shader.new()
+			_road_shader.code = """
+shader_type spatial;
+render_mode blend_mix, depth_draw_opaque, cull_back, diffuse_burley, specular_schlick_ggx;
 
-		# Procedural puddle noise texture modulates surface roughness
+uniform sampler2D noise_puddles : hint_default_white, filter_linear_mipmap, repeat_enable;
+uniform sampler2D noise_normal : hint_normal, filter_linear_mipmap, repeat_enable;
+
+uniform vec3 gravel_color : source_color = vec3(0.125, 0.13, 0.145);
+uniform vec3 puddle_color : source_color = vec3(0.045, 0.048, 0.055);
+uniform float puddle_threshold : hint_range(0.0, 1.0) = 0.44;
+uniform float puddle_blend_softness : hint_range(0.01, 0.5) = 0.12;
+
+uniform float gravel_roughness : hint_range(0.0, 1.0) = 0.85;
+uniform float puddle_roughness : hint_range(0.0, 1.0) = 0.08;
+
+uniform float gravel_specular : hint_range(0.0, 1.0) = 0.22;
+uniform float puddle_specular : hint_range(0.0, 1.0) = 0.96;
+
+void fragment() {
+	vec2 p_uv = UV * vec2(2.4, 7.5);
+	float n = texture(noise_puddles, p_uv).r;
+	float puddle_factor = smoothstep(puddle_threshold - puddle_blend_softness, puddle_threshold + puddle_blend_softness, n);
+
+	ALBEDO = mix(gravel_color, puddle_color, puddle_factor);
+	ROUGHNESS = mix(gravel_roughness, puddle_roughness, puddle_factor);
+	SPECULAR = mix(gravel_specular, puddle_specular, puddle_factor);
+	METALLIC = mix(0.02, 0.14, puddle_factor);
+
+	vec3 gravel_norm = texture(noise_normal, UV * vec2(16.0, 64.0)).rgb * 2.0 - 1.0;
+	NORMAL = mix(normalize(NORMAL + gravel_norm * 0.24), NORMAL, puddle_factor);
+}
+"""
+		_road_material = ShaderMaterial.new()
+		_road_material.shader = _road_shader
+
+		# Procedural FastNoiseLite puddle distribution map
+		var p_noise := FastNoiseLite.new()
+		p_noise.noise_type = FastNoiseLite.TYPE_SIMPLEX
+		p_noise.frequency = 0.035
+		p_noise.fractal_octaves = 3
+		var p_tex := NoiseTexture2D.new()
+		p_tex.width = 512
+		p_tex.height = 512
+		p_tex.seamless = true
+		p_tex.noise = p_noise
+		_road_material.set_shader_parameter("noise_puddles", p_tex)
+
+		# Procedural FastNoiseLite normal map for asphalt micro-gravel texture
+		var n_noise := FastNoiseLite.new()
+		n_noise.noise_type = FastNoiseLite.TYPE_PERLIN
+		n_noise.frequency = 0.12
+		n_noise.fractal_octaves = 4
+		var n_tex := NoiseTexture2D.new()
+		n_tex.width = 256
+		n_tex.height = 256
+		n_tex.seamless = true
+		n_tex.as_normal_map = true
+		n_tex.bump_strength = 2.5
+		n_tex.noise = n_noise
+		_road_material.set_shader_parameter("noise_normal", n_tex)
+
+	return _road_material
+
+static func _get_worn_marking_shader() -> Shader:
+	if not _worn_marking_shader:
+		_worn_marking_shader = Shader.new()
+		_worn_marking_shader.code = """
+shader_type spatial;
+render_mode blend_mix, depth_draw_opaque, cull_back;
+
+uniform sampler2D noise_wear : hint_default_white, filter_linear_mipmap, repeat_enable;
+uniform vec4 paint_color : source_color = vec4(1.0, 0.85, 0.05, 1.0);
+uniform float emission_energy : hint_range(0.0, 5.0) = 0.85;
+uniform float wear_threshold : hint_range(0.0, 1.0) = 0.32;
+
+void fragment() {
+	float n = texture(noise_wear, UV * vec2(4.0, 14.0)).r;
+	if (n < wear_threshold) {
+		discard;
+	}
+	float wear_factor = smoothstep(wear_threshold, wear_threshold + 0.28, n);
+	ALBEDO = paint_color.rgb * mix(0.70, 1.0, wear_factor);
+	ROUGHNESS = mix(0.68, 0.20, wear_factor);
+	SPECULAR = mix(0.18, 0.75, wear_factor);
+	EMISSION = paint_color.rgb * (emission_energy * wear_factor);
+}
+"""
+	return _worn_marking_shader
+
+static func get_marking_material() -> Material:
+	if not _marking_material:
+		var mat := ShaderMaterial.new()
+		mat.shader = _get_worn_marking_shader()
+		mat.set_shader_parameter("paint_color", Color(1.0, 0.85, 0.05, 1.0))
+		mat.set_shader_parameter("emission_energy", 0.95)
+		mat.set_shader_parameter("wear_threshold", 0.34)
+
 		var noise := FastNoiseLite.new()
 		noise.noise_type = FastNoiseLite.TYPE_SIMPLEX
-		noise.frequency = 0.04
+		noise.frequency = 0.08
 		noise.fractal_octaves = 3
-		var noise_tex := NoiseTexture2D.new()
-		noise_tex.width = 256
-		noise_tex.height = 256
-		noise_tex.seamless = true
-		noise_tex.noise = noise
-		_road_material.roughness_texture = noise_tex
-		_road_material.roughness_texture_channel = BaseMaterial3D.TEXTURE_CHANNEL_RED
-	return _road_material
+		var tex := NoiseTexture2D.new()
+		tex.width = 256
+		tex.height = 256
+		tex.seamless = true
+		tex.noise = noise
+		mat.set_shader_parameter("noise_wear", tex)
+		_marking_material = mat
+	return _marking_material
+
+static func get_fog_line_material() -> Material:
+	if not _fog_line_material:
+		var mat := ShaderMaterial.new()
+		mat.shader = _get_worn_marking_shader()
+		mat.set_shader_parameter("paint_color", Color(0.92, 0.92, 0.90, 1.0))
+		mat.set_shader_parameter("emission_energy", 0.55)
+		mat.set_shader_parameter("wear_threshold", 0.30)
+
+		var noise := FastNoiseLite.new()
+		noise.noise_type = FastNoiseLite.TYPE_SIMPLEX
+		noise.frequency = 0.07
+		noise.fractal_octaves = 3
+		var tex := NoiseTexture2D.new()
+		tex.width = 256
+		tex.height = 256
+		tex.seamless = true
+		tex.noise = noise
+		mat.set_shader_parameter("noise_wear", tex)
+		_fog_line_material = mat
+	return _fog_line_material
+
+static func get_stud_housing_material() -> StandardMaterial3D:
+	if not _stud_housing_mat:
+		_stud_housing_mat = StandardMaterial3D.new()
+		_stud_housing_mat.albedo_color = Color(0.12, 0.12, 0.14, 1.0)
+		_stud_housing_mat.metallic = 0.8
+		_stud_housing_mat.roughness = 0.35
+	return _stud_housing_mat
+
+static func get_stud_reflector_material() -> StandardMaterial3D:
+	if not _stud_reflector_mat:
+		_stud_reflector_mat = StandardMaterial3D.new()
+		_stud_reflector_mat.albedo_color = Color(1.0, 0.72, 0.08, 1.0)
+		_stud_reflector_mat.roughness = 0.12
+		_stud_reflector_mat.emission_enabled = true
+		_stud_reflector_mat.emission = Color(1.0, 0.68, 0.05, 1.0)
+		_stud_reflector_mat.emission_energy_multiplier = 3.5
+	return _stud_reflector_mat
+
+static func get_curb_asphalt_material() -> StandardMaterial3D:
+	if not _curb_asphalt_mat:
+		_curb_asphalt_mat = StandardMaterial3D.new()
+		_curb_asphalt_mat.albedo_color = Color(0.10, 0.10, 0.11, 1.0)
+		_curb_asphalt_mat.roughness = 0.75
+		_curb_asphalt_mat.metallic = 0.05
+	return _curb_asphalt_mat
+
+static func get_transformer_metal_material() -> StandardMaterial3D:
+	if not _transformer_metal_mat:
+		_transformer_metal_mat = StandardMaterial3D.new()
+		_transformer_metal_mat.albedo_color = Color(0.32, 0.34, 0.38, 1.0)
+		_transformer_metal_mat.metallic = 0.75
+		_transformer_metal_mat.roughness = 0.40
+	return _transformer_metal_mat
 
 static func get_shoulder_material() -> StandardMaterial3D:
 	if not _shoulder_material:
 		_shoulder_material = StandardMaterial3D.new()
-		# Compacted gravel and unpaved damp dirt shoulder
 		_shoulder_material.albedo_color = Color(0.24, 0.21, 0.18, 1.0)
 		_shoulder_material.roughness = 0.82
 		_shoulder_material.metallic = 0.02
@@ -89,7 +241,6 @@ static func get_shoulder_material() -> StandardMaterial3D:
 static func get_ditch_material() -> StandardMaterial3D:
 	if not _ditch_material:
 		_ditch_material = StandardMaterial3D.new()
-		# Deep muddy roadside ditch soil with damp sheen
 		_ditch_material.albedo_color = Color(0.10, 0.09, 0.07, 1.0)
 		_ditch_material.roughness = 0.42
 		_ditch_material.metallic = 0.04
@@ -98,7 +249,6 @@ static func get_ditch_material() -> StandardMaterial3D:
 static func get_barrier_material() -> StandardMaterial3D:
 	if not _barrier_material:
 		_barrier_material = StandardMaterial3D.new()
-		# Galvanized corrugated metallic W-beam guardrail
 		_barrier_material.albedo_color = Color(0.44, 0.46, 0.50, 1.0)
 		_barrier_material.roughness = 0.32
 		_barrier_material.metallic = 0.85
@@ -107,35 +257,10 @@ static func get_barrier_material() -> StandardMaterial3D:
 static func get_guardrail_post_material() -> StandardMaterial3D:
 	if not _guardrail_post_mat:
 		_guardrail_post_mat = StandardMaterial3D.new()
-		# Weathered dark steel / timber guardrail post
 		_guardrail_post_mat.albedo_color = Color(0.18, 0.18, 0.20, 1.0)
 		_guardrail_post_mat.roughness = 0.85
 		_guardrail_post_mat.metallic = 0.35
 	return _guardrail_post_mat
-
-static func get_marking_material() -> StandardMaterial3D:
-	if not _marking_material:
-		_marking_material = StandardMaterial3D.new()
-		# High-visibility retro-reflective yellow markings with wet reflection
-		_marking_material.albedo_color = Color(1.0, 0.85, 0.05, 1.0)
-		_marking_material.roughness = 0.20
-		_marking_material.metallic = 0.05
-		_marking_material.emission_enabled = true
-		_marking_material.emission = Color(1.0, 0.85, 0.05, 1.0)
-		_marking_material.emission_energy_multiplier = 0.85
-	return _marking_material
-
-static func get_fog_line_material() -> StandardMaterial3D:
-	if not _fog_line_material:
-		_fog_line_material = StandardMaterial3D.new()
-		# Solid white retro-reflective edge fog lines
-		_fog_line_material.albedo_color = Color(0.92, 0.92, 0.90, 1.0)
-		_fog_line_material.roughness = 0.26
-		_fog_line_material.metallic = 0.05
-		_fog_line_material.emission_enabled = true
-		_fog_line_material.emission = Color(0.85, 0.85, 0.82, 1.0)
-		_fog_line_material.emission_energy_multiplier = 0.45
-	return _fog_line_material
 
 static func get_reflector_amber_material() -> StandardMaterial3D:
 	if not _reflector_amber_mat:
@@ -297,6 +422,9 @@ func build_segment() -> void:
 			stripe_right_inst.transform = Transform3D(slice_basis, slice_center + slice_basis * right_stripe_local)
 			static_body.add_child(stripe_right_inst)
 
+		# 2b. Embedded reflective road studs (cat's eyes / retroreflectors) spaced along the divider
+		_build_road_studs(i, slice_basis, slice_center, slice_length, marking_y)
+
 		var half_road: float = road_width * 0.5
 
 		# Solid white retro-reflective edge fog lines (demarcating asphalt edge from shoulder)
@@ -327,6 +455,31 @@ func build_segment() -> void:
 		var fog_right_local := Vector3(fog_line_offset_x, marking_y, 0.0)
 		fog_right_inst.transform = Transform3D(slice_basis, slice_center + slice_basis * fog_right_local)
 		static_body.add_child(fog_right_inst)
+
+		# 2c. Beveled Dark Asphalt Curbs transitioning to gravel shoulder
+		var curb_mat := get_curb_asphalt_material()
+		var curb_w: float = 0.35
+		var curb_center_x: float = half_road + (curb_w * 0.5)
+
+		var curb_left_mesh := BoxMesh.new()
+		curb_left_mesh.size = Vector3(curb_w, road_thickness, slice_box_length)
+		curb_left_mesh.material = curb_mat
+		var curb_left_inst := MeshInstance3D.new()
+		curb_left_inst.name = "CurbLeft_%d" % i
+		curb_left_inst.mesh = curb_left_mesh
+		var curb_left_local := Vector3(-curb_center_x, 0.0, 0.0)
+		curb_left_inst.transform = Transform3D(slice_basis, slice_center + slice_basis * curb_left_local)
+		static_body.add_child(curb_left_inst)
+
+		var curb_right_mesh := BoxMesh.new()
+		curb_right_mesh.size = Vector3(curb_w, road_thickness, slice_box_length)
+		curb_right_mesh.material = curb_mat
+		var curb_right_inst := MeshInstance3D.new()
+		curb_right_inst.name = "CurbRight_%d" % i
+		curb_right_inst.mesh = curb_right_mesh
+		var curb_right_local := Vector3(curb_center_x, 0.0, 0.0)
+		curb_right_inst.transform = Transform3D(slice_basis, slice_center + slice_basis * curb_right_local)
+		static_body.add_child(curb_right_inst)
 
 		# 3. Flat Compacted Dirt/Gravel Shoulders (Bermas) on both sides (flush with road top at Y = +0.5)
 		var shoulder_mat := get_shoulder_material()
@@ -746,6 +899,28 @@ func build_segment() -> void:
 				ins_inst.position = Vector3(ins_x, 7.27, 0.0)
 				pole_root.add_child(ins_inst)
 
+			# Utility transformer canister on selected poles (Requirement 4)
+			if i % 8 == 0:
+				var trans_mesh := CylinderMesh.new()
+				trans_mesh.top_radius = 0.28
+				trans_mesh.bottom_radius = 0.28
+				trans_mesh.height = 1.15
+				trans_mesh.material = get_transformer_metal_material()
+
+				var trans_inst := MeshInstance3D.new()
+				trans_inst.name = "Transformer"
+				trans_inst.mesh = trans_mesh
+				trans_inst.position = Vector3(0.42, 5.8, 0.0)
+				pole_root.add_child(trans_inst)
+
+				var bracket_mesh := BoxMesh.new()
+				bracket_mesh.size = Vector3(0.45, 0.08, 0.12)
+				bracket_mesh.material = get_transformer_metal_material()
+				var bracket_inst := MeshInstance3D.new()
+				bracket_inst.mesh = bracket_mesh
+				bracket_inst.position = Vector3(0.22, 5.8, 0.0)
+				pole_root.add_child(bracket_inst)
+
 			var pole_local := Vector3(pole_verge_x, 0.0, 0.0)
 			pole_root.transform = Transform3D(slice_basis, slice_center + slice_basis * pole_local)
 			static_body.add_child(pole_root)
@@ -863,3 +1038,44 @@ func _build_warning_sign(i: int, slice_basis: Basis, slice_center: Vector3, sign
 	var diamond_rot := slice_basis.rotated(slice_basis.z, deg_to_rad(45.0))
 	plate_inst.transform = Transform3D(diamond_rot, slice_center + slice_basis * (sign_local + Vector3(0.0, 0.65, 0.0)))
 	static_body.add_child(plate_inst)
+
+## Instantiates embedded reflective road studs (cat's eyes / retroreflectors) spaced along the divider lines.
+func _build_road_studs(slice_idx: int, slice_basis: Basis, slice_center: Vector3, slice_len: float, mark_y: float) -> void:
+	var housing_mat := get_stud_housing_material()
+	var reflector_mat := get_stud_reflector_material()
+
+	# Two road studs per slice along longitudinal axis
+	var z_offsets: Array[float] = [-slice_len * 0.25, slice_len * 0.25]
+	for idx in range(z_offsets.size()):
+		var z_off: float = z_offsets[idx]
+		var stud_root := Node3D.new()
+		stud_root.name = "RoadStud_%d_%d" % [slice_idx, idx]
+
+		# Dark metallic/rubber housing bevel box
+		var housing_mesh := BoxMesh.new()
+		housing_mesh.size = Vector3(0.16, 0.035, 0.18)
+		housing_mesh.material = housing_mat
+
+		var housing_inst := MeshInstance3D.new()
+		housing_inst.mesh = housing_mesh
+		housing_inst.position = Vector3(0.0, 0.015, 0.0)
+		stud_root.add_child(housing_inst)
+
+		# Forward retro-reflector lens (facing oncoming headlights from +Z)
+		var ref_fwd_mesh := BoxMesh.new()
+		ref_fwd_mesh.size = Vector3(0.11, 0.02, 0.03)
+		ref_fwd_mesh.material = reflector_mat
+		var ref_fwd := MeshInstance3D.new()
+		ref_fwd.mesh = ref_fwd_mesh
+		ref_fwd.position = Vector3(0.0, 0.02, 0.075)
+		stud_root.add_child(ref_fwd)
+
+		# Backward retro-reflector lens (facing headlights from -Z / rearview mirror)
+		var ref_bwd := MeshInstance3D.new()
+		ref_bwd.mesh = ref_fwd_mesh
+		ref_bwd.position = Vector3(0.0, 0.02, -0.075)
+		stud_root.add_child(ref_bwd)
+
+		var stud_local := Vector3(0.0, mark_y, z_off)
+		stud_root.transform = Transform3D(slice_basis, slice_center + slice_basis * stud_local)
+		static_body.add_child(stud_root)
