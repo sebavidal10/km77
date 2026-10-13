@@ -423,7 +423,7 @@ process_material = SubResource("ParticleProcessMaterial_spray")
 draw_pass_1 = SubResource("QuadMesh_spray")
 
 [node name="CameraTarget" type="Node3D" parent="." unique_id=615025000]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 4.5, 8.2)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 4.8, 8.5)
 
 [node name="HeadlightLeft" type="SpotLight3D" parent="." unique_id=615601642]
 transform = Transform3D(1, 0, 0, 0, 0.9862856, 0.1650476, 0, -0.1650476, 0.9862856, -0.65, 1.05, -2.65)

@@ -247,24 +247,19 @@ func _ensure_interact_action() -> void:
 		InputMap.action_add_event("interact", key_ev)
 
 func _apply_distance_fade(node: Node) -> void:
+	# Ensure distance fade is strictly disabled to prevent premature culling on proximity
 	if node is MeshInstance3D:
 		var mi := node as MeshInstance3D
 		if mi.material_override is BaseMaterial3D:
 			var mat := mi.material_override as BaseMaterial3D
-			mat.distance_fade_mode = BaseMaterial3D.DISTANCE_FADE_PIXEL_DITHER
-			mat.distance_fade_min_distance = 55.0
-			mat.distance_fade_max_distance = 75.0
+			mat.distance_fade_mode = BaseMaterial3D.DISTANCE_FADE_DISABLED
 		if mi.mesh and mi.mesh.material is BaseMaterial3D:
 			var mat := mi.mesh.material as BaseMaterial3D
-			mat.distance_fade_mode = BaseMaterial3D.DISTANCE_FADE_PIXEL_DITHER
-			mat.distance_fade_min_distance = 55.0
-			mat.distance_fade_max_distance = 75.0
+			mat.distance_fade_mode = BaseMaterial3D.DISTANCE_FADE_DISABLED
 		for i in range(mi.get_surface_override_material_count()):
 			var mat := mi.get_surface_override_material(i)
 			if mat is BaseMaterial3D:
 				var bmat := mat as BaseMaterial3D
-				bmat.distance_fade_mode = BaseMaterial3D.DISTANCE_FADE_PIXEL_DITHER
-				bmat.distance_fade_min_distance = 55.0
-				bmat.distance_fade_max_distance = 75.0
+				bmat.distance_fade_mode = BaseMaterial3D.DISTANCE_FADE_DISABLED
 	for child in node.get_children():
 		_apply_distance_fade(child)

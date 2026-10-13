@@ -24,6 +24,12 @@ func _ready() -> void:
 	add_to_group("chase_camera")
 	fov = base_fov
 	_ensure_target()
+	if target_node:
+		global_position = target_node.global_position
+		var van_node := target_node.get_parent() as Node3D
+		if van_node:
+			var look_target: Vector3 = van_node.global_position + (Vector3.UP * 0.4) - (van_node.global_transform.basis.z * 4.0)
+			transform = transform.looking_at(look_target, Vector3.UP)
 
 func _ensure_target() -> void:
 	if target_node and is_instance_valid(target_node):
@@ -59,7 +65,8 @@ func _physics_process(delta: float) -> void:
 			var v: Vector3 = van_node.velocity
 			speed_kmh = Vector3(v.x, 0.0, v.z).length() * 3.6
 
-		var look_target: Vector3 = van_node.global_position + (Vector3.UP * 0.45) - (van_node.global_transform.basis.z * 16.5)
+		# Look target adjusted to achieve comfortable downward pitch (~19° to 20°) looking over the roof toward the road ahead
+		var look_target: Vector3 = van_node.global_position + (Vector3.UP * 0.4) - (van_node.global_transform.basis.z * 4.0)
 		var target_transform: Transform3D = transform.looking_at(look_target, Vector3.UP)
 		transform.basis = transform.basis.slerp(target_transform.basis, rotation_speed * delta)
 
