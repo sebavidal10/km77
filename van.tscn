@@ -346,6 +346,29 @@ height = 0.31
 material = SubResource("StandardMaterial3D_hub")
 size = Vector3(0.305, 0.045, 0.36)
 
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_spray_mist"]
+transparency = 1
+shading_mode = 0
+albedo_color = Color(0.85, 0.88, 0.92, 0.28)
+billboard_mode = 3
+particles_anim_h_frames = 1
+particles_anim_v_frames = 1
+particles_anim_loop = false
+
+[sub_resource type="QuadMesh" id="QuadMesh_spray"]
+material = SubResource("StandardMaterial3D_spray_mist")
+size = Vector2(0.45, 0.45)
+
+[sub_resource type="ParticleProcessMaterial" id="ParticleProcessMaterial_spray"]
+direction = Vector3(0, 0.45, 1)
+spread = 22.0
+initial_velocity_min = 5.0
+initial_velocity_max = 9.0
+gravity = Vector3(0, -1.8, 0)
+scale_min = 0.6
+scale_max = 1.6
+color = Color(0.85, 0.88, 0.92, 0.35)
+
 [node name="Van" type="CharacterBody3D" unique_id=686971467]
 collision_layer = 1
 collision_mask = 1
@@ -380,6 +403,24 @@ shape = SubResource("SphereShape3D_wheel")
 [node name="WheelColRR" type="CollisionShape3D" parent="." unique_id=2139074411]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.95, 0.35, 1.25)
 shape = SubResource("SphereShape3D_wheel")
+
+[node name="SprayParticlesLeft" type="GPUParticles3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.95, 0.25, 1.7)
+emitting = false
+amount = 24
+lifetime = 0.4
+local_coords = false
+process_material = SubResource("ParticleProcessMaterial_spray")
+draw_pass_1 = SubResource("QuadMesh_spray")
+
+[node name="SprayParticlesRight" type="GPUParticles3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.95, 0.25, 1.7)
+emitting = false
+amount = 24
+lifetime = 0.4
+local_coords = false
+process_material = SubResource("ParticleProcessMaterial_spray")
+draw_pass_1 = SubResource("QuadMesh_spray")
 
 [node name="CameraTarget" type="Node3D" parent="." unique_id=615025000]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3.3, 6.2)

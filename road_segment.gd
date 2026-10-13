@@ -39,6 +39,7 @@ enum SegmentType {
 var static_body: StaticBody3D
 var exit_marker: Marker3D
 var slice_transforms: Array[Transform3D] = []
+var segment_index: int = 0
 
 # Static shared materials and shaders to optimize draw calls and shader memory
 static var _road_shader: Shader
@@ -50,6 +51,8 @@ static var _stud_housing_mat: StandardMaterial3D
 static var _stud_reflector_mat: StandardMaterial3D
 static var _curb_asphalt_mat: StandardMaterial3D
 static var _transformer_metal_mat: StandardMaterial3D
+static var _streetlight_metal_mat: StandardMaterial3D
+static var _streetlight_lens_mat: StandardMaterial3D
 
 static var _shoulder_material: StandardMaterial3D
 static var _ditch_material: StandardMaterial3D
@@ -228,7 +231,33 @@ static func get_transformer_metal_material() -> StandardMaterial3D:
 		_transformer_metal_mat.albedo_color = Color(0.32, 0.34, 0.38, 1.0)
 		_transformer_metal_mat.metallic = 0.75
 		_transformer_metal_mat.roughness = 0.40
+		_transformer_metal_mat.distance_fade_mode = BaseMaterial3D.DISTANCE_FADE_PIXEL_DITHER
+		_transformer_metal_mat.distance_fade_min_distance = 55.0
+		_transformer_metal_mat.distance_fade_max_distance = 75.0
 	return _transformer_metal_mat
+
+static func get_streetlight_metal_material() -> StandardMaterial3D:
+	if not _streetlight_metal_mat:
+		_streetlight_metal_mat = StandardMaterial3D.new()
+		_streetlight_metal_mat.albedo_color = Color(0.22, 0.24, 0.26, 1.0)
+		_streetlight_metal_mat.roughness = 0.55
+		_streetlight_metal_mat.metallic = 0.75
+		_streetlight_metal_mat.distance_fade_mode = BaseMaterial3D.DISTANCE_FADE_PIXEL_DITHER
+		_streetlight_metal_mat.distance_fade_min_distance = 55.0
+		_streetlight_metal_mat.distance_fade_max_distance = 75.0
+	return _streetlight_metal_mat
+
+static func get_streetlight_lens_material() -> StandardMaterial3D:
+	if not _streetlight_lens_mat:
+		_streetlight_lens_mat = StandardMaterial3D.new()
+		_streetlight_lens_mat.albedo_color = Color(1.0, 0.69, 0.29, 1.0) # #ffb04a sodium amber
+		_streetlight_lens_mat.emission_enabled = true
+		_streetlight_lens_mat.emission = Color(1.0, 0.69, 0.29, 1.0)
+		_streetlight_lens_mat.emission_energy_multiplier = 3.5
+		_streetlight_lens_mat.distance_fade_mode = BaseMaterial3D.DISTANCE_FADE_PIXEL_DITHER
+		_streetlight_lens_mat.distance_fade_min_distance = 55.0
+		_streetlight_lens_mat.distance_fade_max_distance = 75.0
+	return _streetlight_lens_mat
 
 static func get_shoulder_material() -> StandardMaterial3D:
 	if not _shoulder_material:
@@ -271,6 +300,9 @@ static func get_reflector_amber_material() -> StandardMaterial3D:
 		_reflector_amber_mat.emission_enabled = true
 		_reflector_amber_mat.emission = Color(1.0, 0.6, 0.02, 1.0)
 		_reflector_amber_mat.emission_energy_multiplier = 1.35
+		_reflector_amber_mat.distance_fade_mode = BaseMaterial3D.DISTANCE_FADE_PIXEL_DITHER
+		_reflector_amber_mat.distance_fade_min_distance = 55.0
+		_reflector_amber_mat.distance_fade_max_distance = 75.0
 	return _reflector_amber_mat
 
 static func get_sign_post_material() -> StandardMaterial3D:
@@ -278,6 +310,9 @@ static func get_sign_post_material() -> StandardMaterial3D:
 		_sign_post_mat = StandardMaterial3D.new()
 		_sign_post_mat.albedo_color = Color(0.12, 0.12, 0.14, 1.0)
 		_sign_post_mat.roughness = 0.85
+		_sign_post_mat.distance_fade_mode = BaseMaterial3D.DISTANCE_FADE_PIXEL_DITHER
+		_sign_post_mat.distance_fade_min_distance = 55.0
+		_sign_post_mat.distance_fade_max_distance = 75.0
 	return _sign_post_mat
 
 static func get_telegraph_wood_material() -> StandardMaterial3D:
@@ -285,6 +320,9 @@ static func get_telegraph_wood_material() -> StandardMaterial3D:
 		_telegraph_wood_mat = StandardMaterial3D.new()
 		_telegraph_wood_mat.albedo_color = Color(0.18, 0.15, 0.12, 1.0)
 		_telegraph_wood_mat.roughness = 0.92
+		_telegraph_wood_mat.distance_fade_mode = BaseMaterial3D.DISTANCE_FADE_PIXEL_DITHER
+		_telegraph_wood_mat.distance_fade_min_distance = 55.0
+		_telegraph_wood_mat.distance_fade_max_distance = 75.0
 	return _telegraph_wood_mat
 
 static func get_cable_wire_material() -> StandardMaterial3D:
@@ -292,6 +330,9 @@ static func get_cable_wire_material() -> StandardMaterial3D:
 		_cable_wire_mat = StandardMaterial3D.new()
 		_cable_wire_mat.albedo_color = Color(0.05, 0.05, 0.06, 1.0)
 		_cable_wire_mat.roughness = 0.8
+		_cable_wire_mat.distance_fade_mode = BaseMaterial3D.DISTANCE_FADE_PIXEL_DITHER
+		_cable_wire_mat.distance_fade_min_distance = 55.0
+		_cable_wire_mat.distance_fade_max_distance = 75.0
 	return _cable_wire_mat
 
 static func get_insulator_material() -> StandardMaterial3D:
@@ -300,6 +341,9 @@ static func get_insulator_material() -> StandardMaterial3D:
 		_insulator_mat.albedo_color = Color(0.72, 0.82, 0.78, 1.0)
 		_insulator_mat.roughness = 0.1
 		_insulator_mat.metallic = 0.25
+		_insulator_mat.distance_fade_mode = BaseMaterial3D.DISTANCE_FADE_PIXEL_DITHER
+		_insulator_mat.distance_fade_min_distance = 55.0
+		_insulator_mat.distance_fade_max_distance = 75.0
 	return _insulator_mat
 
 func _ready() -> void:
@@ -842,6 +886,7 @@ func build_segment() -> void:
 
 		# Spawn telegraph pole every 4 slices (every ~40m)
 		if i % 4 == 0:
+			var pole_global_idx: int = (segment_index * 2) + (i / 4)
 			var pole_root := Node3D.new()
 			pole_root.name = "TelegraphPole_%d" % i
 
@@ -920,6 +965,80 @@ func build_segment() -> void:
 				bracket_inst.mesh = bracket_mesh
 				bracket_inst.position = Vector3(0.22, 5.8, 0.0)
 				pole_root.add_child(bracket_inst)
+
+			# 7. Functional Rural Streetlight on ~1 out of every 3-4 poles (e.g. pole_global_idx % 3 == 0)
+			var is_streetlight: bool = (pole_global_idx % 3 == 0)
+			if is_streetlight:
+				var metal_mat := get_streetlight_metal_material()
+				var lens_mat := get_streetlight_lens_material()
+
+				# Low-poly angled extension pipe arm extending over the road shoulder (+X)
+				var arm_mesh := CylinderMesh.new()
+				arm_mesh.top_radius = 0.04
+				arm_mesh.bottom_radius = 0.04
+				arm_mesh.height = 1.9
+				arm_mesh.material = metal_mat
+
+				var arm_inst := MeshInstance3D.new()
+				arm_inst.name = "StreetlightArm"
+				arm_inst.mesh = arm_mesh
+				arm_inst.position = Vector3(0.92, 6.75, 0.0)
+				arm_inst.rotation.z = deg_to_rad(85.0)
+				pole_root.add_child(arm_inst)
+
+				# Diagonal support strut
+				var strut_mesh := BoxMesh.new()
+				strut_mesh.size = Vector3(0.04, 0.75, 0.04)
+				strut_mesh.material = metal_mat
+				var strut_inst := MeshInstance3D.new()
+				strut_inst.name = "StreetlightStrut"
+				strut_inst.mesh = strut_mesh
+				strut_inst.position = Vector3(0.45, 6.4, 0.0)
+				strut_inst.rotation.z = deg_to_rad(-45.0)
+				pole_root.add_child(strut_inst)
+
+				# Low-poly angled lamp head fixture housing
+				var head_mesh := BoxMesh.new()
+				head_mesh.size = Vector3(0.48, 0.16, 0.28)
+				head_mesh.material = metal_mat
+
+				var head_inst := MeshInstance3D.new()
+				head_inst.name = "LampHeadHousing"
+				head_inst.mesh = head_mesh
+				head_inst.position = Vector3(1.82, 6.65, 0.0)
+				head_inst.rotation.z = deg_to_rad(-12.0)
+				pole_root.add_child(head_inst)
+
+				# Emissive amber sodium lens
+				var lens_mesh := BoxMesh.new()
+				lens_mesh.size = Vector3(0.36, 0.04, 0.20)
+				lens_mesh.material = lens_mat
+
+				var lens_inst := MeshInstance3D.new()
+				lens_inst.name = "LampBulbLens"
+				lens_inst.mesh = lens_mesh
+				lens_inst.position = Vector3(1.82, 6.56, 0.0)
+				lens_inst.rotation.z = deg_to_rad(-12.0)
+				pole_root.add_child(lens_inst)
+
+				# OmniLight3D with subtle rural grid flicker controller
+				var light := FlickerLight.new()
+				light.name = "Streetlight"
+				light.position = Vector3(1.82, 6.42, 0.0)
+				light.light_color = Color("#ffb04a")
+				light.light_energy = 4.2
+				light.base_energy = 4.2
+				light.min_energy = 1.4
+				light.omni_range = 18.0
+				light.omni_attenuation = 0.8
+				# Occasional subtle flickering effect script on select lamps
+				if pole_global_idx % 6 == 0:
+					light.is_flickering = true
+					light.subtle_flicker = true
+					light.flicker_probability = 0.22
+				else:
+					light.is_flickering = false
+				pole_root.add_child(light)
 
 			var pole_local := Vector3(pole_verge_x, 0.0, 0.0)
 			pole_root.transform = Transform3D(slice_basis, slice_center + slice_basis * pole_local)

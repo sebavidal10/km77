@@ -107,12 +107,20 @@ static func _get_taillight_red_mat() -> StandardMaterial3D:
 		_taillight_red_mat.emission_energy_multiplier = 1.3
 	return _taillight_red_mat
 
+static func _apply_dither_fade(mat: StandardMaterial3D) -> StandardMaterial3D:
+	if mat:
+		mat.distance_fade_mode = BaseMaterial3D.DISTANCE_FADE_PIXEL_DITHER
+		mat.distance_fade_min_distance = 55.0
+		mat.distance_fade_max_distance = 75.0
+	return mat
+
 static func _get_rust_material() -> StandardMaterial3D:
 	if not _rust_metal_mat:
 		_rust_metal_mat = StandardMaterial3D.new()
 		_rust_metal_mat.albedo_color = Color(0.24, 0.16, 0.13, 1.0) # Corroded metal
 		_rust_metal_mat.roughness = 0.85
 		_rust_metal_mat.metallic = 0.35
+		_apply_dither_fade(_rust_metal_mat)
 	return _rust_metal_mat
 
 static func _get_cabin_glass_mat() -> StandardMaterial3D:
@@ -121,6 +129,7 @@ static func _get_cabin_glass_mat() -> StandardMaterial3D:
 		_cabin_glass_mat.albedo_color = Color(0.1, 0.12, 0.14, 1.0) # Shattered dark glass
 		_cabin_glass_mat.roughness = 0.5
 		_cabin_glass_mat.metallic = 0.2
+		_apply_dither_fade(_cabin_glass_mat)
 	return _cabin_glass_mat
 
 static func _get_hazard_orange_mat() -> StandardMaterial3D:
@@ -149,6 +158,7 @@ static func _get_wood_post_mat() -> StandardMaterial3D:
 		_wood_post_mat = StandardMaterial3D.new()
 		_wood_post_mat.albedo_color = Color(0.16, 0.15, 0.14, 1.0) # Aged dark wood / iron
 		_wood_post_mat.roughness = 0.9
+		_apply_dither_fade(_wood_post_mat)
 	return _wood_post_mat
 
 static func _get_lantern_emission_mat() -> StandardMaterial3D:
@@ -158,6 +168,7 @@ static func _get_lantern_emission_mat() -> StandardMaterial3D:
 		_lantern_emission_mat.emission_enabled = true
 		_lantern_emission_mat.emission = Color(1.0, 0.82, 0.45, 1.0)
 		_lantern_emission_mat.emission_energy_multiplier = 2.0
+		_apply_dither_fade(_lantern_emission_mat)
 	return _lantern_emission_mat
 
 static func _get_silhouette_mat() -> StandardMaterial3D:
@@ -173,6 +184,7 @@ static func _get_milestone_concrete_mat() -> StandardMaterial3D:
 		_milestone_concrete_mat = StandardMaterial3D.new()
 		_milestone_concrete_mat.albedo_color = Color(0.65, 0.64, 0.62, 1.0) # Concrete post
 		_milestone_concrete_mat.roughness = 0.95
+		_apply_dither_fade(_milestone_concrete_mat)
 	return _milestone_concrete_mat
 
 static func _get_milestone_red_mat() -> StandardMaterial3D:
@@ -180,6 +192,7 @@ static func _get_milestone_red_mat() -> StandardMaterial3D:
 		_milestone_red_mat = StandardMaterial3D.new()
 		_milestone_red_mat.albedo_color = Color(0.72, 0.16, 0.14, 1.0) # Faded red cap
 		_milestone_red_mat.roughness = 0.8
+		_apply_dither_fade(_milestone_red_mat)
 	return _milestone_red_mat
 
 static func _get_tree_bark_mat() -> StandardMaterial3D:
@@ -281,6 +294,7 @@ static func _get_bus_stop_mat() -> StandardMaterial3D:
 		_bus_stop_mat = StandardMaterial3D.new()
 		_bus_stop_mat.albedo_color = Color(0.35, 0.38, 0.36, 1.0) # Weathered rural concrete
 		_bus_stop_mat.roughness = 0.95
+		_apply_dither_fade(_bus_stop_mat)
 	return _bus_stop_mat
 
 static func _get_bus_stop_wood_mat() -> StandardMaterial3D:
@@ -288,6 +302,7 @@ static func _get_bus_stop_wood_mat() -> StandardMaterial3D:
 		_bus_stop_wood_mat = StandardMaterial3D.new()
 		_bus_stop_wood_mat.albedo_color = Color(0.2, 0.16, 0.12, 1.0) # Aged dark bench wood
 		_bus_stop_wood_mat.roughness = 0.9
+		_apply_dither_fade(_bus_stop_wood_mat)
 	return _bus_stop_wood_mat
 
 static func _get_cabin_wall_mat() -> StandardMaterial3D:
@@ -295,6 +310,7 @@ static func _get_cabin_wall_mat() -> StandardMaterial3D:
 		_cabin_wall_mat = StandardMaterial3D.new()
 		_cabin_wall_mat.albedo_color = Color(0.08, 0.07, 0.06, 1.0) # Distant dark log cabin
 		_cabin_wall_mat.roughness = 0.95
+		_apply_dither_fade(_cabin_wall_mat)
 	return _cabin_wall_mat
 
 static func _get_cabin_roof_mat() -> StandardMaterial3D:
@@ -302,6 +318,7 @@ static func _get_cabin_roof_mat() -> StandardMaterial3D:
 		_cabin_roof_mat = StandardMaterial3D.new()
 		_cabin_roof_mat.albedo_color = Color(0.04, 0.04, 0.04, 1.0) # Dark pitched roof
 		_cabin_roof_mat.roughness = 0.9
+		_apply_dither_fade(_cabin_roof_mat)
 	return _cabin_roof_mat
 
 static func _get_window_emission_mat() -> StandardMaterial3D:
@@ -311,6 +328,7 @@ static func _get_window_emission_mat() -> StandardMaterial3D:
 		_window_emission_mat.emission_enabled = true
 		_window_emission_mat.emission = Color(1.0, 0.8, 0.3, 1.0)
 		_window_emission_mat.emission_energy_multiplier = 3.0
+		_apply_dither_fade(_window_emission_mat)
 	return _window_emission_mat
 
 static func _get_guide_sign_green_mat() -> StandardMaterial3D:
@@ -320,6 +338,7 @@ static func _get_guide_sign_green_mat() -> StandardMaterial3D:
 		_guide_sign_green_mat.albedo_color = Color(0.08, 0.28, 0.16, 1.0)
 		_guide_sign_green_mat.roughness = 0.55
 		_guide_sign_green_mat.metallic = 0.15
+		_apply_dither_fade(_guide_sign_green_mat)
 	return _guide_sign_green_mat
 
 static func _get_guide_sign_amber_mat() -> StandardMaterial3D:
@@ -331,6 +350,7 @@ static func _get_guide_sign_amber_mat() -> StandardMaterial3D:
 		_guide_sign_amber_mat.emission_enabled = true
 		_guide_sign_amber_mat.emission = Color(1.0, 0.6, 0.02, 1.0)
 		_guide_sign_amber_mat.emission_energy_multiplier = 0.6
+		_apply_dither_fade(_guide_sign_amber_mat)
 	return _guide_sign_amber_mat
 
 static func _get_guide_sign_white_mat() -> StandardMaterial3D:
@@ -342,6 +362,7 @@ static func _get_guide_sign_white_mat() -> StandardMaterial3D:
 		_guide_sign_white_mat.emission_enabled = true
 		_guide_sign_white_mat.emission = Color(0.85, 0.85, 0.85, 1.0)
 		_guide_sign_white_mat.emission_energy_multiplier = 0.4
+		_apply_dither_fade(_guide_sign_white_mat)
 	return _guide_sign_white_mat
 
 ## Populates a newly spawned RoadSegment with obstacles, roadside props, and milestone markers.

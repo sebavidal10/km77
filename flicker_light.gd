@@ -10,6 +10,8 @@ extends OmniLight3D
 @export var flicker_probability: float = 0.35
 ## Enables erratic electrical flickering behavior.
 @export var is_flickering: bool = true
+## If subtle_flicker is enabled, produces brief dips in energy simulating a faulty rural electrical grid.
+@export var subtle_flicker: bool = false
 
 var _timer: float = 0.0
 var _interval: float = 0.08
@@ -25,18 +27,22 @@ func _process(delta: float) -> void:
 	_timer += delta
 	if _timer >= _interval:
 		_timer = 0.0
-		_interval = _rng.randf_range(0.04, 0.18)
+		_interval = _rng.randf_range(0.06, 0.22) if subtle_flicker else _rng.randf_range(0.04, 0.18)
 
 		if _rng.randf() < flicker_probability:
-			var roll := _rng.randf()
-			if roll < 0.3:
-				# Total momentary power cutout
-				light_energy = 0.0
-			elif roll < 0.7:
-				# Voltage drop / weak buzz
-				light_energy = _rng.randf_range(min_energy, base_energy * 0.45)
+			if subtle_flicker:
+				# Subtle rural electrical grid dip
+				light_energy = _rng.randf_range(min_energy, base_energy * 0.65)
 			else:
-				# High voltage surge spike
-				light_energy = base_energy * 1.4
+				var roll := _rng.randf()
+				if roll < 0.3:
+					# Total momentary power cutout
+					light_energy = 0.0
+				elif roll < 0.7:
+					# Voltage drop / weak buzz
+					light_energy = _rng.randf_range(min_energy, base_energy * 0.45)
+				else:
+					# High voltage surge spike
+					light_energy = base_energy * 1.4
 		else:
 			light_energy = base_energy

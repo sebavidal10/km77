@@ -54,6 +54,13 @@ static func _get_foliage_mat() -> StandardMaterial3D:
 		_foliage_mat.metallic = 0.0
 	return _foliage_mat
 
+static func _apply_dither_fade(mat: StandardMaterial3D) -> StandardMaterial3D:
+	if mat:
+		mat.distance_fade_mode = BaseMaterial3D.DISTANCE_FADE_PIXEL_DITHER
+		mat.distance_fade_min_distance = 55.0
+		mat.distance_fade_max_distance = 75.0
+	return mat
+
 static func _get_log_mat() -> StandardMaterial3D:
 	if not _log_mat:
 		_log_mat = StandardMaterial3D.new()
@@ -61,6 +68,7 @@ static func _get_log_mat() -> StandardMaterial3D:
 		_log_mat.albedo_color = Color(0.13, 0.10, 0.07, 1.0)
 		_log_mat.roughness = 0.95
 		_log_mat.metallic = 0.0
+		_apply_dither_fade(_log_mat)
 	return _log_mat
 
 static func _get_wood_post_mat() -> StandardMaterial3D:
@@ -69,6 +77,7 @@ static func _get_wood_post_mat() -> StandardMaterial3D:
 		_wood_post_mat.albedo_color = Color(0.24, 0.20, 0.16, 1.0)
 		_wood_post_mat.roughness = 0.90
 		_wood_post_mat.metallic = 0.0
+		_apply_dither_fade(_wood_post_mat)
 	return _wood_post_mat
 
 static func _get_reflector_red_mat() -> StandardMaterial3D:
@@ -78,6 +87,7 @@ static func _get_reflector_red_mat() -> StandardMaterial3D:
 		_reflector_red_mat.emission_enabled = true
 		_reflector_red_mat.emission = Color(0.92, 0.10, 0.05, 1.0)
 		_reflector_red_mat.emission_energy_multiplier = 0.9
+		_apply_dither_fade(_reflector_red_mat)
 	return _reflector_red_mat
 
 static func _get_culvert_mat() -> StandardMaterial3D:
@@ -86,6 +96,7 @@ static func _get_culvert_mat() -> StandardMaterial3D:
 		_culvert_mat.albedo_color = Color(0.22, 0.23, 0.25, 1.0)
 		_culvert_mat.roughness = 0.72
 		_culvert_mat.metallic = 0.35
+		_apply_dither_fade(_culvert_mat)
 	return _culvert_mat
 
 ## Builds the complete dirt turnoff including track slices, tree walls, entrance culvert, and dead end blockade.

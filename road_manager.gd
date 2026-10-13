@@ -284,6 +284,7 @@ func _select_next_segment_type() -> RoadSegment.SegmentType:
 func _create_segment_node(type: RoadSegment.SegmentType) -> RoadSegment:
 	var segment := RoadSegment.new()
 	segment.name = "RoadSegment_%d" % total_segments_spawned
+	segment.segment_index = total_segments_spawned
 	segment.segment_type = type
 	segment.segment_length = segment_length
 	segment.road_width = road_width

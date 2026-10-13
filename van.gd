@@ -179,6 +179,13 @@ var _shoulder_zones_count: int = 0
 var _mud_particles_left: GPUParticles3D
 var _mud_particles_right: GPUParticles3D
 
+# Wet tarmac wheel spray particles
+var _spray_particles_left: GPUParticles3D
+var _spray_particles_right: GPUParticles3D
+
+# High-speed highway chassis rattle timer
+var _high_speed_rattle_time: float = 0.0
+
 # Durability & Headlight state
 var left_headlight_broken: bool = false
 var right_headlight_broken: bool = false
@@ -360,6 +367,7 @@ func _ready() -> void:
 		visual_mesh.set_surface_override_material(0, white_mat)
 
 	_create_mud_particles()
+	_setup_spray_particles()
 
 	# Start engine audio loop at balanced base volume (-9.0 dB)
 	if has_node("EngineAudio"):
@@ -448,6 +456,13 @@ func _physics_process(delta: float) -> void:
 		_mud_particles_left.emitting = should_emit_mud
 	if _mud_particles_right and _mud_particles_right.emitting != should_emit_mud:
 		_mud_particles_right.emitting = should_emit_mud
+
+	# 8c. Wet wheel spray mist particles when driving on wet tarmac at speeds > 30 km/h
+	var should_emit_spray: bool = is_on_floor() and not in_shoulder_zone and not in_mud_zone and current_speed_kmh > 30.0
+	if _spray_particles_left and _spray_particles_left.emitting != should_emit_spray:
+		_spray_particles_left.emitting = should_emit_spray
+	if _spray_particles_right and _spray_particles_right.emitting != should_emit_spray:
+		_spray_particles_right.emitting = should_emit_spray
 
 	# 9. Update telemetry: fuel, odometer, speed km/h, and drift state
 	_process_fuel(delta)
@@ -617,6 +632,10 @@ func reset_loop_state() -> void:
 		_mud_particles_left.emitting = false
 	if _mud_particles_right:
 		_mud_particles_right.emitting = false
+	if _spray_particles_left:
+		_spray_particles_left.emitting = false
+	if _spray_particles_right:
+		_spray_particles_right.emitting = false
 
 	# 6. Reset odometer back to starting marker
 	starting_kilometer = 85.0
@@ -1059,6 +1078,59 @@ func _create_mud_particles() -> void:
 	_mud_particles_right.emitting = false
 	add_child(_mud_particles_right)
 
+## Sets up or dynamically creates wet tarmac wheel spray particle emitters behind the rear tires.
+func _setup_spray_particles() -> void:
+	_spray_particles_left = get_node_or_null("SprayParticlesLeft") as GPUParticles3D
+	_spray_particles_right = get_node_or_null("SprayParticlesRight") as GPUParticles3D
+
+	if not _spray_particles_left or not _spray_particles_right:
+		_create_spray_particles()
+
+func _create_spray_particles() -> void:
+	var mist_mat := StandardMaterial3D.new()
+	mist_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mist_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mist_mat.albedo_color = Color(0.85, 0.88, 0.92, 0.28)
+	mist_mat.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
+
+	var mist_mesh := QuadMesh.new()
+	mist_mesh.size = Vector2(0.45, 0.45)
+	mist_mesh.material = mist_mat
+
+	var proc_mat := ParticleProcessMaterial.new()
+	proc_mat.direction = Vector3(0.0, 0.45, 1.0)
+	proc_mat.spread = 22.0
+	proc_mat.initial_velocity_min = 5.0
+	proc_mat.initial_velocity_max = 9.0
+	proc_mat.gravity = Vector3(0.0, -1.8, 0.0)
+	proc_mat.scale_min = 0.6
+	proc_mat.scale_max = 1.6
+	proc_mat.color = Color(0.85, 0.88, 0.92, 0.35)
+
+	if not _spray_particles_left:
+		_spray_particles_left = GPUParticles3D.new()
+		_spray_particles_left.name = "SprayParticlesLeft"
+		_spray_particles_left.amount = 24
+		_spray_particles_left.lifetime = 0.4
+		_spray_particles_left.local_coords = false
+		_spray_particles_left.draw_pass_1 = mist_mesh
+		_spray_particles_left.process_material = proc_mat
+		_spray_particles_left.position = Vector3(-0.95, 0.25, 1.7)
+		_spray_particles_left.emitting = false
+		add_child(_spray_particles_left)
+
+	if not _spray_particles_right:
+		_spray_particles_right = GPUParticles3D.new()
+		_spray_particles_right.name = "SprayParticlesRight"
+		_spray_particles_right.amount = 24
+		_spray_particles_right.lifetime = 0.4
+		_spray_particles_right.local_coords = false
+		_spray_particles_right.draw_pass_1 = mist_mesh
+		_spray_particles_right.process_material = proc_mat
+		_spray_particles_right.position = Vector3(0.95, 0.25, 1.7)
+		_spray_particles_right.emitting = false
+		add_child(_spray_particles_right)
+
 ## Triggers erratic headlight strobing and camera shake when lingering dangerously in the dark.
 func trigger_threat_glitch() -> void:
 	_is_flickering_glitch = true
@@ -1300,10 +1372,21 @@ func _process_suspension_dynamics(delta: float, fwd_speed: float) -> void:
 	else:
 		_idle_shiver_offset = move_toward(_idle_shiver_offset, 0.0, 0.05 * delta)
 
+	# 3b. High-speed highway chassis rattle: micro-shake proportional to velocity simulating van rattling along rough asphalt & rain wind
+	var high_speed_rattle_y: float = 0.0
+	var high_speed_rattle_roll: float = 0.0
+	if is_on_floor() and absf(fwd_speed) > 12.0: # ~43 km/h+, reaching maximum when cruising at 80-110 km/h
+		var speed_k: float = absf(fwd_speed) * 3.6
+		var rattle_ratio: float = clampf((speed_k - 40.0) / 70.0, 0.0, 1.0)
+		_high_speed_rattle_time += delta * 55.0
+		var rattle_amp: float = rattle_ratio * 0.003
+		high_speed_rattle_y = (sin(_high_speed_rattle_time * 1.2) * 0.6 + randf_range(-0.4, 0.4)) * rattle_amp
+		high_speed_rattle_roll = sin(_high_speed_rattle_time * 0.9) * (rattle_amp * 0.5)
+
 	# 4. Apply interpolated pitch, roll, and engine rumble to VisualRoot (rigid physical collider remains static)
 	target_node.rotation.x = _current_pitch
-	target_node.rotation.z = _current_roll + idle_roll_rumble
-	target_node.position.y = _base_visual_root_y + _idle_shiver_offset
+	target_node.rotation.z = _current_roll + idle_roll_rumble + high_speed_rattle_roll
+	target_node.position.y = _base_visual_root_y + _idle_shiver_offset + high_speed_rattle_y
 
 ## Backward compatibility alias for _process_suspension_dynamics.
 func _process_visual_roll(delta: float, fwd_speed: float) -> void:
