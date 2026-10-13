@@ -2,6 +2,7 @@
 
 [ext_resource type="Script" path="res://hud.gd" id="1_hud"]
 [ext_resource type="Shader" path="res://shaders/mirror_flip.gdshader" id="2_mirror_shader"]
+[ext_resource type="AudioStream" path="res://audio/static.aiff" id="3_static"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_mirror"]
 shader = ExtResource("2_mirror_shader")
@@ -453,3 +454,8 @@ theme_override_colors/font_hover_color = Color(1, 0.3, 0.3, 1)
 theme_override_font_sizes/font_size = 13
 theme_override_styles/normal = SubResource("StyleBoxFlat_bar_bg")
 text = "[ QUIT TO MENU ]"
+
+[node name="StaticAudio" type="AudioStreamPlayer" parent="."]
+unique_name_in_owner = true
+stream = ExtResource("3_static")
+volume_db = -12.0

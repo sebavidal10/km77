@@ -37,7 +37,9 @@ const COLOR_LOW_BEAM_GREEN := Color(0.2, 1.0, 0.4, 0.85)
 @onready var resume_button: Button = %ResumeButton
 @onready var restart_button: Button = %RestartButton
 @onready var quit_menu_button: Button = %QuitMenuButton
+@onready var static_audio: AudioStreamPlayer = get_node_or_null("%StaticAudio") as AudioStreamPlayer
 
+var _static_tween: Tween = null
 var _forensic_display_timer: float = 0.0
 var _forensic_hold_duration: float = 0.0
 
@@ -304,6 +306,8 @@ func _connect_radio_manager() -> void:
 	if RadioManager.instance:
 		if not RadioManager.instance.dispatch_received.is_connected(_on_dispatch_received):
 			RadioManager.instance.dispatch_received.connect(_on_dispatch_received)
+		if not RadioManager.instance.static_burst_triggered.is_connected(_on_static_burst_triggered):
+			RadioManager.instance.static_burst_triggered.connect(_on_static_burst_triggered)
 
 func _update_initial_display() -> void:
 	if target_van:
@@ -403,6 +407,9 @@ func _on_dispatch_received(text: String, duration: float) -> void:
 	dispatch_panel.visible = true
 	dispatch_panel.modulate.a = 1.0
 
+	# Trigger radio squelch transmission burst (1.8s duration)
+	_play_static_burst(1.8)
+
 	# Contextual palette: Glitch Blood Red for critical/anomaly dispatches, Phosphor Green & Amber for routine dispatches
 	var is_critical: bool = false
 	var upper := text.to_upper()
@@ -432,6 +439,30 @@ func _on_dispatch_received(text: String, duration: float) -> void:
 			dup_style.border_color = Color(0.2, 1.0, 0.4, 0.75)
 			dup_style.bg_color = Color(0.02, 0.035, 0.03, 0.88)
 		dispatch_panel.add_theme_stylebox_override("panel", dup_style)
+
+func _on_static_burst_triggered(_intensity: float, _decay: float) -> void:
+	_play_static_burst(1.6)
+
+## Plays a 1.5 to 2.0 second authentic radio static squelch/transmission burst at -12.0 dB
+func _play_static_burst(burst_duration: float = 1.8) -> void:
+	if not static_audio:
+		static_audio = get_node_or_null("%StaticAudio") as AudioStreamPlayer
+		if not static_audio:
+			static_audio = get_node_or_null("StaticAudio") as AudioStreamPlayer
+	if not static_audio:
+		return
+
+	if _static_tween and _static_tween.is_valid():
+		_static_tween.kill()
+
+	static_audio.volume_db = -12.0
+	static_audio.play()
+
+	_static_tween = create_tween()
+	var hold_time: float = maxf(0.2, burst_duration - 0.5)
+	_static_tween.tween_interval(hold_time)
+	_static_tween.tween_property(static_audio, "volume_db", -40.0, 0.5)
+	_static_tween.tween_callback(static_audio.stop)
 
 func _on_speed_updated(speed_kmh: float) -> void:
 	if speed_value_label:

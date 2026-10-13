@@ -1,6 +1,7 @@
 [gd_scene format=3 uid="uid://bvx4m2q7vvan"]
 
 [ext_resource type="Script" uid="uid://sqcs05103pki" path="res://van.gd" id="1_van"]
+[ext_resource type="AudioStream" path="res://audio/engine.flac" id="2_engine"]
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_van_body"]
 size = Vector3(1.85, 1.35, 4.1)
@@ -359,6 +360,10 @@ script = ExtResource("1_van")
 [node name="CollisionShape3D" type="CollisionShape3D" parent="." unique_id=2139074407]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.35, 0)
 shape = SubResource("BoxShape3D_van_body")
+
+[node name="EngineAudio" type="AudioStreamPlayer" parent="."]
+stream = ExtResource("2_engine")
+volume_db = -9.0
 
 [node name="WheelColFL" type="CollisionShape3D" parent="." unique_id=2139074408]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.95, 0.35, -1.35)

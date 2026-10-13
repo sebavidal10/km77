@@ -9,6 +9,7 @@
 [ext_resource type="Script" path="res://storm_controller.gd" id="7_storm"]
 [ext_resource type="Script" path="res://loop_reset_manager.gd" id="8_loop"]
 [ext_resource type="PackedScene" uid="uid://bvx4m2q7vvan" path="res://van.tscn" id="9_van"]
+[ext_resource type="AudioStream" uid="uid://5by1w4yprslg" path="res://audio/rain.wav" id="10_rain"]
 
 
 [sub_resource type="Environment" id="Environment_ku5fm"]
@@ -96,3 +97,8 @@ target_van = NodePath("../Van")
 road_manager = NodePath("../RoadManager")
 hud = NodePath("../HUD")
 post_process = NodePath("../PostProcessLayer")
+
+[node name="RainAudio" type="AudioStreamPlayer" parent="."]
+stream = ExtResource("10_rain")
+volume_db = -17.0
+autoplay = true

@@ -1,0 +1,15 @@
+[remap]
+
+importer="wav"
+type="AudioStreamWAV"
+uid="uid://dumpcmw4qq3at"
+path="res://.godot/imported/static.wav-3b5d107e5f8ad964758e07fd59656837.sample"
+
+[deps]
+
+source_file="res://audio/static.aiff"
+dest_files=["res://.godot/imported/static.wav-3b5d107e5f8ad964758e07fd59656837.sample"]
+
+[params]
+
+edit/loop_mode=0

@@ -361,6 +361,14 @@ func _ready() -> void:
 
 	_create_mud_particles()
 
+	# Start engine audio loop at balanced base volume (-9.0 dB)
+	if has_node("EngineAudio"):
+		var engine_audio: Node = $EngineAudio
+		if "volume_db" in engine_audio:
+			engine_audio.volume_db = -9.0
+		if engine_audio.has_method("play") and not engine_audio.playing:
+			engine_audio.play()
+
 func _unhandled_key_input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo:
 		if event.keycode == KEY_F or event.keycode == KEY_H or event.physical_keycode == KEY_F or event.physical_keycode == KEY_H:
@@ -454,6 +462,31 @@ func _physics_process(delta: float) -> void:
 
 	# 12. Visual suspension dynamics: longitudinal pitch, centrifugal roll, and idle shiver
 	_process_suspension_dynamics(delta, forward_speed_state)
+
+	# 13. Dynamic engine audio pitch modulation based on driving speed
+	_process_engine_audio(delta)
+
+## Modulates engine audio pitch and playback dynamically based on driving speed and stall status
+func _process_engine_audio(delta: float) -> void:
+	if not has_node("EngineAudio"):
+		return
+	var engine_audio: Node = $EngineAudio
+	if is_stalled:
+		if "volume_db" in engine_audio:
+			engine_audio.volume_db = move_toward(engine_audio.volume_db, -60.0, 18.0 * delta)
+			if engine_audio.volume_db <= -50.0 and engine_audio.has_method("stop") and engine_audio.playing:
+				engine_audio.stop()
+		return
+
+	if "volume_db" in engine_audio and engine_audio.volume_db < -9.0:
+		engine_audio.volume_db = move_toward(engine_audio.volume_db, -9.0, 12.0 * delta)
+	if is_inside_tree() and engine_audio.has_method("play") and not engine_audio.playing:
+		engine_audio.play()
+
+	var current_speed: float = absf(forward_speed_state)
+	var speed_ratio: float = clampf(current_speed / max_speed, 0.0, 1.0)
+	if "pitch_scale" in engine_audio:
+		engine_audio.pitch_scale = lerpf(0.85, 1.3, speed_ratio)
 
 ## Smoothly climbs over road curbs and shoulder ledges up to floor_max_climb_step height.
 func _try_step_climb(delta: float, desired_h_vel: Vector3) -> void:
