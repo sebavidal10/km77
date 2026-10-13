@@ -44,29 +44,39 @@ void fragment() {
     float effective_glitch = clamp(max(glitch_intensity, static_glitch_intensity), 0.0, 1.0);
 
     // 2. Glitch Jitter, Sine-Modulated Static Bands & Tape Displacement
+    // Intermittent and subtle rather than heavy continuous noise
     float glitch_x = 0.0;
     if (effective_glitch > 0.001) {
-        // Intermittent horizontal static bands modulated by TIME
-        float band_wave = sin(uv.y * 42.0 + TIME * 19.0) * cos(uv.y * 84.0 - TIME * 13.0);
-        float line_id = floor(uv.y * (res.y * 0.15));
-        float tear_noise = hash21(vec2(line_id, floor(TIME * 24.0)));
-        if (tear_noise > (1.0 - effective_glitch * 0.45)) {
-            glitch_x = (tear_noise - 0.5) * 0.07 * effective_glitch;
+        // Intermittent tracking pulse that triggers in sporadic intervals
+        float tracking_pulse = pow(sin(TIME * 1.8) * 0.5 + 0.5, 6.0);
+        float band_wave = sin(uv.y * 36.0 + TIME * 12.0) * cos(uv.y * 72.0 - TIME * 8.0);
+        float line_id = floor(uv.y * (res.y * 0.12));
+        float tear_noise = hash21(vec2(line_id, floor(TIME * 16.0)));
+
+        if (tear_noise > (1.0 - effective_glitch * 0.30 * tracking_pulse)) {
+            glitch_x = (tear_noise - 0.5) * 0.025 * effective_glitch;
         }
-        if (abs(band_wave) > (1.0 - effective_glitch * 0.5)) {
-            glitch_x += band_wave * 0.022 * effective_glitch;
+        if (abs(band_wave) > (1.0 - effective_glitch * 0.35 * tracking_pulse)) {
+            glitch_x += band_wave * 0.008 * effective_glitch;
         }
     }
     vec2 final_uv = uv + vec2(glitch_x, 0.0);
 
-    // 3. Horizontal Chromatic Aberration + Radial Displacement
-    float ca_amount = chromatic_aberration + (effective_glitch * 0.025);
-    vec2 ca_h_offset = vec2(ca_amount, 0.0);
-    vec2 ca_dir = (final_uv - vec2(0.5)) * (ca_amount * 0.7);
-    // Displace R channel horizontally right, B channel horizontally left
-    float r = texture(screen_texture, final_uv + ca_dir + ca_h_offset).r;
+    // 3. Subdued Chromatic Aberration via Radial Screen Mask
+    // Center road is kept crisp and legible; RGB fringe is pushed to outer borders
+    vec2 center_offset = final_uv - vec2(0.5);
+    float radial_dist = length(center_offset * vec2(1.0, 1.15));
+    float border_mask = smoothstep(0.20, 0.65, radial_dist);
+
+    float effective_ca_mask = mix(border_mask, max(border_mask, 0.35), effective_glitch);
+    float ca_amount = chromatic_aberration * effective_ca_mask;
+
+    vec2 ca_offset = (center_offset * (ca_amount * 1.4)) + vec2(ca_amount * 0.35, 0.0);
+
+    // Sample channels with radial displacement
+    float r = texture(screen_texture, final_uv + ca_offset).r;
     float g = texture(screen_texture, final_uv).g;
-    float b = texture(screen_texture, final_uv - ca_dir - ca_h_offset).b;
+    float b = texture(screen_texture, final_uv - ca_offset).b;
     vec3 col = vec3(r, g, b);
 
     // 4. 8x8 Bayer Ordered Dither
@@ -78,25 +88,25 @@ void fragment() {
     // 5. Color Depth Reduction / 16-bit Style Posterization
     col = floor(col * color_depth + 0.5) / color_depth;
 
-    // 6. Analog Sensor / CRT Grain
+    // 6. Analog Sensor / CRT Grain (subtle and stable)
     if (grain_intensity > 0.001) {
-        vec2 grain_seed = uv * res + vec2(sin(TIME * 45.0), cos(TIME * 30.0));
-        float grain = (hash21(grain_seed) - 0.5) * grain_intensity * (1.0 + effective_glitch * 3.5);
+        vec2 grain_seed = uv * res + vec2(sin(TIME * 30.0), cos(TIME * 20.0));
+        float grain = (hash21(grain_seed) - 0.5) * grain_intensity * (1.0 + effective_glitch * 2.0);
         col += vec3(grain);
     }
 
     // 7. Intermittent Scanlines modulated by TIME & glitch_intensity
     if (scanline_intensity > 0.001 || effective_glitch > 0.01) {
-        float dynamic_scanline_mult = scanline_intensity + (effective_glitch * 0.28 * (sin(TIME * 22.0) * 0.5 + 0.5));
-        float scanline = sin(uv.y * res.y * 3.14159265 + (TIME * 5.0 * effective_glitch)) * 0.5 + 0.5;
+        float dynamic_scanline_mult = scanline_intensity + (effective_glitch * 0.12 * (sin(TIME * 14.0) * 0.5 + 0.5));
+        float scanline = sin(uv.y * res.y * 3.14159265) * 0.5 + 0.5;
         col *= (1.0 - (scanline * dynamic_scanline_mult));
     }
 
-    // 8. Static burst snow during intense glitches approaching KM 77
-    if (effective_glitch > 0.08) {
-        float snow = hash21(uv * res * 2.0 + vec2(TIME * 60.0, -TIME * 40.0));
-        if (snow > (1.0 - effective_glitch * 0.28)) {
-            col = mix(col, vec3(snow * 0.85), effective_glitch * 0.65);
+    // 8. Static burst snow during intense glitches approaching KM 77 (subtle & intermittent)
+    if (effective_glitch > 0.15) {
+        float snow = hash21(uv * res * 1.5 + vec2(TIME * 40.0, -TIME * 25.0));
+        if (snow > (1.0 - effective_glitch * 0.20)) {
+            col = mix(col, vec3(snow * 0.65), effective_glitch * 0.40);
         }
     }
 

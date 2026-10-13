@@ -228,6 +228,20 @@ func _build_flanking_tree(local_x: float, local_z: float, idx: int) -> void:
 	var bark_mat := _get_bark_mat()
 	var foliage_mat := _get_foliage_mat()
 
+	# Deterministic pseudo-random variation per tree
+	var tree_seed: int = idx * 1337 + 42
+	var s: float = 0.75 + (float((tree_seed ^ 0x5555) % 100) / 100.0) * 0.60 # 0.75x to 1.35x
+	var yaw: float = (float((tree_seed * 73) % 360) / 180.0) * PI
+	var stagger_x: float = ((float((tree_seed * 19) % 100) / 100.0) - 0.3) * 0.6 # Stagger slightly outward
+	var final_x: float = local_x + (stagger_x if local_x > 0.0 else -stagger_x)
+	var stagger_z: float = ((float((tree_seed * 31) % 100) / 100.0) - 0.5) * 1.0
+	var final_z: float = local_z + stagger_z
+
+	var tree_visual := Node3D.new()
+	tree_visual.name = "TreeVisual_%d" % idx
+	tree_visual.transform = Transform3D(Basis(Vector3.UP, yaw).scaled(Vector3(s, s, s)), Vector3(final_x, 0.0, final_z))
+	static_body.add_child(tree_visual)
+
 	# Trunk mesh
 	var trunk_mesh := CylinderMesh.new()
 	trunk_mesh.top_radius = 0.22
@@ -236,19 +250,19 @@ func _build_flanking_tree(local_x: float, local_z: float, idx: int) -> void:
 	trunk_mesh.material = bark_mat
 
 	var trunk_inst := MeshInstance3D.new()
-	trunk_inst.name = "TreeTrunk_%d" % idx
+	trunk_inst.name = "TreeTrunk"
 	trunk_inst.mesh = trunk_mesh
-	trunk_inst.transform = Transform3D(Basis.IDENTITY, Vector3(local_x, 3.5, local_z))
-	static_body.add_child(trunk_inst)
+	trunk_inst.transform = Transform3D(Basis.IDENTITY, Vector3(0.0, 3.5, 0.0))
+	tree_visual.add_child(trunk_inst)
 
-	# Solid trunk physical collision shape
+	# Solid trunk physical collision shape (directly on static_body for proper collision detection)
 	var trunk_col := CollisionShape3D.new()
 	trunk_col.name = "TreeCol_%d" % idx
 	var cyl_shape := CylinderShape3D.new()
-	cyl_shape.radius = 0.32
-	cyl_shape.height = 7.5
+	cyl_shape.radius = 0.32 * s
+	cyl_shape.height = 7.5 * s
 	trunk_col.shape = cyl_shape
-	trunk_col.transform = Transform3D(Basis.IDENTITY, Vector3(local_x, 3.5, local_z))
+	trunk_col.transform = Transform3D(Basis.IDENTITY, Vector3(final_x, 3.5 * s, final_z))
 	static_body.add_child(trunk_col)
 
 	# Tiered pine foliage cones
@@ -263,10 +277,10 @@ func _build_flanking_tree(local_x: float, local_z: float, idx: int) -> void:
 		cone_mesh.material = foliage_mat
 
 		var cone_inst := MeshInstance3D.new()
-		cone_inst.name = "TreeFoliage_%d_%d" % [idx, tier]
+		cone_inst.name = "TreeFoliage_%d" % tier
 		cone_inst.mesh = cone_mesh
-		cone_inst.transform = Transform3D(Basis.IDENTITY, Vector3(local_x, tier_heights[tier], local_z))
-		static_body.add_child(cone_inst)
+		cone_inst.transform = Transform3D(Basis.IDENTITY, Vector3(0.0, tier_heights[tier], 0.0))
+		tree_visual.add_child(cone_inst)
 
 ## Constructs a tilted wooden signpost with a red warning reflector at the turnoff mouth.
 func _build_entrance_marker_sign(track_width: float) -> void:

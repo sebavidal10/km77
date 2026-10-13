@@ -1,0 +1,33 @@
+[gd_scene format=3 uid="uid://c8rn4k8pt5e01"]
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_rain_streak"]
+transparency = 1
+cull_mode = 2
+shading_mode = 0
+albedo_color = Color(0.7, 0.75, 0.85, 0.25)
+distance_fade_mode = 1
+distance_fade_min_distance = 1.8
+distance_fade_max_distance = 3.8
+
+[sub_resource type="QuadMesh" id="QuadMesh_rain_drop"]
+material = SubResource("StandardMaterial3D_rain_streak")
+size = Vector2(0.03, 0.8)
+
+[sub_resource type="ParticleProcessMaterial" id="ParticleProcessMaterial_rain"]
+emission_shape = 3
+emission_box_extents = Vector3(14, 3.5, 14)
+particle_flag_align_y = true
+direction = Vector3(0.12, -1, 0.16)
+spread = 3.0
+initial_velocity_min = 32.0
+initial_velocity_max = 36.0
+gravity = Vector3(0, -14, 0)
+color = Color(1, 1, 1, 1)
+
+[node name="Rain" type="GPUParticles3D"]
+amount = 2400
+lifetime = 0.65
+visibility_aabb = AABB(-25, -20, -25, 50, 40, 50)
+local_coords = false
+process_material = SubResource("ParticleProcessMaterial_rain")
+draw_pass_1 = SubResource("QuadMesh_rain_drop")

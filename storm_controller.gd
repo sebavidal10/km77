@@ -54,29 +54,31 @@ func _create_rain_particles() -> void:
 	_rain_particles.local_coords = false
 	_rain_particles.visibility_aabb = AABB(Vector3(-25.0, -20.0, -25.0), Vector3(50.0, 40.0, 50.0))
 
-	# Particle mesh: thin, atmospheric translucent raindrop streak
-	var drop_mesh := BoxMesh.new()
-	drop_mesh.size = Vector3(0.005, 0.42, 0.005)
+	# Particle mesh: thin, elongated translucent cold gray/white quads
+	var drop_mesh := QuadMesh.new()
+	drop_mesh.size = Vector2(0.03, 0.8)
 
 	var drop_mat := StandardMaterial3D.new()
 	drop_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	drop_mat.albedo_color = Color(0.68, 0.76, 0.88, 0.16)
 	drop_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	drop_mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	drop_mat.albedo_color = Color(0.7, 0.75, 0.85, 0.25)
 	drop_mat.distance_fade_mode = BaseMaterial3D.DISTANCE_FADE_PIXEL_ALPHA
-	drop_mat.distance_fade_min_distance = 2.2
-	drop_mat.distance_fade_max_distance = 4.2
+	drop_mat.distance_fade_min_distance = 1.8
+	drop_mat.distance_fade_max_distance = 3.8
 	_rain_particles.draw_pass_1 = drop_mesh
 
-	# Particle process material
+	# Particle process material: aligned to motion velocity for authentic slanted rain streaks
 	var proc_mat := ParticleProcessMaterial.new()
 	proc_mat.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_BOX
 	proc_mat.emission_box_extents = rain_box_extents
+	proc_mat.particle_flag_align_y = true
 	proc_mat.direction = rain_wind_vector.normalized()
-	proc_mat.spread = 4.0
-	proc_mat.initial_velocity_min = rain_fall_speed * 0.9
-	proc_mat.initial_velocity_max = rain_fall_speed * 1.1
-	proc_mat.gravity = Vector3(0.0, -12.0, 0.0)
-	proc_mat.color = Color(0.75, 0.82, 0.92, 0.22)
+	proc_mat.spread = 3.0
+	proc_mat.initial_velocity_min = rain_fall_speed * 0.95
+	proc_mat.initial_velocity_max = rain_fall_speed * 1.05
+	proc_mat.gravity = Vector3(0.0, -14.0, 0.0)
+	proc_mat.color = Color(1.0, 1.0, 1.0, 1.0)
 	_rain_particles.process_material = proc_mat
 
 	add_child(_rain_particles)

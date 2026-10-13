@@ -200,8 +200,8 @@ var _collapse_timer: float = 0.0
 var _is_fog_anomaly: bool = false
 var _fog_anomaly_timer: float = 0.0
 var _world_env: WorldEnvironment = null
-var _orig_fog_light_color := Color(0.04, 0.045, 0.055, 1.0)
-var _orig_volumetric_fog_albedo := Color(0.05, 0.055, 0.065, 1.0)
+var _orig_fog_light_color := Color(0.031, 0.047, 0.078, 1.0)
+var _orig_volumetric_fog_albedo := Color(0.0313726, 0.0470588, 0.0784314, 1.0)
 var _anomaly_fog_color := Color(0.38, 0.05, 0.08, 1.0) # Deep ominous crimson void
 
 var _is_flickering_glitch: bool = false

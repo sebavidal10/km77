@@ -1105,36 +1105,42 @@ func _spawn_woods_for_segment(segment: RoadSegment, rng: RandomNumberGenerator) 
 		var left_near: int = rng.randi_range(1, 2)
 		var right_near: int = rng.randi_range(1, 2)
 		for t in range(left_near):
-			var x_dist: float = rng.randf_range(-21.0, -14.0)
-			var z_dist: float = rng.randf_range(-4.0, 4.0)
+			var stagger_x: float = rng.randf_range(-1.8, 1.8)
+			var x_dist: float = rng.randf_range(-21.0, -14.0) + stagger_x
+			var z_dist: float = rng.randf_range(-4.5, 4.5)
 			_spawn_tree(segment, slice_tr, Vector3(x_dist, 0.0, z_dist), bark_mat, foliage_mat, rng, true, 6.5, 9.5)
 		for t in range(right_near):
-			var x_dist: float = rng.randf_range(14.0, 21.0)
-			var z_dist: float = rng.randf_range(-4.0, 4.0)
+			var stagger_x: float = rng.randf_range(-1.8, 1.8)
+			var x_dist: float = rng.randf_range(14.0, 21.0) + stagger_x
+			var z_dist: float = rng.randf_range(-4.5, 4.5)
 			_spawn_tree(segment, slice_tr, Vector3(x_dist, 0.0, z_dist), bark_mat, foliage_mat, rng, true, 6.5, 9.5)
 
 		# Layer 2: Mid forest (21.0m to 29.0m) - solid trunk collision
 		var left_mid: int = rng.randi_range(1, 2)
 		var right_mid: int = rng.randi_range(1, 2)
 		for t in range(left_mid):
-			var x_dist: float = rng.randf_range(-29.0, -21.0)
-			var z_dist: float = rng.randf_range(-4.0, 4.0)
+			var stagger_x: float = rng.randf_range(-2.5, 2.5)
+			var x_dist: float = rng.randf_range(-29.0, -21.0) + stagger_x
+			var z_dist: float = rng.randf_range(-4.5, 4.5)
 			_spawn_tree(segment, slice_tr, Vector3(x_dist, 0.0, z_dist), bark_mat, foliage_mat, rng, true, 8.0, 12.0)
 		for t in range(right_mid):
-			var x_dist: float = rng.randf_range(21.0, 29.0)
-			var z_dist: float = rng.randf_range(-4.0, 4.0)
+			var stagger_x: float = rng.randf_range(-2.5, 2.5)
+			var x_dist: float = rng.randf_range(21.0, 29.0) + stagger_x
+			var z_dist: float = rng.randf_range(-4.5, 4.5)
 			_spawn_tree(segment, slice_tr, Vector3(x_dist, 0.0, z_dist), bark_mat, foliage_mat, rng, true, 8.0, 12.0)
 
 		# Layer 3: Deep backdrop horizon silhouettes (29.0m to 44.0m) - visual only, tall dark silhouettes piercing the fog
 		var left_deep: int = rng.randi_range(2, 3)
 		var right_deep: int = rng.randi_range(2, 3)
 		for t in range(left_deep):
-			var x_dist: float = rng.randf_range(-44.0, -29.0)
-			var z_dist: float = rng.randf_range(-4.0, 4.0)
+			var stagger_x: float = rng.randf_range(-3.5, 3.5)
+			var x_dist: float = rng.randf_range(-44.0, -29.0) + stagger_x
+			var z_dist: float = rng.randf_range(-4.5, 4.5)
 			_spawn_tree(segment, slice_tr, Vector3(x_dist, 0.0, z_dist), bark_mat, foliage_mat, rng, false, 11.0, 16.5)
 		for t in range(right_deep):
-			var x_dist: float = rng.randf_range(29.0, 44.0)
-			var z_dist: float = rng.randf_range(-4.0, 4.0)
+			var stagger_x: float = rng.randf_range(-3.5, 3.5)
+			var x_dist: float = rng.randf_range(29.0, 44.0) + stagger_x
+			var z_dist: float = rng.randf_range(-4.5, 4.5)
 			_spawn_tree(segment, slice_tr, Vector3(x_dist, 0.0, z_dist), bark_mat, foliage_mat, rng, false, 11.0, 16.5)
 
 		# Undergrowth: roadside grass tufts along the verge and ditch banks
@@ -1216,6 +1222,7 @@ func _spawn_tree(segment: RoadSegment, slice_tr: Transform3D, local_offset: Vect
 	var trunk_inst := MeshInstance3D.new()
 	trunk_inst.mesh = trunk_mesh
 	trunk_inst.position = Vector3(0.0, trunk_h * 0.5, 0.0)
+	trunk_inst.rotation.y = rng.randf_range(-PI, PI)
 	tree_root.add_child(trunk_inst)
 
 	# Exposed root swell wedges at the base spreading into ditch banks
@@ -1270,7 +1277,11 @@ func _spawn_tree(segment: RoadSegment, slice_tr: Transform3D, local_offset: Vect
 		tier_inst.rotation.y = rng.randf_range(-PI, PI)
 		tree_root.add_child(tier_inst)
 
-	tree_root.transform = slice_tr * Transform3D(Basis.IDENTITY, local_offset)
+	# Random scale variation between 0.7x and 1.4x and random yaw orientation
+	var scale_mult: float = rng.randf_range(0.7, 1.4)
+	var yaw_rot: float = rng.randf_range(-PI, PI)
+	var local_tr := Transform3D(Basis(Vector3.UP, yaw_rot).scaled(Vector3(scale_mult, scale_mult, scale_mult)), local_offset)
+	tree_root.transform = slice_tr * local_tr
 	segment.add_child(tree_root)
 
 ## Spawns a distant, unreachable cabin in the dark woods with an illuminated window and eerie light.

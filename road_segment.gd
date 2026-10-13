@@ -601,24 +601,33 @@ func build_segment() -> void:
 		sh_area_right.body_exited.connect(_on_shoulder_area_exited)
 		add_child(sh_area_right)
 
-		# 4. Roadside Ditches (Cunetas) with Smooth Beveled Transition from Shoulder Top (Y = +0.5)
+		# 4. Roadside Ditches (Cunetas) with Varying Embankment Heights (Slanted Berm Ditches)
 		var ditch_mat := get_ditch_material()
 		var ditch_slab_thickness: float = 0.4
-		var slope_hypot: float = sqrt(pow(ditch_slope_width, 2.0) + pow(ditch_depth, 2.0)) + 0.35
-		var slope_angle: float = atan2(ditch_depth, ditch_slope_width)
-		# Align top surface of ditch slope with top surface of road/shoulder (Y = road_thickness * 0.5 = +0.5)
-		var surface_top_y: float = road_thickness * 0.5
-		var down_center_y: float = surface_top_y - (ditch_depth * 0.5) - (ditch_slab_thickness * 0.5 * cos(slope_angle))
+		var surface_top_y: float = road_thickness * 0.5 # +0.5
+
+		# Procedural berm undulating wave based on global slice index to break artificial planar repetition
+		var global_slice_idx: float = float(segment_index * slice_count + i)
+		var berm_wave_l: float = sin(global_slice_idx * 0.55) * 0.28 + cos(global_slice_idx * 0.25) * 0.16
+		var berm_wave_r: float = sin(global_slice_idx * 0.48 + 1.2) * 0.28 + cos(global_slice_idx * 0.31 + 0.8) * 0.16
+
+		var slice_ditch_depth_l: float = clampf(ditch_depth + berm_wave_l, 0.45, 1.15)
+		var slice_berm_rise_l: float = clampf(0.25 + berm_wave_l * 0.45, 0.05, 0.65)
+		var slice_ditch_depth_r: float = clampf(ditch_depth + berm_wave_r, 0.45, 1.15)
+		var slice_berm_rise_r: float = clampf(0.25 + berm_wave_r * 0.45, 0.05, 0.65)
 
 		# Left Ditch
-		# Inner down-slope (slopes smoothly down from shoulder edge at Y = +0.5)
+		# Inner down-slope (slopes down from shoulder edge)
+		var left_down_hypot: float = sqrt(pow(ditch_slope_width, 2.0) + pow(slice_ditch_depth_l, 2.0)) + 0.35
+		var left_down_angle: float = atan2(slice_ditch_depth_l, ditch_slope_width)
+		var left_down_center_y: float = surface_top_y - (slice_ditch_depth_l * 0.5) - (ditch_slab_thickness * 0.5 * cos(left_down_angle))
 		var left_down_center_x: float = -(half_road + shoulder_width + (ditch_slope_width * 0.5))
-		var left_down_local := Vector3(left_down_center_x, down_center_y, 0.0)
-		var left_down_rot := Basis(Vector3.FORWARD, slope_angle)
+		var left_down_local := Vector3(left_down_center_x, left_down_center_y, 0.0)
+		var left_down_rot := Basis(Vector3.FORWARD, left_down_angle)
 		var left_down_tr := Transform3D(slice_basis * left_down_rot, slice_center + slice_basis * left_down_local)
 
 		var left_down_mesh := BoxMesh.new()
-		left_down_mesh.size = Vector3(slope_hypot, ditch_slab_thickness, slice_box_length)
+		left_down_mesh.size = Vector3(left_down_hypot, ditch_slab_thickness, slice_box_length)
 		left_down_mesh.material = ditch_mat
 		var left_down_inst := MeshInstance3D.new()
 		left_down_inst.name = "DitchLeftDownMesh_%d" % i
@@ -628,20 +637,25 @@ func build_segment() -> void:
 
 		var left_down_col := CollisionShape3D.new()
 		var left_down_shape := BoxShape3D.new()
-		left_down_shape.size = Vector3(slope_hypot, ditch_slab_thickness, slice_box_length)
+		left_down_shape.size = Vector3(left_down_hypot, ditch_slab_thickness, slice_box_length)
 		left_down_col.name = "DitchLeftDownCol_%d" % i
 		left_down_col.shape = left_down_shape
 		left_down_col.transform = left_down_tr
 		static_body.add_child(left_down_col)
 
-		# Outer up-slope
+		# Outer up-slope (rises from ditch floor up to berm crest)
+		var left_up_rise: float = slice_ditch_depth_l + slice_berm_rise_l
+		var left_up_hypot: float = sqrt(pow(ditch_slope_width, 2.0) + pow(left_up_rise, 2.0)) + 0.35
+		var left_up_angle: float = atan2(left_up_rise, ditch_slope_width)
+		var left_ditch_bottom_y: float = surface_top_y - slice_ditch_depth_l
+		var left_up_center_y: float = left_ditch_bottom_y + (left_up_rise * 0.5) - (ditch_slab_thickness * 0.5 * cos(left_up_angle))
 		var left_up_center_x: float = -(half_road + shoulder_width + ditch_slope_width + (ditch_slope_width * 0.5))
-		var left_up_local := Vector3(left_up_center_x, down_center_y, 0.0)
-		var left_up_rot := Basis(Vector3.FORWARD, -slope_angle)
+		var left_up_local := Vector3(left_up_center_x, left_up_center_y, 0.0)
+		var left_up_rot := Basis(Vector3.FORWARD, -left_up_angle)
 		var left_up_tr := Transform3D(slice_basis * left_up_rot, slice_center + slice_basis * left_up_local)
 
 		var left_up_mesh := BoxMesh.new()
-		left_up_mesh.size = Vector3(slope_hypot, ditch_slab_thickness, slice_box_length)
+		left_up_mesh.size = Vector3(left_up_hypot, ditch_slab_thickness, slice_box_length)
 		left_up_mesh.material = ditch_mat
 		var left_up_inst := MeshInstance3D.new()
 		left_up_inst.name = "DitchLeftUpMesh_%d" % i
@@ -651,21 +665,24 @@ func build_segment() -> void:
 
 		var left_up_col := CollisionShape3D.new()
 		var left_up_shape := BoxShape3D.new()
-		left_up_shape.size = Vector3(slope_hypot, ditch_slab_thickness, slice_box_length)
+		left_up_shape.size = Vector3(left_up_hypot, ditch_slab_thickness, slice_box_length)
 		left_up_col.name = "DitchLeftUpCol_%d" % i
 		left_up_col.shape = left_up_shape
 		left_up_col.transform = left_up_tr
 		static_body.add_child(left_up_col)
 
 		# Right Ditch
-		# Inner down-slope (slopes smoothly down from shoulder edge at Y = +0.5)
+		# Inner down-slope (slopes down from shoulder edge)
+		var right_down_hypot: float = sqrt(pow(ditch_slope_width, 2.0) + pow(slice_ditch_depth_r, 2.0)) + 0.35
+		var right_down_angle: float = atan2(slice_ditch_depth_r, ditch_slope_width)
+		var right_down_center_y: float = surface_top_y - (slice_ditch_depth_r * 0.5) - (ditch_slab_thickness * 0.5 * cos(right_down_angle))
 		var right_down_center_x: float = half_road + shoulder_width + (ditch_slope_width * 0.5)
-		var right_down_local := Vector3(right_down_center_x, down_center_y, 0.0)
-		var right_down_rot := Basis(Vector3.FORWARD, -slope_angle)
+		var right_down_local := Vector3(right_down_center_x, right_down_center_y, 0.0)
+		var right_down_rot := Basis(Vector3.FORWARD, -right_down_angle)
 		var right_down_tr := Transform3D(slice_basis * right_down_rot, slice_center + slice_basis * right_down_local)
 
 		var right_down_mesh := BoxMesh.new()
-		right_down_mesh.size = Vector3(slope_hypot, ditch_slab_thickness, slice_box_length)
+		right_down_mesh.size = Vector3(right_down_hypot, ditch_slab_thickness, slice_box_length)
 		right_down_mesh.material = ditch_mat
 		var right_down_inst := MeshInstance3D.new()
 		right_down_inst.name = "DitchRightDownMesh_%d" % i
@@ -675,20 +692,25 @@ func build_segment() -> void:
 
 		var right_down_col := CollisionShape3D.new()
 		var right_down_shape := BoxShape3D.new()
-		right_down_shape.size = Vector3(slope_hypot, ditch_slab_thickness, slice_box_length)
+		right_down_shape.size = Vector3(right_down_hypot, ditch_slab_thickness, slice_box_length)
 		right_down_col.name = "DitchRightDownCol_%d" % i
 		right_down_col.shape = right_down_shape
 		right_down_col.transform = right_down_tr
 		static_body.add_child(right_down_col)
 
-		# Outer up-slope
+		# Outer up-slope (rises from ditch floor up to berm crest)
+		var right_up_rise: float = slice_ditch_depth_r + slice_berm_rise_r
+		var right_up_hypot: float = sqrt(pow(ditch_slope_width, 2.0) + pow(right_up_rise, 2.0)) + 0.35
+		var right_up_angle: float = atan2(right_up_rise, ditch_slope_width)
+		var right_ditch_bottom_y: float = surface_top_y - slice_ditch_depth_r
+		var right_up_center_y: float = right_ditch_bottom_y + (right_up_rise * 0.5) - (ditch_slab_thickness * 0.5 * cos(right_up_angle))
 		var right_up_center_x: float = half_road + shoulder_width + ditch_slope_width + (ditch_slope_width * 0.5)
-		var right_up_local := Vector3(right_up_center_x, down_center_y, 0.0)
-		var right_up_rot := Basis(Vector3.FORWARD, slope_angle)
+		var right_up_local := Vector3(right_up_center_x, right_up_center_y, 0.0)
+		var right_up_rot := Basis(Vector3.FORWARD, right_up_angle)
 		var right_up_tr := Transform3D(slice_basis * right_up_rot, slice_center + slice_basis * right_up_local)
 
 		var right_up_mesh := BoxMesh.new()
-		right_up_mesh.size = Vector3(slope_hypot, ditch_slab_thickness, slice_box_length)
+		right_up_mesh.size = Vector3(right_up_hypot, ditch_slab_thickness, slice_box_length)
 		right_up_mesh.material = ditch_mat
 		var right_up_inst := MeshInstance3D.new()
 		right_up_inst.name = "DitchRightUpMesh_%d" % i
@@ -698,7 +720,7 @@ func build_segment() -> void:
 
 		var right_up_col := CollisionShape3D.new()
 		var right_up_shape := BoxShape3D.new()
-		right_up_shape.size = Vector3(slope_hypot, ditch_slab_thickness, slice_box_length)
+		right_up_shape.size = Vector3(right_up_hypot, ditch_slab_thickness, slice_box_length)
 		right_up_col.name = "DitchRightUpCol_%d" % i
 		right_up_col.shape = right_up_shape
 		right_up_col.transform = right_up_tr
@@ -712,10 +734,10 @@ func build_segment() -> void:
 		ditch_left_mud.collision_mask = 1
 		var ditch_left_mud_col := CollisionShape3D.new()
 		var ditch_left_mud_shape := BoxShape3D.new()
-		ditch_left_mud_shape.size = Vector3(ditch_area_w, 2.0, slice_box_length)
+		ditch_left_mud_shape.size = Vector3(ditch_area_w, 2.0 + slice_berm_rise_l, slice_box_length)
 		ditch_left_mud_col.shape = ditch_left_mud_shape
 		ditch_left_mud.add_child(ditch_left_mud_col)
-		var left_mud_local := Vector3(-(half_road + shoulder_width + ditch_slope_width), -0.5, 0.0)
+		var left_mud_local := Vector3(-(half_road + shoulder_width + ditch_slope_width), -0.5 + slice_berm_rise_l * 0.2, 0.0)
 		ditch_left_mud.transform = Transform3D(slice_basis, slice_center + slice_basis * left_mud_local)
 		ditch_left_mud.body_entered.connect(_on_mud_area_entered)
 		ditch_left_mud.body_exited.connect(_on_mud_area_exited)
@@ -727,10 +749,10 @@ func build_segment() -> void:
 		ditch_right_mud.collision_mask = 1
 		var ditch_right_mud_col := CollisionShape3D.new()
 		var ditch_right_mud_shape := BoxShape3D.new()
-		ditch_right_mud_shape.size = Vector3(ditch_area_w, 2.0, slice_box_length)
+		ditch_right_mud_shape.size = Vector3(ditch_area_w, 2.0 + slice_berm_rise_r, slice_box_length)
 		ditch_right_mud_col.shape = ditch_right_mud_shape
 		ditch_right_mud.add_child(ditch_right_mud_col)
-		var right_mud_local := Vector3(half_road + shoulder_width + ditch_slope_width, -0.5, 0.0)
+		var right_mud_local := Vector3(half_road + shoulder_width + ditch_slope_width, -0.5 + slice_berm_rise_r * 0.2, 0.0)
 		ditch_right_mud.transform = Transform3D(slice_basis, slice_center + slice_basis * right_mud_local)
 		ditch_right_mud.body_entered.connect(_on_mud_area_entered)
 		ditch_right_mud.body_exited.connect(_on_mud_area_exited)
