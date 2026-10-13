@@ -24,6 +24,8 @@ const SupplyStopScene = preload("res://supply_stop.tscn")
 @export var starting_kilometer: int = 85
 ## How many chunks between each kilometer marker milestone.
 @export var chunks_per_milestone: int = 2
+## Chance (0.0 to 1.0) to spawn a retro highway guide or hazard sign on a chunk.
+@export var guide_sign_probability: float = 0.40
 
 @export_group("Liminal Scenery Probabilities")
 ## Chance (0.0 to 1.0) to spawn a tracking roadside hitchhiker on the right verge.
@@ -61,6 +63,9 @@ static var _cabin_roof_mat: StandardMaterial3D
 static var _window_emission_mat: StandardMaterial3D
 static var _blood_crimson_mat: StandardMaterial3D
 static var _taillight_red_mat: StandardMaterial3D
+static var _guide_sign_green_mat: StandardMaterial3D
+static var _guide_sign_amber_mat: StandardMaterial3D
+static var _guide_sign_white_mat: StandardMaterial3D
 
 func _ready() -> void:
 	reset_spawner()
@@ -216,6 +221,37 @@ static func _get_window_emission_mat() -> StandardMaterial3D:
 		_window_emission_mat.emission_energy_multiplier = 3.0
 	return _window_emission_mat
 
+static func _get_guide_sign_green_mat() -> StandardMaterial3D:
+	if not _guide_sign_green_mat:
+		_guide_sign_green_mat = StandardMaterial3D.new()
+		# Weathered rural highway dark green sign (#14442A)
+		_guide_sign_green_mat.albedo_color = Color(0.08, 0.28, 0.16, 1.0)
+		_guide_sign_green_mat.roughness = 0.55
+		_guide_sign_green_mat.metallic = 0.15
+	return _guide_sign_green_mat
+
+static func _get_guide_sign_amber_mat() -> StandardMaterial3D:
+	if not _guide_sign_amber_mat:
+		_guide_sign_amber_mat = StandardMaterial3D.new()
+		# Retro-reflective yellow hazard sign (#FFA000)
+		_guide_sign_amber_mat.albedo_color = Color(1.0, 0.65, 0.02, 1.0)
+		_guide_sign_amber_mat.roughness = 0.25
+		_guide_sign_amber_mat.emission_enabled = true
+		_guide_sign_amber_mat.emission = Color(1.0, 0.6, 0.02, 1.0)
+		_guide_sign_amber_mat.emission_energy_multiplier = 0.6
+	return _guide_sign_amber_mat
+
+static func _get_guide_sign_white_mat() -> StandardMaterial3D:
+	if not _guide_sign_white_mat:
+		_guide_sign_white_mat = StandardMaterial3D.new()
+		# Retro-reflective white border and lettering
+		_guide_sign_white_mat.albedo_color = Color(0.92, 0.92, 0.90, 1.0)
+		_guide_sign_white_mat.roughness = 0.3
+		_guide_sign_white_mat.emission_enabled = true
+		_guide_sign_white_mat.emission = Color(0.85, 0.85, 0.85, 1.0)
+		_guide_sign_white_mat.emission_energy_multiplier = 0.4
+	return _guide_sign_white_mat
+
 ## Populates a newly spawned RoadSegment with obstacles, roadside props, and milestone markers.
 func spawn_events_for_segment(segment: RoadSegment, chunk_index: int, rng: RandomNumberGenerator, has_supply_stop: bool = false) -> void:
 	if not segment:
@@ -308,6 +344,13 @@ func spawn_events_for_segment(segment: RoadSegment, chunk_index: int, rng: Rando
 	if rng.randf() < distant_cabin_probability:
 		var slice_idx: int = rng.randi_range(1, slice_count - 2)
 		_spawn_distant_cabin(segment, slice_idx, rng)
+
+	# 10. Retro Highway Guide Signs ("RUTA NACIONAL 77" & Hazard Markers)
+	if not has_supply_stop and rng.randf() < guide_sign_probability:
+		var slice_idx: int = rng.randi_range(1, slice_count - 2)
+		if not occupied_slices.has(slice_idx):
+			occupied_slices.append(slice_idx)
+			_spawn_highway_guide_sign(segment, slice_idx, rng)
 
 ## Spawns a SupplyStop instance on the right shoulder of the given segment.
 func _spawn_supply_stop_on_segment(segment: RoadSegment) -> void:
@@ -921,7 +964,7 @@ func _spawn_bus_stop(segment: RoadSegment, slice_idx: int, rng: RandomNumberGene
 	shelter_root.transform = slice_tr * Transform3D(Basis.IDENTITY, local_offset)
 	segment.add_child(shelter_root)
 
-## Spawns dense pine forest tree silhouettes along outer road margins.
+## Spawns dense pine forest tree silhouettes along outer road margins in 3 depth layers.
 func _spawn_woods_for_segment(segment: RoadSegment, rng: RandomNumberGenerator) -> void:
 	var slice_count: int = segment.get_slice_count()
 	var bark_mat := _get_tree_bark_mat()
@@ -930,26 +973,46 @@ func _spawn_woods_for_segment(segment: RoadSegment, rng: RandomNumberGenerator) 
 	for i in range(slice_count):
 		var slice_tr: Transform3D = segment.get_slice_transform(i)
 
-		# Spawn 2-3 trees on left verge and 2-3 trees on right verge
-		var left_trees: int = rng.randi_range(2, 3)
-		var right_trees: int = rng.randi_range(2, 3)
-
-		# Left side woods: X between -26m and -13.5m (beyond roadside ditch)
-		for t in range(left_trees):
-			var x_dist: float = rng.randf_range(-26.0, -13.5)
+		# Layer 1: Near treeline (14.0m to 21.0m) - solid trunk collision
+		var left_near: int = rng.randi_range(1, 2)
+		var right_near: int = rng.randi_range(1, 2)
+		for t in range(left_near):
+			var x_dist: float = rng.randf_range(-21.0, -14.0)
 			var z_dist: float = rng.randf_range(-4.0, 4.0)
-			_spawn_tree(segment, slice_tr, Vector3(x_dist, 0.0, z_dist), bark_mat, foliage_mat, rng)
-
-		# Right side woods: X between +13.5m and +26m (beyond roadside ditch)
-		for t in range(right_trees):
-			var x_dist: float = rng.randf_range(13.5, 26.0)
+			_spawn_tree(segment, slice_tr, Vector3(x_dist, 0.0, z_dist), bark_mat, foliage_mat, rng, true, 6.5, 9.5)
+		for t in range(right_near):
+			var x_dist: float = rng.randf_range(14.0, 21.0)
 			var z_dist: float = rng.randf_range(-4.0, 4.0)
-			_spawn_tree(segment, slice_tr, Vector3(x_dist, 0.0, z_dist), bark_mat, foliage_mat, rng)
+			_spawn_tree(segment, slice_tr, Vector3(x_dist, 0.0, z_dist), bark_mat, foliage_mat, rng, true, 6.5, 9.5)
+
+		# Layer 2: Mid forest (21.0m to 29.0m) - solid trunk collision
+		var left_mid: int = rng.randi_range(1, 2)
+		var right_mid: int = rng.randi_range(1, 2)
+		for t in range(left_mid):
+			var x_dist: float = rng.randf_range(-29.0, -21.0)
+			var z_dist: float = rng.randf_range(-4.0, 4.0)
+			_spawn_tree(segment, slice_tr, Vector3(x_dist, 0.0, z_dist), bark_mat, foliage_mat, rng, true, 8.0, 12.0)
+		for t in range(right_mid):
+			var x_dist: float = rng.randf_range(21.0, 29.0)
+			var z_dist: float = rng.randf_range(-4.0, 4.0)
+			_spawn_tree(segment, slice_tr, Vector3(x_dist, 0.0, z_dist), bark_mat, foliage_mat, rng, true, 8.0, 12.0)
+
+		# Layer 3: Deep backdrop horizon silhouettes (29.0m to 44.0m) - visual only, tall dark silhouettes piercing the fog
+		var left_deep: int = rng.randi_range(2, 3)
+		var right_deep: int = rng.randi_range(2, 3)
+		for t in range(left_deep):
+			var x_dist: float = rng.randf_range(-44.0, -29.0)
+			var z_dist: float = rng.randf_range(-4.0, 4.0)
+			_spawn_tree(segment, slice_tr, Vector3(x_dist, 0.0, z_dist), bark_mat, foliage_mat, rng, false, 11.0, 16.5)
+		for t in range(right_deep):
+			var x_dist: float = rng.randf_range(29.0, 44.0)
+			var z_dist: float = rng.randf_range(-4.0, 4.0)
+			_spawn_tree(segment, slice_tr, Vector3(x_dist, 0.0, z_dist), bark_mat, foliage_mat, rng, false, 11.0, 16.5)
 
 ## Helper to build an individual pine tree from CylinderMesh primitives.
-func _spawn_tree(segment: RoadSegment, slice_tr: Transform3D, local_offset: Vector3, bark_mat: StandardMaterial3D, foliage_mat: StandardMaterial3D, rng: RandomNumberGenerator) -> void:
+func _spawn_tree(segment: RoadSegment, slice_tr: Transform3D, local_offset: Vector3, bark_mat: StandardMaterial3D, foliage_mat: StandardMaterial3D, rng: RandomNumberGenerator, has_collision: bool = true, min_h: float = 6.5, max_h: float = 9.5) -> void:
 	var tree_root := Node3D.new()
-	var height: float = rng.randf_range(6.5, 9.5)
+	var height: float = rng.randf_range(min_h, max_h)
 	var trunk_h: float = height * 0.45
 
 	# Trunk (CylinderMesh)
@@ -964,27 +1027,28 @@ func _spawn_tree(segment: RoadSegment, slice_tr: Transform3D, local_offset: Vect
 	trunk_inst.position = Vector3(0.0, trunk_h * 0.5, 0.0)
 	tree_root.add_child(trunk_inst)
 
-	# Solid trunk collision to punish off-road crashes against trees
-	var tree_body := StaticBody3D.new()
-	tree_body.name = "TreeCollision"
-	tree_body.collision_layer = 1
-	tree_body.collision_mask = 1
-	tree_body.add_to_group("heavy_obstacle")
+	if has_collision:
+		# Solid trunk collision to punish off-road crashes against trees
+		var tree_body := StaticBody3D.new()
+		tree_body.name = "TreeCollision"
+		tree_body.collision_layer = 1
+		tree_body.collision_mask = 1
+		tree_body.add_to_group("heavy_obstacle")
 
-	var tree_col := CollisionShape3D.new()
-	var tree_shape := CylinderShape3D.new()
-	tree_shape.height = trunk_h
-	tree_shape.radius = 0.35
-	tree_col.shape = tree_shape
-	tree_col.position = Vector3(0.0, trunk_h * 0.5, 0.0)
-	tree_body.add_child(tree_col)
-	tree_root.add_child(tree_body)
+		var tree_col := CollisionShape3D.new()
+		var tree_shape := CylinderShape3D.new()
+		tree_shape.height = trunk_h
+		tree_shape.radius = 0.35
+		tree_col.shape = tree_shape
+		tree_col.position = Vector3(0.0, trunk_h * 0.5, 0.0)
+		tree_body.add_child(tree_col)
+		tree_root.add_child(tree_body)
 
 	# Foliage cone (CylinderMesh with top_radius = 0)
 	var foliage_h: float = height * 0.7
 	var foliage_mesh := CylinderMesh.new()
 	foliage_mesh.top_radius = 0.0
-	foliage_mesh.bottom_radius = rng.randf_range(1.6, 2.4)
+	foliage_mesh.bottom_radius = rng.randf_range(1.6, 2.5) * (height / 8.0)
 	foliage_mesh.height = foliage_h
 	foliage_mesh.material = foliage_mat
 
@@ -1063,3 +1127,114 @@ func _spawn_distant_cabin(segment: RoadSegment, slice_idx: int, rng: RandomNumbe
 	var local_offset := Vector3(distance_x, 0.0, 0.0)
 	cabin_root.transform = slice_tr * Transform3D(Basis.IDENTITY, local_offset)
 	segment.add_child(cabin_root)
+
+## Spawns a retro roadside highway guide sign or yellow hazard sign.
+func _spawn_highway_guide_sign(segment: RoadSegment, slice_idx: int, rng: RandomNumberGenerator) -> void:
+	var slice_tr: Transform3D = segment.get_slice_transform(slice_idx)
+	var verge_x: float = 8.6
+
+	var sign_root := Node3D.new()
+	sign_root.name = "GuideSign_%d" % slice_idx
+
+	var is_green_route_sign: bool = rng.randf() < 0.65
+
+	if is_green_route_sign:
+		# Double dark steel/wood support posts
+		var post_mat := _get_wood_post_mat()
+		for post_x in [-0.85, 0.85]:
+			var post_mesh := BoxMesh.new()
+			post_mesh.size = Vector3(0.14, 3.4, 0.14)
+			post_mesh.material = post_mat
+			var post_inst := MeshInstance3D.new()
+			post_inst.mesh = post_mesh
+			post_inst.position = Vector3(post_x, 1.7, 0.0)
+			sign_root.add_child(post_inst)
+
+		# Outer white reflective border
+		var border_mesh := BoxMesh.new()
+		border_mesh.size = Vector3(2.64, 1.44, 0.06)
+		border_mesh.material = _get_guide_sign_white_mat()
+		var border_inst := MeshInstance3D.new()
+		border_inst.mesh = border_mesh
+		border_inst.position = Vector3(0.0, 2.5, 0.0)
+		sign_root.add_child(border_inst)
+
+		# Green retro highway plate
+		var plate_mesh := BoxMesh.new()
+		plate_mesh.size = Vector3(2.52, 1.32, 0.08)
+		plate_mesh.material = _get_guide_sign_green_mat()
+		var plate_inst := MeshInstance3D.new()
+		plate_inst.mesh = plate_mesh
+		plate_inst.position = Vector3(0.0, 2.5, 0.02)
+		sign_root.add_child(plate_inst)
+
+		# Retro highway text label (facing oncoming vehicles)
+		var label := Label3D.new()
+		label.name = "SignText"
+		var sign_options: Array[String] = [
+			"RUTA NACIONAL 77\nKILÓMETRO %d\nNO SE DETENGA" % current_kilometer,
+			"RUTA 77 SUR\nNIEBLA DENSA\nLUCES OBLIGATORIAS",
+			"TRAMO VIGILADO\nKM %d\nCONSERVE SU CARRIL" % current_kilometer,
+			"RUTA NACIONAL 77\nZONA RURAL AISLADA\nSIN ASISTENCIA"
+		]
+		label.text = sign_options[rng.randi_range(0, sign_options.size() - 1)]
+		label.font_size = 28
+		label.outline_size = 4
+		label.modulate = Color(0.96, 0.96, 0.94, 1.0)
+		label.outline_modulate = Color(0.04, 0.14, 0.08, 1.0)
+		label.position = Vector3(0.0, 2.5, 0.07)
+		sign_root.add_child(label)
+	else:
+		# Single post yellow hazard diamond sign
+		var post_mesh := BoxMesh.new()
+		post_mesh.size = Vector3(0.12, 2.8, 0.12)
+		post_mesh.material = _get_wood_post_mat()
+		var post_inst := MeshInstance3D.new()
+		post_inst.mesh = post_mesh
+		post_inst.position = Vector3(0.0, 1.4, 0.0)
+		sign_root.add_child(post_inst)
+
+		# Diamond backplate
+		var diamond_mesh := BoxMesh.new()
+		diamond_mesh.size = Vector3(1.1, 1.1, 0.06)
+		diamond_mesh.material = _get_guide_sign_amber_mat()
+		var diamond_inst := MeshInstance3D.new()
+		diamond_inst.mesh = diamond_mesh
+		diamond_inst.position = Vector3(0.0, 2.3, 0.02)
+		diamond_inst.rotation.z = deg_to_rad(45.0)
+		sign_root.add_child(diamond_inst)
+
+		# Label with retro warning
+		var label := Label3D.new()
+		label.name = "HazardText"
+		var hazard_options: Array[String] = [
+			"PELIGRO\nCURVA",
+			"ZONA DE\nNIEBLA",
+			"CALZADA\nRESBALADIZA",
+			"REDUZCA\nVELOCIDAD"
+		]
+		label.text = hazard_options[rng.randi_range(0, hazard_options.size() - 1)]
+		label.font_size = 26
+		label.outline_size = 5
+		label.modulate = Color(0.10, 0.10, 0.10, 1.0)
+		label.outline_modulate = Color(1.0, 0.75, 0.1, 1.0)
+		label.position = Vector3(0.0, 2.3, 0.06)
+		sign_root.add_child(label)
+
+	# Solid collision so vehicle cannot ghost through sign
+	var sign_body := StaticBody3D.new()
+	sign_body.name = "SignCollision"
+	sign_body.collision_layer = 1
+	sign_body.collision_mask = 1
+	sign_body.add_to_group("heavy_obstacle")
+	var sign_col := CollisionShape3D.new()
+	var sign_shape := BoxShape3D.new()
+	sign_shape.size = Vector3(2.6, 3.4, 0.4)
+	sign_col.shape = sign_shape
+	sign_col.position = Vector3(0.0, 1.7, 0.0)
+	sign_body.add_child(sign_col)
+	sign_root.add_child(sign_body)
+
+	var local_offset := Vector3(verge_x, 0.2, 0.0)
+	sign_root.transform = slice_tr * Transform3D(Basis.IDENTITY, local_offset)
+	segment.add_child(sign_root)

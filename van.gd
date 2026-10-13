@@ -1227,7 +1227,7 @@ func _process_suspension_dynamics(delta: float, fwd_speed: float) -> void:
 	if not target_node:
 		return
 
-	# 1. Pitch (longitudinal): nose dips forward when braking hard, front lifts slightly under strong acceleration
+	# 1. Longitudinal pitch: noticeable nose-dive under hard braking, front lift under throttle
 	var accel_long: float = 0.0
 	if delta > 0.0:
 		accel_long = (fwd_speed - _prev_forward_speed) / delta
@@ -1236,10 +1236,10 @@ func _process_suspension_dynamics(delta: float, fwd_speed: float) -> void:
 	var throttle_input: float = Input.get_axis("brake", "accelerate")
 	var input_pitch_bias: float = 0.0
 	if not is_stalled and current_fuel > 0.0:
-		if throttle_input < -0.1 and fwd_speed > 0.5:
-			input_pitch_bias = -deg_to_rad(max_body_pitch_deg * 0.55)
-		elif throttle_input > 0.1 and fwd_speed >= 0.0:
-			input_pitch_bias = deg_to_rad(max_body_pitch_deg * 0.35)
+		if throttle_input < -0.1 and fwd_speed > 0.4:
+			input_pitch_bias = -deg_to_rad(max_body_pitch_deg * 0.65)
+		elif throttle_input > 0.1 and fwd_speed >= -0.2:
+			input_pitch_bias = deg_to_rad(max_body_pitch_deg * 0.42)
 
 	var target_pitch: float = clampf(
 		(accel_long * pitch_acceleration_factor) + input_pitch_bias,
@@ -1248,7 +1248,7 @@ func _process_suspension_dynamics(delta: float, fwd_speed: float) -> void:
 	)
 	_current_pitch = lerpf(_current_pitch, target_pitch, clampf(body_pitch_speed * delta, 0.0, 1.0))
 
-	# 2. Roll (lateral): chassis leans gently away from sharp turns proportional to cornering speed
+	# 2. Lateral body roll: chassis leans outward during high-speed cornering relative to steering angle and velocity
 	var base_max_angle: float = deg_to_rad(max_steer_angle) if max_steer_angle > 1.5 else max_steer_angle
 	var steer_ratio: float = clampf(current_steer_angle / maxf(base_max_angle, 0.001), -1.0, 1.0)
 	var speed_ratio: float = clampf(absf(fwd_speed) / max_speed, 0.0, 1.0)
@@ -1257,17 +1257,19 @@ func _process_suspension_dynamics(delta: float, fwd_speed: float) -> void:
 	var target_roll: float = -steer_ratio * deg_to_rad(max_body_roll_deg) * speed_ratio * drift_extra
 	_current_roll = lerpf(_current_roll, target_roll, clampf(body_roll_speed * delta, 0.0, 1.0))
 
-	# 3. Idle Engine Vibration: subtle micro-oscillation in local Y when stopped with engine on
+	# 3. Procedural idle engine rumble: low-frequency micro-shake on chassis when stopped with engine on
 	var is_idling: bool = absf(fwd_speed) < 0.35 and not is_stalled and current_fuel > 0.0
+	var idle_roll_rumble: float = 0.0
 	if is_idling:
 		_idle_shiver_time += delta * idle_shiver_frequency
 		_idle_shiver_offset = (sin(_idle_shiver_time) * 0.7 + sin(_idle_shiver_time * 2.3) * 0.3) * idle_shiver_amplitude
+		idle_roll_rumble = sin(_idle_shiver_time * 0.85) * 0.003
 	else:
 		_idle_shiver_offset = move_toward(_idle_shiver_offset, 0.0, 0.05 * delta)
 
-	# 4. Apply interpolated pitch, roll, and idle vibration to VisualRoot (root CollisionShape3D stays rigid)
+	# 4. Apply interpolated pitch, roll, and engine rumble to VisualRoot (rigid physical collider remains static)
 	target_node.rotation.x = _current_pitch
-	target_node.rotation.z = _current_roll
+	target_node.rotation.z = _current_roll + idle_roll_rumble
 	target_node.position.y = _base_visual_root_y + _idle_shiver_offset
 
 ## Backward compatibility alias for _process_suspension_dynamics.

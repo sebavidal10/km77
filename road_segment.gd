@@ -45,58 +45,97 @@ static var _road_material: StandardMaterial3D
 static var _shoulder_material: StandardMaterial3D
 static var _ditch_material: StandardMaterial3D
 static var _barrier_material: StandardMaterial3D
+static var _guardrail_post_mat: StandardMaterial3D
 static var _marking_material: StandardMaterial3D
+static var _fog_line_material: StandardMaterial3D
 static var _reflector_amber_mat: StandardMaterial3D
 static var _sign_post_mat: StandardMaterial3D
+static var _telegraph_wood_mat: StandardMaterial3D
+static var _cable_wire_mat: StandardMaterial3D
+static var _insulator_mat: StandardMaterial3D
 
 static func get_road_material() -> StandardMaterial3D:
 	if not _road_material:
 		_road_material = StandardMaterial3D.new()
-		# Weathered rural asphalt tuned for strong diffuse headlight backscatter
-		_road_material.albedo_color = Color(0.35, 0.36, 0.40, 1.0)
-		_road_material.roughness = 0.80
-		_road_material.metallic = 0.0
-		_road_material.metallic_specular = 0.30
+		# Wet dark rural asphalt with glossy rain puddle noise
+		_road_material.albedo_color = Color(0.125, 0.13, 0.145, 1.0)
+		_road_material.roughness = 0.24 # Glossy wet asphalt baseline
+		_road_material.metallic = 0.05
+		_road_material.metallic_specular = 0.85
+
+		# Procedural puddle noise texture modulates surface roughness
+		var noise := FastNoiseLite.new()
+		noise.noise_type = FastNoiseLite.TYPE_SIMPLEX
+		noise.frequency = 0.04
+		noise.fractal_octaves = 3
+		var noise_tex := NoiseTexture2D.new()
+		noise_tex.width = 256
+		noise_tex.height = 256
+		noise_tex.seamless = true
+		noise_tex.noise = noise
+		_road_material.roughness_texture = noise_tex
+		_road_material.roughness_texture_channel = BaseMaterial3D.TEXTURE_CHANNEL_RED
 	return _road_material
 
 static func get_shoulder_material() -> StandardMaterial3D:
 	if not _shoulder_material:
 		_shoulder_material = StandardMaterial3D.new()
-		# Compacted gravel and unpaved dirt shoulder
-		_shoulder_material.albedo_color = Color(0.28, 0.25, 0.21, 1.0)
-		_shoulder_material.roughness = 0.90
-		_shoulder_material.metallic = 0.0
+		# Compacted gravel and unpaved damp dirt shoulder
+		_shoulder_material.albedo_color = Color(0.24, 0.21, 0.18, 1.0)
+		_shoulder_material.roughness = 0.82
+		_shoulder_material.metallic = 0.02
 	return _shoulder_material
 
 static func get_ditch_material() -> StandardMaterial3D:
 	if not _ditch_material:
 		_ditch_material = StandardMaterial3D.new()
-		# Deep muddy roadside ditch soil
-		_ditch_material.albedo_color = Color(0.11, 0.10, 0.08, 1.0)
-		_ditch_material.roughness = 0.90
-		_ditch_material.metallic = 0.05
+		# Deep muddy roadside ditch soil with damp sheen
+		_ditch_material.albedo_color = Color(0.10, 0.09, 0.07, 1.0)
+		_ditch_material.roughness = 0.42
+		_ditch_material.metallic = 0.04
 	return _ditch_material
 
 static func get_barrier_material() -> StandardMaterial3D:
 	if not _barrier_material:
 		_barrier_material = StandardMaterial3D.new()
-		# Galvanized weathered steel guardrail
-		_barrier_material.albedo_color = Color(0.32, 0.34, 0.37, 1.0)
-		_barrier_material.roughness = 0.55
-		_barrier_material.metallic = 0.65
+		# Galvanized corrugated metallic W-beam guardrail
+		_barrier_material.albedo_color = Color(0.44, 0.46, 0.50, 1.0)
+		_barrier_material.roughness = 0.32
+		_barrier_material.metallic = 0.85
 	return _barrier_material
+
+static func get_guardrail_post_material() -> StandardMaterial3D:
+	if not _guardrail_post_mat:
+		_guardrail_post_mat = StandardMaterial3D.new()
+		# Weathered dark steel / timber guardrail post
+		_guardrail_post_mat.albedo_color = Color(0.18, 0.18, 0.20, 1.0)
+		_guardrail_post_mat.roughness = 0.85
+		_guardrail_post_mat.metallic = 0.35
+	return _guardrail_post_mat
 
 static func get_marking_material() -> StandardMaterial3D:
 	if not _marking_material:
 		_marking_material = StandardMaterial3D.new()
-		# High-visibility retro-reflective yellow markings
+		# High-visibility retro-reflective yellow markings with wet reflection
 		_marking_material.albedo_color = Color(1.0, 0.85, 0.05, 1.0)
-		_marking_material.roughness = 0.25
+		_marking_material.roughness = 0.20
 		_marking_material.metallic = 0.05
 		_marking_material.emission_enabled = true
 		_marking_material.emission = Color(1.0, 0.85, 0.05, 1.0)
 		_marking_material.emission_energy_multiplier = 0.85
 	return _marking_material
+
+static func get_fog_line_material() -> StandardMaterial3D:
+	if not _fog_line_material:
+		_fog_line_material = StandardMaterial3D.new()
+		# Solid white retro-reflective edge fog lines
+		_fog_line_material.albedo_color = Color(0.92, 0.92, 0.90, 1.0)
+		_fog_line_material.roughness = 0.26
+		_fog_line_material.metallic = 0.05
+		_fog_line_material.emission_enabled = true
+		_fog_line_material.emission = Color(0.85, 0.85, 0.82, 1.0)
+		_fog_line_material.emission_energy_multiplier = 0.45
+	return _fog_line_material
 
 static func get_reflector_amber_material() -> StandardMaterial3D:
 	if not _reflector_amber_mat:
@@ -115,6 +154,28 @@ static func get_sign_post_material() -> StandardMaterial3D:
 		_sign_post_mat.albedo_color = Color(0.12, 0.12, 0.14, 1.0)
 		_sign_post_mat.roughness = 0.85
 	return _sign_post_mat
+
+static func get_telegraph_wood_material() -> StandardMaterial3D:
+	if not _telegraph_wood_mat:
+		_telegraph_wood_mat = StandardMaterial3D.new()
+		_telegraph_wood_mat.albedo_color = Color(0.18, 0.15, 0.12, 1.0)
+		_telegraph_wood_mat.roughness = 0.92
+	return _telegraph_wood_mat
+
+static func get_cable_wire_material() -> StandardMaterial3D:
+	if not _cable_wire_mat:
+		_cable_wire_mat = StandardMaterial3D.new()
+		_cable_wire_mat.albedo_color = Color(0.05, 0.05, 0.06, 1.0)
+		_cable_wire_mat.roughness = 0.8
+	return _cable_wire_mat
+
+static func get_insulator_material() -> StandardMaterial3D:
+	if not _insulator_mat:
+		_insulator_mat = StandardMaterial3D.new()
+		_insulator_mat.albedo_color = Color(0.72, 0.82, 0.78, 1.0)
+		_insulator_mat.roughness = 0.1
+		_insulator_mat.metallic = 0.25
+	return _insulator_mat
 
 func _ready() -> void:
 	if not static_body:
@@ -237,6 +298,35 @@ func build_segment() -> void:
 			static_body.add_child(stripe_right_inst)
 
 		var half_road: float = road_width * 0.5
+
+		# Solid white retro-reflective edge fog lines (demarcating asphalt edge from shoulder)
+		var fog_line_mat := get_fog_line_material()
+		var fog_line_offset_x: float = half_road - 0.35
+		var fog_line_width: float = 0.20
+
+		# Left fog line
+		var fog_left_mesh := BoxMesh.new()
+		fog_left_mesh.size = Vector3(fog_line_width, 0.02, slice_box_length)
+		fog_left_mesh.material = fog_line_mat
+
+		var fog_left_inst := MeshInstance3D.new()
+		fog_left_inst.name = "FogLineLeft_%d" % i
+		fog_left_inst.mesh = fog_left_mesh
+		var fog_left_local := Vector3(-fog_line_offset_x, marking_y, 0.0)
+		fog_left_inst.transform = Transform3D(slice_basis, slice_center + slice_basis * fog_left_local)
+		static_body.add_child(fog_left_inst)
+
+		# Right fog line
+		var fog_right_mesh := BoxMesh.new()
+		fog_right_mesh.size = Vector3(fog_line_width, 0.02, slice_box_length)
+		fog_right_mesh.material = fog_line_mat
+
+		var fog_right_inst := MeshInstance3D.new()
+		fog_right_inst.name = "FogLineRight_%d" % i
+		fog_right_inst.mesh = fog_right_mesh
+		var fog_right_local := Vector3(fog_line_offset_x, marking_y, 0.0)
+		fog_right_inst.transform = Transform3D(slice_basis, slice_center + slice_basis * fog_right_local)
+		static_body.add_child(fog_right_inst)
 
 		# 3. Flat Compacted Dirt/Gravel Shoulders (Bermas) on both sides (flush with road top at Y = +0.5)
 		var shoulder_mat := get_shoulder_material()
@@ -464,16 +554,7 @@ func build_segment() -> void:
 			var left_local := Vector3(-barrier_lateral_x, barrier_y, 0.0)
 			var left_transform := Transform3D(slice_basis, slice_center + slice_basis * left_local)
 
-			var left_mesh := BoxMesh.new()
-			left_mesh.size = Vector3(barrier_thickness, barrier_height, barrier_box_length)
-			left_mesh.material = barrier_mat
-
-			var left_mesh_instance := MeshInstance3D.new()
-			left_mesh_instance.name = "BarrierLeftMesh_%d" % i
-			left_mesh_instance.mesh = left_mesh
-			left_mesh_instance.transform = left_transform
-			static_body.add_child(left_mesh_instance)
-
+			# Retain full collider so vehicle cannot glitch through or jump over outer curve edge
 			var left_col_shape := BoxShape3D.new()
 			left_col_shape.size = Vector3(barrier_thickness, barrier_height, barrier_box_length)
 
@@ -483,6 +564,54 @@ func build_segment() -> void:
 			left_col.transform = left_transform
 			static_body.add_child(left_col)
 
+			# Modular corrugated galvanized metal W-beam rails & posts
+			var post_mat := get_guardrail_post_material()
+			var delineator_mat := get_reflector_amber_material()
+
+			# Upper W-Beam Rail
+			var upper_rail_mesh := BoxMesh.new()
+			upper_rail_mesh.size = Vector3(0.12, 0.35, barrier_box_length)
+			upper_rail_mesh.material = barrier_mat
+			var upper_rail_inst := MeshInstance3D.new()
+			upper_rail_inst.name = "UpperRailLeft_%d" % i
+			upper_rail_inst.mesh = upper_rail_mesh
+			var upper_rail_local := Vector3(-barrier_lateral_x + 0.1, 0.95, 0.0)
+			upper_rail_inst.transform = Transform3D(slice_basis, slice_center + slice_basis * upper_rail_local)
+			static_body.add_child(upper_rail_inst)
+
+			# Lower W-Beam Rail
+			var lower_rail_mesh := BoxMesh.new()
+			lower_rail_mesh.size = Vector3(0.12, 0.28, barrier_box_length)
+			lower_rail_mesh.material = barrier_mat
+			var lower_rail_inst := MeshInstance3D.new()
+			lower_rail_inst.name = "LowerRailLeft_%d" % i
+			lower_rail_inst.mesh = lower_rail_mesh
+			var lower_rail_local := Vector3(-barrier_lateral_x + 0.1, 0.55, 0.0)
+			lower_rail_inst.transform = Transform3D(slice_basis, slice_center + slice_basis * lower_rail_local)
+			static_body.add_child(lower_rail_inst)
+
+			# Vertical Support Post
+			var post_mesh := BoxMesh.new()
+			post_mesh.size = Vector3(0.16, 1.35, 0.16)
+			post_mesh.material = post_mat
+			var post_inst := MeshInstance3D.new()
+			post_inst.name = "GuardrailPostLeft_%d" % i
+			post_inst.mesh = post_mesh
+			var post_local := Vector3(-barrier_lateral_x + 0.2, 0.65, 0.0)
+			post_inst.transform = Transform3D(slice_basis, slice_center + slice_basis * post_local)
+			static_body.add_child(post_inst)
+
+			# Amber Retro-Reflective Delineator facing oncoming traffic
+			var delineator_mesh := BoxMesh.new()
+			delineator_mesh.size = Vector3(0.06, 0.14, 0.08)
+			delineator_mesh.material = delineator_mat
+			var delineator_inst := MeshInstance3D.new()
+			delineator_inst.name = "DelineatorLeft_%d" % i
+			delineator_inst.mesh = delineator_mesh
+			var delineator_local := Vector3(-barrier_lateral_x + 0.02, 1.05, 0.0)
+			delineator_inst.transform = Transform3D(slice_basis, slice_center + slice_basis * delineator_local)
+			static_body.add_child(delineator_inst)
+
 			if i % 2 == 0:
 				_build_warning_sign(i, slice_basis, slice_center, -barrier_lateral_x, barrier_height)
 
@@ -490,16 +619,7 @@ func build_segment() -> void:
 			var right_local := Vector3(barrier_lateral_x, barrier_y, 0.0)
 			var right_transform := Transform3D(slice_basis, slice_center + slice_basis * right_local)
 
-			var right_mesh := BoxMesh.new()
-			right_mesh.size = Vector3(barrier_thickness, barrier_height, barrier_box_length)
-			right_mesh.material = barrier_mat
-
-			var right_mesh_instance := MeshInstance3D.new()
-			right_mesh_instance.name = "BarrierRightMesh_%d" % i
-			right_mesh_instance.mesh = right_mesh
-			right_mesh_instance.transform = right_transform
-			static_body.add_child(right_mesh_instance)
-
+			# Retain full collider so vehicle cannot glitch through or jump over outer curve edge
 			var right_col_shape := BoxShape3D.new()
 			right_col_shape.size = Vector3(barrier_thickness, barrier_height, barrier_box_length)
 
@@ -509,8 +629,154 @@ func build_segment() -> void:
 			right_col.transform = right_transform
 			static_body.add_child(right_col)
 
+			# Modular corrugated galvanized metal W-beam rails & posts
+			var post_mat := get_guardrail_post_material()
+			var delineator_mat := get_reflector_amber_material()
+
+			# Upper W-Beam Rail
+			var upper_rail_mesh := BoxMesh.new()
+			upper_rail_mesh.size = Vector3(0.12, 0.35, barrier_box_length)
+			upper_rail_mesh.material = barrier_mat
+			var upper_rail_inst := MeshInstance3D.new()
+			upper_rail_inst.name = "UpperRailRight_%d" % i
+			upper_rail_inst.mesh = upper_rail_mesh
+			var upper_rail_local := Vector3(barrier_lateral_x - 0.1, 0.95, 0.0)
+			upper_rail_inst.transform = Transform3D(slice_basis, slice_center + slice_basis * upper_rail_local)
+			static_body.add_child(upper_rail_inst)
+
+			# Lower W-Beam Rail
+			var lower_rail_mesh := BoxMesh.new()
+			lower_rail_mesh.size = Vector3(0.12, 0.28, barrier_box_length)
+			lower_rail_mesh.material = barrier_mat
+			var lower_rail_inst := MeshInstance3D.new()
+			lower_rail_inst.name = "LowerRailRight_%d" % i
+			lower_rail_inst.mesh = lower_rail_mesh
+			var lower_rail_local := Vector3(barrier_lateral_x - 0.1, 0.55, 0.0)
+			lower_rail_inst.transform = Transform3D(slice_basis, slice_center + slice_basis * lower_rail_local)
+			static_body.add_child(lower_rail_inst)
+
+			# Vertical Support Post
+			var post_mesh := BoxMesh.new()
+			post_mesh.size = Vector3(0.16, 1.35, 0.16)
+			post_mesh.material = post_mat
+			var post_inst := MeshInstance3D.new()
+			post_inst.name = "GuardrailPostRight_%d" % i
+			post_inst.mesh = post_mesh
+			var post_local := Vector3(barrier_lateral_x - 0.2, 0.65, 0.0)
+			post_inst.transform = Transform3D(slice_basis, slice_center + slice_basis * post_local)
+			static_body.add_child(post_inst)
+
+			# Amber Retro-Reflective Delineator
+			var delineator_mesh := BoxMesh.new()
+			delineator_mesh.size = Vector3(0.06, 0.14, 0.08)
+			delineator_mesh.material = delineator_mat
+			var delineator_inst := MeshInstance3D.new()
+			delineator_inst.name = "DelineatorRight_%d" % i
+			delineator_inst.mesh = delineator_mesh
+			var delineator_local := Vector3(barrier_lateral_x - 0.02, 1.05, 0.0)
+			delineator_inst.transform = Transform3D(slice_basis, slice_center + slice_basis * delineator_local)
+			static_body.add_child(delineator_inst)
+
 			if i % 2 == 0:
 				_build_warning_sign(i, slice_basis, slice_center, barrier_lateral_x, barrier_height)
+
+		# 6. Roadside Wooden Telegraph / Utility Poles and Overhead Power Cables
+		# Placed along the left verge outside the shoulder
+		var pole_verge_x: float = -(half_road + shoulder_width + 0.9)
+		var wood_mat := get_telegraph_wood_material()
+		var insulator_mat := get_insulator_material()
+		var cable_mat := get_cable_wire_material()
+
+		# Spawn telegraph pole every 4 slices (every ~40m)
+		if i % 4 == 0:
+			var pole_root := Node3D.new()
+			pole_root.name = "TelegraphPole_%d" % i
+
+			# Vertical wooden pole (CylinderMesh)
+			var pole_mesh := CylinderMesh.new()
+			pole_mesh.top_radius = 0.14
+			pole_mesh.bottom_radius = 0.20
+			pole_mesh.height = 7.6
+			pole_mesh.material = wood_mat
+
+			var pole_inst := MeshInstance3D.new()
+			pole_inst.name = "PoleShaft"
+			pole_inst.mesh = pole_mesh
+			pole_inst.position = Vector3(0.0, 3.8, 0.0)
+			pole_root.add_child(pole_inst)
+
+			# Horizontal wooden crossarm
+			var crossarm_mesh := BoxMesh.new()
+			crossarm_mesh.size = Vector3(2.2, 0.16, 0.16)
+			crossarm_mesh.material = wood_mat
+
+			var crossarm_inst := MeshInstance3D.new()
+			crossarm_inst.name = "Crossarm"
+			crossarm_inst.mesh = crossarm_mesh
+			crossarm_inst.position = Vector3(0.0, 7.1, 0.0)
+			pole_root.add_child(crossarm_inst)
+
+			# Diagonal crossarm support braces
+			var brace_mesh := BoxMesh.new()
+			brace_mesh.size = Vector3(0.06, 0.65, 0.06)
+			brace_mesh.material = wood_mat
+			var brace_l := MeshInstance3D.new()
+			brace_l.mesh = brace_mesh
+			brace_l.position = Vector3(-0.45, 6.75, 0.0)
+			brace_l.rotation.z = deg_to_rad(35.0)
+			pole_root.add_child(brace_l)
+
+			var brace_r := MeshInstance3D.new()
+			brace_r.mesh = brace_mesh
+			brace_r.position = Vector3(0.45, 6.75, 0.0)
+			brace_r.rotation.z = deg_to_rad(-35.0)
+			pole_root.add_child(brace_r)
+
+			# 3 Ceramic green-tinted insulators on top of the crossarm
+			var ins_offsets: Array[float] = [-0.85, 0.0, 0.85]
+			for ins_x in ins_offsets:
+				var ins_mesh := CylinderMesh.new()
+				ins_mesh.top_radius = 0.04
+				ins_mesh.bottom_radius = 0.06
+				ins_mesh.height = 0.18
+				ins_mesh.material = insulator_mat
+
+				var ins_inst := MeshInstance3D.new()
+				ins_inst.mesh = ins_mesh
+				ins_inst.position = Vector3(ins_x, 7.27, 0.0)
+				pole_root.add_child(ins_inst)
+
+			var pole_local := Vector3(pole_verge_x, 0.0, 0.0)
+			pole_root.transform = Transform3D(slice_basis, slice_center + slice_basis * pole_local)
+			static_body.add_child(pole_root)
+
+		# Overhead sagging catenary wires spanning every slice
+		var sag_offset_y: float = 0.0
+		var slice_in_quad: int = i % 4
+		if slice_in_quad == 1 or slice_in_quad == 3:
+			sag_offset_y = -0.22
+		elif slice_in_quad == 2:
+			sag_offset_y = -0.42
+
+		var cable_wire_mesh := BoxMesh.new()
+		cable_wire_mesh.size = Vector3(0.025, 0.025, slice_box_length)
+		cable_wire_mesh.material = cable_mat
+
+		# Cable 1 (outer)
+		var cable_inst1 := MeshInstance3D.new()
+		cable_inst1.name = "CableOuter_%d" % i
+		cable_inst1.mesh = cable_wire_mesh
+		var c1_local := Vector3(pole_verge_x - 0.85, 7.25 + sag_offset_y, 0.0)
+		cable_inst1.transform = Transform3D(slice_basis, slice_center + slice_basis * c1_local)
+		static_body.add_child(cable_inst1)
+
+		# Cable 2 (inner)
+		var cable_inst2 := MeshInstance3D.new()
+		cable_inst2.name = "CableInner_%d" % i
+		cable_inst2.mesh = cable_wire_mesh
+		var c2_local := Vector3(pole_verge_x + 0.85, 7.25 + sag_offset_y, 0.0)
+		cable_inst2.transform = Transform3D(slice_basis, slice_center + slice_basis * c2_local)
+		static_body.add_child(cable_inst2)
 
 		# Advance current trajectory to slice end
 		current_pos += mid_fwd * slice_length
@@ -571,13 +837,13 @@ func _on_mud_area_exited(body: Node3D) -> void:
 	if body.has_method("exit_mud_zone"):
 		body.exit_mud_zone()
 
-func _build_warning_sign(i: int, slice_basis: Basis, slice_center: Vector3, sign_side_x: float, barrier_h: float) -> void:
-	var sign_y: float = barrier_h + 0.65
+func _build_warning_sign(i: int, slice_basis: Basis, slice_center: Vector3, sign_side_x: float, _barrier_h: float) -> void:
+	var sign_y: float = 0.9
 	var sign_local := Vector3(sign_side_x, sign_y, 0.0)
 
 	# Black iron mounting pole
 	var pole_mesh := BoxMesh.new()
-	pole_mesh.size = Vector3(0.12, 1.3, 0.12)
+	pole_mesh.size = Vector3(0.12, 1.8, 0.12)
 	pole_mesh.material = get_sign_post_material()
 
 	var pole_inst := MeshInstance3D.new()
@@ -595,5 +861,5 @@ func _build_warning_sign(i: int, slice_basis: Basis, slice_center: Vector3, sign
 	plate_inst.name = "ReflectorDiamond_%d" % i
 	plate_inst.mesh = plate_mesh
 	var diamond_rot := slice_basis.rotated(slice_basis.z, deg_to_rad(45.0))
-	plate_inst.transform = Transform3D(diamond_rot, slice_center + slice_basis * (sign_local + Vector3(0.0, 0.45, 0.0)))
+	plate_inst.transform = Transform3D(diamond_rot, slice_center + slice_basis * (sign_local + Vector3(0.0, 0.65, 0.0)))
 	static_body.add_child(plate_inst)
