@@ -2,32 +2,32 @@ class_name PostProcess
 extends CanvasLayer
 
 @export_group("Retro Shader Settings")
-## Target pixelation resolution. Defaults to 640x360 for crisp retro widescreen.
-@export var target_resolution: Vector2 = Vector2(640.0, 360.0):
+## Target pixelation resolution. Defaults to 960x540 to keep the retro look while making road details easier to read.
+@export var target_resolution: Vector2 = Vector2(960.0, 540.0):
 	set(val):
 		target_resolution = val
 		_update_uniform("target_resolution", val)
 
 ## Number of quantization levels per color channel (PSX/16-bit aesthetic).
-@export var color_depth: float = 32.0:
+@export var color_depth: float = 48.0:
 	set(val):
 		color_depth = val
 		_update_uniform("color_depth", val)
 
 ## Intensity of 8x8 Bayer matrix ordered dithering.
-@export var dither_intensity: float = 0.42:
+@export var dither_intensity: float = 0.16:
 	set(val):
 		dither_intensity = val
 		_update_uniform("dither_intensity", val)
 
 ## Intensity of analog noise/grain.
-@export var grain_intensity: float = 0.016:
+@export var grain_intensity: float = 0.006:
 	set(val):
 		grain_intensity = val
 		_update_uniform("grain_intensity", val)
 
 ## Intensity of CRT scanlines.
-@export var scanline_intensity: float = 0.025:
+@export var scanline_intensity: float = 0.01:
 	set(val):
 		scanline_intensity = val
 		_update_uniform("scanline_intensity", val)
@@ -38,11 +38,17 @@ extends CanvasLayer
 		base_chromatic_aberration = val
 		_update_uniform("chromatic_aberration", val)
 
-## Color saturation multiplier to preserve vivid chromatic contrast.
+## Color saturation multiplier used before the noir conversion.
 @export var saturation: float = 1.15:
 	set(val):
 		saturation = val
 		_update_uniform("saturation", val)
+
+## Desaturates the rendered world into the game's noir palette (0 = original, 1 = grayscale).
+@export_range(0.0, 1.0, 0.05) var noir_strength: float = 1.0:
+	set(val):
+		noir_strength = clampf(val, 0.0, 1.0)
+		_update_uniform("noir_strength", noir_strength)
 
 @onready var color_rect: ColorRect = $PostProcessOverlay
 
@@ -106,6 +112,7 @@ func _apply_all_uniforms() -> void:
 	_update_uniform("static_glitch_intensity", 0.0)
 	_update_uniform("glitch_intensity", 0.0)
 	_update_uniform("saturation", saturation)
+	_update_uniform("noir_strength", noir_strength)
 
 func _connect_vehicle_events() -> void:
 	var tree := get_tree()

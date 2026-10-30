@@ -8,51 +8,51 @@
 shader = ExtResource("2_mirror_shader")
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_mirror_frame"]
-content_margin_left = 3.0
-content_margin_top = 3.0
-content_margin_right = 3.0
-content_margin_bottom = 3.0
-bg_color = Color(0.02, 0.025, 0.03, 0.95)
+content_margin_left = 4.0
+content_margin_top = 4.0
+content_margin_right = 4.0
+content_margin_bottom = 4.0
+bg_color = Color(0.02, 0.016, 0.028, 0.96)
 border_width_left = 2
 border_width_top = 2
 border_width_right = 2
 border_width_bottom = 2
-border_color = Color(0.28, 0.32, 0.36, 0.85)
-corner_radius_top_left = 4
-corner_radius_top_right = 4
-corner_radius_bottom_right = 4
-corner_radius_bottom_left = 4
+border_color = Color(0.48, 0.36, 0.32, 0.88)
+corner_radius_top_left = 2
+corner_radius_top_right = 2
+corner_radius_bottom_right = 2
+corner_radius_bottom_left = 2
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_panel"]
 content_margin_left = 12.0
 content_margin_top = 8.0
 content_margin_right = 12.0
 content_margin_bottom = 8.0
-bg_color = Color(0.0431373, 0.054902, 0.0666667, 0.843137)
-border_width_left = 1
-border_width_top = 1
-border_width_right = 1
-border_width_bottom = 1
-border_color = Color(0.282353, 0.321569, 0.360784, 0.8)
+bg_color = Color(0.028, 0.022, 0.036, 0.88)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.46, 0.35, 0.3, 0.85)
 corner_radius_top_left = 2
 corner_radius_top_right = 2
 corner_radius_bottom_right = 2
 corner_radius_bottom_left = 2
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_bar_bg"]
-bg_color = Color(0.0784314, 0.0941176, 0.109804, 0.9)
+bg_color = Color(0.055, 0.045, 0.065, 0.92)
 border_width_left = 1
 border_width_top = 1
 border_width_right = 1
 border_width_bottom = 1
-border_color = Color(0.235294, 0.266667, 0.301961, 0.8)
+border_color = Color(0.36, 0.28, 0.26, 0.82)
 corner_radius_top_left = 1
 corner_radius_top_right = 1
 corner_radius_bottom_right = 1
 corner_radius_bottom_left = 1
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_bar_fill"]
-bg_color = Color(1, 0.69, 0, 1)
+bg_color = Color(0.82, 0.16, 0.14, 1)
 corner_radius_top_left = 1
 corner_radius_top_right = 1
 corner_radius_bottom_right = 1
@@ -63,12 +63,12 @@ content_margin_left = 16.0
 content_margin_top = 10.0
 content_margin_right = 16.0
 content_margin_bottom = 10.0
-bg_color = Color(0.02, 0.035, 0.03, 0.88)
-border_width_left = 1
-border_width_top = 1
-border_width_right = 1
-border_width_bottom = 1
-border_color = Color(0.2, 1, 0.4, 0.75)
+bg_color = Color(0.032, 0.018, 0.025, 0.92)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.75, 0.22, 0.18, 0.85)
 corner_radius_top_left = 2
 corner_radius_top_right = 2
 corner_radius_bottom_right = 2
@@ -134,12 +134,24 @@ layout_mode = 2
 size_flags_horizontal = 4
 theme_override_styles/panel = SubResource("StyleBoxFlat_panel")
 
-[node name="RouteLabel" type="Label" parent="MarginContainer/Control/TopCenter/RoutePanel" unique_id=89234120]
+[node name="RouteVBox" type="VBoxContainer" parent="MarginContainer/Control/TopCenter/RoutePanel"]
+layout_mode = 2
+theme_override_constants/separation = 2
+
+[node name="RouteLabel" type="Label" parent="MarginContainer/Control/TopCenter/RoutePanel/RouteVBox" unique_id=89234120]
 unique_name_in_owner = true
 layout_mode = 2
-theme_override_colors/font_color = Color(1, 0.69, 0, 1)
+theme_override_colors/font_color = Color(0.92, 0.88, 0.82, 1)
 theme_override_font_sizes/font_size = 13
-text = "ROUTE 77  |  KM 85.0 ──> 77.0"
+text = "† RUTA 77  ❖  KM 85.0 ──> 77.0 †"
+horizontal_alignment = 1
+
+[node name="RelicsLabel" type="Label" parent="MarginContainer/Control/TopCenter/RoutePanel/RouteVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.96, 0.62, 0.18, 1)
+theme_override_font_sizes/font_size = 11
+text = "† ACTAS DE 1989 (RELIQUIAS): 0 / 3 †"
 horizontal_alignment = 1
 
 [node name="ForensicPanel" type="PanelContainer" parent="MarginContainer/Control" unique_id=78234190]
@@ -162,16 +174,16 @@ theme_override_constants/separation = 4
 [node name="ForensicHeader" type="Label" parent="MarginContainer/Control/ForensicPanel/VBoxContainer" unique_id=90234192]
 unique_name_in_owner = true
 layout_mode = 2
-theme_override_colors/font_color = Color(0.2, 1, 0.4, 1)
+theme_override_colors/font_color = Color(0.95, 0.2, 0.2, 1)
 theme_override_font_sizes/font_size = 11
-text = "■ FORENSIC FIELD LOG // RECOVERED EVIDENCE"
+text = "† ARCHIVO FORENSE // EVIDENCIA RECUPERADA †"
 
 [node name="ForensicText" type="Label" parent="MarginContainer/Control/ForensicPanel/VBoxContainer" unique_id=91234193]
 unique_name_in_owner = true
 layout_mode = 2
-theme_override_colors/font_color = Color(1, 0.69, 0, 1)
+theme_override_colors/font_color = Color(0.92, 0.86, 0.78, 1)
 theme_override_font_sizes/font_size = 12
-text = "Report #04: Officer found car idling in rain..."
+text = "† Registro #04: Coche fúnebre hallado en ralentí..."
 autowrap_mode = 3
 
 [node name="BottomLeft" type="VBoxContainer" parent="MarginContainer/Control" unique_id=45192031]
@@ -195,14 +207,14 @@ theme_override_constants/separation = 8
 [node name="SpeedValue" type="Label" parent="MarginContainer/Control/BottomLeft/SpeedPanel/HBoxContainer" unique_id=89102314]
 unique_name_in_owner = true
 layout_mode = 2
-theme_override_colors/font_color = Color(0.2, 1, 0.4, 1)
+theme_override_colors/font_color = Color(0.92, 0.89, 0.84, 1)
 theme_override_font_sizes/font_size = 38
 text = "000"
 
 [node name="SpeedUnit" type="Label" parent="MarginContainer/Control/BottomLeft/SpeedPanel/HBoxContainer" unique_id=90123841]
 layout_mode = 2
 size_flags_vertical = 8
-theme_override_colors/font_color = Color(0.25, 0.85, 0.45, 0.85)
+theme_override_colors/font_color = Color(0.76, 0.62, 0.48, 0.9)
 theme_override_font_sizes/font_size = 14
 text = "KM/H"
 
@@ -210,16 +222,16 @@ text = "KM/H"
 unique_name_in_owner = true
 modulate = Color(0.4, 0.45, 0.48, 0.35)
 layout_mode = 2
-theme_override_colors/font_color = Color(1, 0.69, 0, 1)
+theme_override_colors/font_color = Color(0.96, 0.62, 0.18, 1)
 theme_override_font_sizes/font_size = 14
-text = "[ SLIP ]"
+text = "[ DERRAPE ]"
 
 [node name="HeadlightBadge" type="Label" parent="MarginContainer/Control/BottomLeft" unique_id=12938476]
 unique_name_in_owner = true
 layout_mode = 2
-theme_override_colors/font_color = Color(0, 1, 0.4, 1)
+theme_override_colors/font_color = Color(0.88, 0.85, 0.78, 1)
 theme_override_font_sizes/font_size = 13
-text = "● LOW BEAM [F/H]"
+text = "❖ LUCES BAJAS [F/H]"
 
 [node name="BottomRight" type="VBoxContainer" parent="MarginContainer/Control" unique_id=58192034]
 layout_mode = 1
@@ -241,7 +253,7 @@ visible = false
 layout_mode = 2
 theme_override_colors/font_color = Color(1, 0.2, 0.2, 1)
 theme_override_font_sizes/font_size = 13
-text = "[ ! LOW FUEL ! ]"
+text = "[ ! RESERVA DE COMBUSTIBLE ! ]"
 horizontal_alignment = 2
 
 [node name="FuelPanel" type="PanelContainer" parent="MarginContainer/Control/BottomRight" unique_id=78192301]
@@ -259,7 +271,7 @@ layout_mode = 2
 layout_mode = 2
 theme_override_colors/font_color = Color(0.85, 0.72, 0.45, 1)
 theme_override_font_sizes/font_size = 12
-text = "FUEL LEVEL"
+text = "COMBUSTIBLE"
 
 [node name="FuelPercent" type="Label" parent="MarginContainer/Control/BottomRight/FuelPanel/VBoxContainer/HBoxContainer" unique_id=45901238]
 unique_name_in_owner = true
@@ -271,6 +283,41 @@ text = "100%"
 horizontal_alignment = 2
 
 [node name="FuelBar" type="ProgressBar" parent="MarginContainer/Control/BottomRight/FuelPanel/VBoxContainer" unique_id=56012389]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(170, 8)
+layout_mode = 2
+theme_override_styles/background = SubResource("StyleBoxFlat_bar_bg")
+theme_override_styles/fill = SubResource("StyleBoxFlat_bar_fill")
+value = 100.0
+show_percentage = false
+
+[node name="HealthPanel" type="PanelContainer" parent="MarginContainer/Control/BottomRight"]
+layout_mode = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_panel")
+
+[node name="HealthVBox" type="VBoxContainer" parent="MarginContainer/Control/BottomRight/HealthPanel"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="HealthHeader" type="HBoxContainer" parent="MarginContainer/Control/BottomRight/HealthPanel/HealthVBox"]
+layout_mode = 2
+
+[node name="HealthTitle" type="Label" parent="MarginContainer/Control/BottomRight/HealthPanel/HealthVBox/HealthHeader"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.85, 0.72, 0.45, 1)
+theme_override_font_sizes/font_size = 12
+text = "ESTADO DEL MOTOR"
+
+[node name="HealthPercent" type="Label" parent="MarginContainer/Control/BottomRight/HealthPanel/HealthVBox/HealthHeader"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0.2, 1, 0.4, 1)
+theme_override_font_sizes/font_size = 12
+text = "100%"
+horizontal_alignment = 2
+
+[node name="HealthBar" type="ProgressBar" parent="MarginContainer/Control/BottomRight/HealthPanel/HealthVBox"]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(170, 8)
 layout_mode = 2
@@ -306,14 +353,14 @@ unique_name_in_owner = true
 layout_mode = 2
 theme_override_colors/font_color = Color(0.2, 1, 0.4, 1)
 theme_override_font_sizes/font_size = 11
-text = "● RX // POLICE DISPATCH FREQ 142.8 MHz"
+text = "● RX // RADIO PARROQUIAL FREC 142.8 MHz"
 
 [node name="DispatchText" type="Label" parent="MarginContainer/Control/DispatchPanel/VBoxContainer" unique_id=34019284]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_colors/font_color = Color(1, 0.69, 0, 1)
 theme_override_font_sizes/font_size = 13
-text = "[DISPATCH 10-4] Unit 77, report status..."
+text = "[CENTRAL 10-4] Furgón 77, informe posición..."
 autowrap_mode = 3
 
 [node name="InteractionPanel" type="PanelContainer" parent="MarginContainer/Control" unique_id=74102938]
@@ -344,7 +391,7 @@ unique_name_in_owner = true
 layout_mode = 2
 theme_override_colors/font_color = Color(1, 0.69, 0, 1)
 theme_override_font_sizes/font_size = 13
-text = "HOLD [E] TO SCAVENGE FUEL / REPAIR"
+text = "MANTÉN [E] PARA REPOSTAR / REPARAR"
 horizontal_alignment = 1
 
 [node name="ScavengeProgressBar" type="ProgressBar" parent="MarginContainer/Control/InteractionPanel/VBoxContainer" unique_id=32019485]
@@ -385,7 +432,7 @@ grow_horizontal = 2
 grow_vertical = 2
 theme_override_colors/font_color = Color(0.2, 1, 0.4, 1)
 theme_override_font_sizes/font_size = 15
-text = "UNIT 77 CRITICAL SIGNAL FAILURE... REBOOTING TIMELINE..."
+text = "† EL CORTEJO NO HA TERMINADO... REINICIANDO BUCLE EN KM 85.0 †"
 horizontal_alignment = 1
 vertical_alignment = 1
 
@@ -422,7 +469,7 @@ alignment = 1
 layout_mode = 2
 theme_override_colors/font_color = Color(0.2, 1, 0.4, 1)
 theme_override_font_sizes/font_size = 15
-text = "■ PATROL STANDBY // ROUTE 77"
+text = "† VIGILIA EN PAUSA // RUTA 77 †"
 horizontal_alignment = 1
 
 [node name="ResumeButton" type="Button" parent="PauseOverlay/CenterContainer/PausePanel/VBoxContainer" unique_id=98721355]
@@ -433,7 +480,7 @@ theme_override_colors/font_color = Color(0.9, 0.9, 0.9, 1)
 theme_override_colors/font_hover_color = Color(0.2, 1, 0.4, 1)
 theme_override_font_sizes/font_size = 13
 theme_override_styles/normal = SubResource("StyleBoxFlat_bar_bg")
-text = "[ RESUME ]"
+text = "[ CONTINUAR EL CORTEJO ]"
 
 [node name="RestartButton" type="Button" parent="PauseOverlay/CenterContainer/PausePanel/VBoxContainer" unique_id=98721356]
 unique_name_in_owner = true
@@ -443,7 +490,7 @@ theme_override_colors/font_color = Color(1, 0.69, 0, 1)
 theme_override_colors/font_hover_color = Color(1, 0.85, 0.3, 1)
 theme_override_font_sizes/font_size = 13
 theme_override_styles/normal = SubResource("StyleBoxFlat_bar_bg")
-text = "[ RESTART PATROL (RESET LOOP) ]"
+text = "[ REINICIAR VIGILIA (KM 85.0) ]"
 
 [node name="QuitMenuButton" type="Button" parent="PauseOverlay/CenterContainer/PausePanel/VBoxContainer" unique_id=98721357]
 unique_name_in_owner = true
@@ -453,7 +500,7 @@ theme_override_colors/font_color = Color(0.8, 0.4, 0.4, 1)
 theme_override_colors/font_hover_color = Color(1, 0.3, 0.3, 1)
 theme_override_font_sizes/font_size = 13
 theme_override_styles/normal = SubResource("StyleBoxFlat_bar_bg")
-text = "[ QUIT TO MENU ]"
+text = "[ SALIR AL MENÚ PRINCIPAL ]"
 
 [node name="StaticAudio" type="AudioStreamPlayer" parent="."]
 unique_name_in_owner = true

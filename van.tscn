@@ -2,9 +2,14 @@
 
 [ext_resource type="Script" uid="uid://sqcs05103pki" path="res://van.gd" id="1_van"]
 [ext_resource type="AudioStream" path="res://audio/engine.flac" id="2_engine"]
+[ext_resource type="PackedScene" path="res://models/route77_beamng_van_body.glb" id="3_van_model"]
+[ext_resource type="PackedScene" path="res://models/route77_beamng_van_wheel.glb" id="4_van_wheel"]
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_van_body"]
 size = Vector3(1.85, 1.35, 4.1)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_impact_sensor"]
+size = Vector3(2.6, 2.0, 5.2)
 
 [sub_resource type="SphereShape3D" id="SphereShape3D_wheel"]
 radius = 0.35
@@ -78,7 +83,7 @@ size = Vector3(1.92, 1.62, 3.02)
 
 [sub_resource type="BoxMesh" id="BoxMesh_cargo_rib"]
 material = SubResource("StandardMaterial3D_body")
-size = Vector3(0.03, 0.08, 2.88)
+size = Vector3(0.03, 0.08, 2.08)
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_forensic_stripe"]
 albedo_color = Color(0.15, 0.22, 0.32, 1)
@@ -87,7 +92,7 @@ metallic = 0.15
 
 [sub_resource type="BoxMesh" id="BoxMesh_forensic_stripe"]
 material = SubResource("StandardMaterial3D_forensic_stripe")
-size = Vector3(0.035, 0.14, 2.94)
+size = Vector3(0.035, 0.14, 2.08)
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_trim"]
 albedo_color = Color(0.09, 0.095, 0.1, 1)
@@ -231,26 +236,24 @@ material = SubResource("StandardMaterial3D_mount")
 size = Vector3(1.42, 0.07, 0.22)
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_beacon_red"]
-transparency = 1
-albedo_color = Color(0.92, 0.12, 0.12, 0.82)
+albedo_color = Color(0.38, 0.38, 0.38, 1)
 roughness = 0.2
 metallic = 0.1
 emission_enabled = true
-emission = Color(0.85, 0.08, 0.08, 1)
-emission_energy_multiplier = 0.35
+emission = Color(0.72, 0.035, 0.035, 1)
+emission_energy_multiplier = 0.65
 
 [sub_resource type="BoxMesh" id="BoxMesh_beacon_red"]
 material = SubResource("StandardMaterial3D_beacon_red")
 size = Vector3(0.52, 0.13, 0.2)
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_beacon_blue"]
-transparency = 1
-albedo_color = Color(0.12, 0.28, 0.95, 0.82)
+albedo_color = Color(0.38, 0.38, 0.38, 1)
 roughness = 0.2
 metallic = 0.1
 emission_enabled = true
-emission = Color(0.1, 0.25, 0.95, 1)
-emission_energy_multiplier = 0.35
+emission = Color(0.72, 0.035, 0.035, 1)
+emission_energy_multiplier = 0.65
 
 [sub_resource type="BoxMesh" id="BoxMesh_beacon_blue"]
 material = SubResource("StandardMaterial3D_beacon_blue")
@@ -266,10 +269,10 @@ material = SubResource("StandardMaterial3D_beacon_center")
 size = Vector3(0.24, 0.12, 0.19)
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_headlight_lens"]
-albedo_color = Color(1, 0.96, 0.88, 1)
+albedo_color = Color(1, 0.86, 0.62, 1)
 emission_enabled = true
-emission = Color(1, 0.95, 0.85, 1)
-emission_energy_multiplier = 3.2
+emission = Color(1, 0.72, 0.38, 1)
+emission_energy_multiplier = 0.7
 
 [sub_resource type="BoxMesh" id="BoxMesh_headlight"]
 material = SubResource("StandardMaterial3D_headlight_lens")
@@ -286,6 +289,75 @@ emission_energy_multiplier = 1.6
 material = SubResource("StandardMaterial3D_amber")
 size = Vector3(0.1, 0.18, 0.08)
 
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_weathered"]
+albedo_color = Color(0.23, 0.25, 0.24, 1)
+roughness = 0.96
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_safety_amber"]
+albedo_color = Color(0.72, 0.29, 0.055, 1)
+roughness = 0.8
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_dirt"]
+albedo_color = Color(0.105, 0.085, 0.065, 1)
+roughness = 1.0
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_rust"]
+albedo_color = Color(0.24, 0.105, 0.055, 1)
+roughness = 0.92
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_wiper"]
+albedo_color = Color(0.025, 0.03, 0.035, 1)
+roughness = 0.7
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_radio_antenna"]
+albedo_color = Color(0.055, 0.06, 0.065, 1)
+roughness = 0.42
+metallic = 0.65
+
+[sub_resource type="BoxMesh" id="BoxMesh_wiper"]
+material = SubResource("StandardMaterial3D_wiper")
+size = Vector3(0.72, 0.025, 0.035)
+
+[sub_resource type="BoxMesh" id="BoxMesh_visor"]
+material = SubResource("StandardMaterial3D_trim")
+size = Vector3(0.58, 0.055, 0.14)
+
+[sub_resource type="BoxMesh" id="BoxMesh_rust_patch"]
+material = SubResource("StandardMaterial3D_rust")
+size = Vector3(0.18, 0.07, 0.018)
+
+[sub_resource type="BoxMesh" id="BoxMesh_dirt_splash"]
+material = SubResource("StandardMaterial3D_dirt")
+size = Vector3(0.48, 0.16, 0.035)
+
+[sub_resource type="BoxMesh" id="BoxMesh_side_marker"]
+material = SubResource("StandardMaterial3D_safety_amber")
+size = Vector3(0.035, 0.09, 0.19)
+
+[sub_resource type="BoxMesh" id="BoxMesh_roof_spotlight"]
+material = SubResource("StandardMaterial3D_chassis")
+size = Vector3(0.24, 0.14, 0.16)
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_antenna"]
+material = SubResource("StandardMaterial3D_radio_antenna")
+top_radius = 0.009
+bottom_radius = 0.022
+height = 0.82
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_antenna_base"]
+material = SubResource("StandardMaterial3D_bumper")
+top_radius = 0.075
+bottom_radius = 0.09
+height = 0.06
+
+[sub_resource type="BoxMesh" id="BoxMesh_rear_step"]
+material = SubResource("StandardMaterial3D_weathered")
+size = Vector3(1.18, 0.08, 0.16)
+
+[sub_resource type="BoxMesh" id="BoxMesh_step_grip"]
+material = SubResource("StandardMaterial3D_trim")
+size = Vector3(0.08, 0.018, 0.12)
+
 [sub_resource type="BoxMesh" id="BoxMesh_taillamp_bezel"]
 material = SubResource("StandardMaterial3D_trim")
 size = Vector3(0.22, 0.44, 0.04)
@@ -294,11 +366,11 @@ size = Vector3(0.22, 0.44, 0.04)
 albedo_color = Color(0.85, 0.05, 0.05, 1)
 emission_enabled = true
 emission = Color(0.95, 0.08, 0.08, 1)
-emission_energy_multiplier = 0.8
+emission_energy_multiplier = 1.8
 
 [sub_resource type="BoxMesh" id="BoxMesh_taillight"]
 material = SubResource("StandardMaterial3D_taillight_lens")
-size = Vector3(0.18, 0.24, 0.06)
+size = Vector3(0.23, 0.34, 0.07)
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_reverse_lens"]
 albedo_color = Color(0.92, 0.92, 0.96, 1)
@@ -308,7 +380,7 @@ emission_energy_multiplier = 0.0
 
 [sub_resource type="BoxMesh" id="BoxMesh_reverse"]
 material = SubResource("StandardMaterial3D_reverse_lens")
-size = Vector3(0.18, 0.14, 0.06)
+size = Vector3(0.22, 0.18, 0.07)
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_tire"]
 albedo_color = Color(0.085, 0.085, 0.09, 1)
@@ -384,24 +456,33 @@ script = ExtResource("1_van")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.35, 0)
 shape = SubResource("BoxShape3D_van_body")
 
+[node name="ImpactSensor" type="Area3D" parent="." unique_id=2139074412]
+collision_layer = 0
+collision_mask = 2
+monitoring = true
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="ImpactSensor" unique_id=2139074413]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.85, 0)
+shape = SubResource("BoxShape3D_impact_sensor")
+
 [node name="EngineAudio" type="AudioStreamPlayer" parent="."]
 stream = ExtResource("2_engine")
 volume_db = -9.0
 
 [node name="WheelColFL" type="CollisionShape3D" parent="." unique_id=2139074408]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.95, 0.35, -1.35)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.88, 0.39, -1.35)
 shape = SubResource("SphereShape3D_wheel")
 
 [node name="WheelColFR" type="CollisionShape3D" parent="." unique_id=2139074409]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.95, 0.35, -1.35)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.88, 0.39, -1.35)
 shape = SubResource("SphereShape3D_wheel")
 
 [node name="WheelColRL" type="CollisionShape3D" parent="." unique_id=2139074410]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.95, 0.35, 1.25)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.88, 0.39, 1.25)
 shape = SubResource("SphereShape3D_wheel")
 
 [node name="WheelColRR" type="CollisionShape3D" parent="." unique_id=2139074411]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.95, 0.35, 1.25)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.88, 0.39, 1.25)
 shape = SubResource("SphereShape3D_wheel")
 
 [node name="SprayParticlesLeft" type="GPUParticles3D" parent="."]
@@ -426,59 +507,71 @@ draw_pass_1 = SubResource("QuadMesh_spray")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 4.8, 8.5)
 
 [node name="HeadlightLeft" type="SpotLight3D" parent="." unique_id=615601642]
-transform = Transform3D(1, 0, 0, 0, 0.9862856, 0.1650476, 0, -0.1650476, 0.9862856, -0.65, 1.05, -2.65)
-light_color = Color(1, 0.96, 0.88, 1)
-light_energy = 16.0
-light_volumetric_fog_energy = 0.5
+transform = Transform3D(1, 0, 0, 0, 0.9973145, 0.0732382, 0, -0.0732382, 0.9973145, -0.65, 1.05, -2.65)
+light_color = Color(1, 0.9, 0.74, 1)
+light_energy = 19.5
+light_volumetric_fog_energy = 0.24
 light_cull_mask = 4294967295
 shadow_enabled = false
-spot_range = 55.0
-spot_attenuation = 0.38
-spot_angle = 52.0
-spot_angle_attenuation = 0.45
+spot_range = 72.0
+spot_attenuation = 0.48
+spot_angle = 44.0
+spot_angle_attenuation = 0.46
 
 [node name="HeadlightRight" type="SpotLight3D" parent="." unique_id=608761848]
-transform = Transform3D(1, 0, 0, 0, 0.9862856, 0.1650476, 0, -0.1650476, 0.9862856, 0.65, 1.05, -2.65)
-light_color = Color(1, 0.96, 0.88, 1)
-light_energy = 16.0
-light_volumetric_fog_energy = 0.5
+transform = Transform3D(1, 0, 0, 0, 0.9973145, 0.0732382, 0, -0.0732382, 0.9973145, 0.65, 1.05, -2.65)
+light_color = Color(1, 0.9, 0.74, 1)
+light_energy = 19.5
+light_volumetric_fog_energy = 0.24
 light_cull_mask = 4294967295
 shadow_enabled = false
-spot_range = 55.0
-spot_attenuation = 0.38
-spot_angle = 52.0
-spot_angle_attenuation = 0.45
+spot_range = 72.0
+spot_attenuation = 0.48
+spot_angle = 44.0
+spot_angle_attenuation = 0.46
 
 [node name="RearMirrorMount" type="Marker3D" parent="." unique_id=615601655]
-transform = Transform3D(-1, 0, -8.74228e-08, 0, 1, 0, 8.74228e-08, 0, -1, 0, 1.95, 2.32)
+transform = Transform3D(-1, 0, -8.74228e-08, 0, 1, 0, 8.74228e-08, 0, -1, 0, 1.82, 3.75)
 
 [node name="VisualRoot" type="Node3D" parent="." unique_id=615601660]
 
+[node name="ImportedBody" parent="VisualRoot" instance=ExtResource("3_van_model")]
+position = Vector3(0, 0, 0.572)
+rotation = Vector3(0, 3.1415927, 0)
+scale = Vector3(1, 1, 0.942)
+
 [node name="ChassisFrame" type="MeshInstance3D" parent="VisualRoot" unique_id=615601661]
+visible = false
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.45, 0)
 mesh = SubResource("BoxMesh_chassis")
 
 [node name="WheelWellFL" type="MeshInstance3D" parent="VisualRoot" unique_id=615601770]
+visible = false
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.88, 0.42, -1.35)
 mesh = SubResource("BoxMesh_wheel_well")
 
 [node name="WheelWellFR" type="MeshInstance3D" parent="VisualRoot" unique_id=615601771]
+visible = false
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.88, 0.42, -1.35)
 mesh = SubResource("BoxMesh_wheel_well")
 
 [node name="WheelWellRL" type="MeshInstance3D" parent="VisualRoot" unique_id=615601772]
+visible = false
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.88, 0.42, 1.25)
 mesh = SubResource("BoxMesh_wheel_well")
 
 [node name="WheelWellRR" type="MeshInstance3D" parent="VisualRoot" unique_id=615601773]
+visible = false
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.88, 0.42, 1.25)
 mesh = SubResource("BoxMesh_wheel_well")
 
 [node name="RockerPanelLeft" type="MeshInstance3D" parent="VisualRoot" unique_id=615601730]
+visible = false
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.92, 0.38, -0.05)
 mesh = SubResource("BoxMesh_rocker")
 
 [node name="RockerPanelRight" type="MeshInstance3D" parent="VisualRoot" unique_id=615601731]
+visible = false
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.92, 0.38, -0.05)
 mesh = SubResource("BoxMesh_rocker")
 
@@ -487,18 +580,22 @@ transform = Transform3D(1, 0, 0, 0, -4.371139e-08, -1, 0, 1, -4.371139e-08, -0.5
 mesh = SubResource("CylinderMesh_exhaust")
 
 [node name="CabMesh" type="MeshInstance3D" parent="VisualRoot" unique_id=548947607]
+visible = false
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.24, -0.76)
 mesh = SubResource("BoxMesh_cab")
 
 [node name="HoodMesh" type="MeshInstance3D" parent="VisualRoot" unique_id=615601662]
+visible = false
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.85, -1.9)
 mesh = SubResource("BoxMesh_hood")
 
 [node name="HoodSlopeMesh" type="MeshInstance3D" parent="VisualRoot" unique_id=615601733]
+visible = false
 transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, 0, 1.19, -1.89)
 mesh = SubResource("PrismMesh_hood_slope")
 
 [node name="CabRoofFairing" type="MeshInstance3D" parent="VisualRoot" unique_id=615601734]
+visible = false
 transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, 0, 2.0, -0.45)
 mesh = SubResource("PrismMesh_roof_fairing")
 
@@ -519,31 +616,64 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.08, -0.01)
 mesh = SubResource("BoxMesh_grille_bar")
 
 [node name="CargoBoxMesh" type="MeshInstance3D" parent="VisualRoot" unique_id=615601663]
+visible = false
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.42, 0.75)
 mesh = SubResource("BoxMesh_cargo")
 
 [node name="CargoRibLeftUpper" type="MeshInstance3D" parent="VisualRoot" unique_id=615601739]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.965, 1.65, 0.75)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.965, 1.65, 1.14)
 mesh = SubResource("BoxMesh_cargo_rib")
 
 [node name="CargoRibLeftLower" type="MeshInstance3D" parent="VisualRoot" unique_id=615601740]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.965, 1.05, 0.75)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.965, 1.05, 1.14)
 mesh = SubResource("BoxMesh_cargo_rib")
 
 [node name="CargoRibRightUpper" type="MeshInstance3D" parent="VisualRoot" unique_id=615601741]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.965, 1.65, 0.75)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.965, 1.65, 1.14)
 mesh = SubResource("BoxMesh_cargo_rib")
 
 [node name="CargoRibRightLower" type="MeshInstance3D" parent="VisualRoot" unique_id=615601742]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.965, 1.05, 0.75)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.965, 1.05, 1.14)
 mesh = SubResource("BoxMesh_cargo_rib")
 
+[node name="CargoDirtLeft" type="MeshInstance3D" parent="VisualRoot" unique_id=615601789]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.978, 0.67, 1.78)
+mesh = SubResource("BoxMesh_dirt_splash")
+
+[node name="CargoDirtRight" type="MeshInstance3D" parent="VisualRoot" unique_id=615601790]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.978, 0.67, 1.38)
+mesh = SubResource("BoxMesh_dirt_splash")
+
+[node name="RustMarkLeft" type="MeshInstance3D" parent="VisualRoot" unique_id=615601791]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.984, 0.96, 1.98)
+mesh = SubResource("BoxMesh_rust_patch")
+
+[node name="RustMarkRight" type="MeshInstance3D" parent="VisualRoot" unique_id=615601792]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.984, 1.02, 2.12)
+mesh = SubResource("BoxMesh_rust_patch")
+
+[node name="SideMarkerLeftFront" type="MeshInstance3D" parent="VisualRoot" unique_id=615601793]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.977, 0.79, -1.84)
+mesh = SubResource("BoxMesh_side_marker")
+
+[node name="SideMarkerRightFront" type="MeshInstance3D" parent="VisualRoot" unique_id=615601794]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.977, 0.79, -1.84)
+mesh = SubResource("BoxMesh_side_marker")
+
+[node name="SideMarkerLeftRear" type="MeshInstance3D" parent="VisualRoot" unique_id=615601795]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.977, 0.79, 1.82)
+mesh = SubResource("BoxMesh_side_marker")
+
+[node name="SideMarkerRightRear" type="MeshInstance3D" parent="VisualRoot" unique_id=615601796]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.977, 0.79, 1.82)
+mesh = SubResource("BoxMesh_side_marker")
+
 [node name="ForensicStripeLeft" type="MeshInstance3D" parent="VisualRoot" unique_id=615601743]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.962, 1.32, 0.75)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.962, 1.32, 1.14)
 mesh = SubResource("BoxMesh_forensic_stripe")
 
 [node name="ForensicStripeRight" type="MeshInstance3D" parent="VisualRoot" unique_id=615601744]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.962, 1.32, 0.75)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.962, 1.32, 1.14)
 mesh = SubResource("BoxMesh_forensic_stripe")
 
 [node name="WaistlineTrimLeft" type="MeshInstance3D" parent="VisualRoot" unique_id=615601774]
@@ -555,12 +685,26 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.965, 0.98, 0.05)
 mesh = SubResource("BoxMesh_waistline_trim")
 
 [node name="WindshieldTrim" type="MeshInstance3D" parent="VisualRoot" unique_id=615601745]
+visible = false
 transform = Transform3D(1, 0, 0, 0, 0.9271839, 0.3746066, 0, -0.3746066, 0.9271839, 0, 1.46, -1.505)
 mesh = SubResource("BoxMesh_windshield_trim")
 
 [node name="Windshield" type="MeshInstance3D" parent="VisualRoot" unique_id=615601664]
+visible = false
 transform = Transform3D(1, 0, 0, 0, 0.9271839, 0.3746066, 0, -0.3746066, 0.9271839, 0, 1.46, -1.515)
 mesh = SubResource("BoxMesh_windshield")
+
+[node name="WiperLeft" type="MeshInstance3D" parent="VisualRoot" unique_id=615601785]
+transform = Transform3D(0.866025, -0.5, 0, 0.5, 0.866025, 0, 0, 0, 1, -0.4, 1.19, -1.57)
+mesh = SubResource("BoxMesh_wiper")
+
+[node name="WiperRight" type="MeshInstance3D" parent="VisualRoot" unique_id=615601786]
+transform = Transform3D(0.866025, 0.5, 0, -0.5, 0.866025, 0, 0, 0, 1, 0.4, 1.19, -1.57)
+mesh = SubResource("BoxMesh_wiper")
+
+[node name="SunVisor" type="MeshInstance3D" parent="VisualRoot" unique_id=615601787]
+transform = Transform3D(1, 0, 0, 0, 0.9271839, 0.3746066, 0, -0.3746066, 0.9271839, -0.48, 1.78, -0.98)
+mesh = SubResource("BoxMesh_visor")
 
 [node name="Dashboard" type="MeshInstance3D" parent="VisualRoot" unique_id=615601776]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.05, -1.18)
@@ -578,18 +722,22 @@ omni_range = 1.6
 omni_attenuation = 1.4
 
 [node name="SideWindowLeftTrim" type="MeshInstance3D" parent="VisualRoot" unique_id=615601746]
+visible = false
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.92, 1.45, -0.76)
 mesh = SubResource("BoxMesh_side_window_trim")
 
 [node name="SideWindowLeft" type="MeshInstance3D" parent="VisualRoot" unique_id=615601665]
+visible = false
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.926, 1.45, -0.76)
 mesh = SubResource("BoxMesh_side_window")
 
 [node name="SideWindowRightTrim" type="MeshInstance3D" parent="VisualRoot" unique_id=615601747]
+visible = false
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.92, 1.45, -0.76)
 mesh = SubResource("BoxMesh_side_window_trim")
 
 [node name="SideWindowRight" type="MeshInstance3D" parent="VisualRoot" unique_id=615601666]
+visible = false
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.926, 1.45, -0.76)
 mesh = SubResource("BoxMesh_side_window")
 
@@ -622,18 +770,22 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.9, 0.95, 2.265)
 mesh = SubResource("BoxMesh_rear_hinge")
 
 [node name="RearWindowLeftTrim" type="MeshInstance3D" parent="VisualRoot" unique_id=615601710]
+visible = false
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.46, 1.54, 2.262)
 mesh = SubResource("BoxMesh_rear_window_trim")
 
 [node name="RearWindowLeft" type="MeshInstance3D" parent="VisualRoot" unique_id=615601711]
+visible = false
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.46, 1.54, 2.266)
 mesh = SubResource("BoxMesh_rear_window_glass")
 
 [node name="RearWindowRightTrim" type="MeshInstance3D" parent="VisualRoot" unique_id=615601712]
+visible = false
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.46, 1.54, 2.262)
 mesh = SubResource("BoxMesh_rear_window_trim")
 
 [node name="RearWindowRight" type="MeshInstance3D" parent="VisualRoot" unique_id=615601713]
+visible = false
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.46, 1.54, 2.266)
 mesh = SubResource("BoxMesh_rear_window_glass")
 
@@ -719,141 +871,166 @@ mesh = SubResource("BoxMesh_license_plate")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.04, 0.135)
 mesh = SubResource("BoxMesh_license_text")
 
-[node name="RoofLightbar" type="Node3D" parent="VisualRoot" unique_id=615601670]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
+[node name="RearStep" type="MeshInstance3D" parent="VisualRoot" unique_id=615601799]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.58, 2.51)
+mesh = SubResource("BoxMesh_rear_step")
 
-[node name="LightbarMount" type="MeshInstance3D" parent="VisualRoot/RoofLightbar" unique_id=615601671]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.9, -0.82)
-mesh = SubResource("BoxMesh_lightbar_mount")
+[node name="RearStepGripLeft" type="MeshInstance3D" parent="VisualRoot/RearStep" unique_id=615601800]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.34, 0.05, 0)
+mesh = SubResource("BoxMesh_step_grip")
 
-[node name="BeaconRed" type="MeshInstance3D" parent="VisualRoot/RoofLightbar" unique_id=615601672]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.42, 1.98, -0.82)
-mesh = SubResource("BoxMesh_beacon_red")
+[node name="RearStepGripCenter" type="MeshInstance3D" parent="VisualRoot/RearStep" unique_id=615601801]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.05, 0)
+mesh = SubResource("BoxMesh_step_grip")
 
-[node name="BeaconBlue" type="MeshInstance3D" parent="VisualRoot/RoofLightbar" unique_id=615601673]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.42, 1.98, -0.82)
-mesh = SubResource("BoxMesh_beacon_blue")
-
-[node name="BeaconCenter" type="MeshInstance3D" parent="VisualRoot/RoofLightbar" unique_id=615601674]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.97, -0.82)
-mesh = SubResource("BoxMesh_beacon_center")
+[node name="RearStepGripRight" type="MeshInstance3D" parent="VisualRoot/RearStep" unique_id=615601802]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.34, 0.05, 0)
+mesh = SubResource("BoxMesh_step_grip")
 
 [node name="HeadlightLeftMesh" type="MeshInstance3D" parent="VisualRoot" unique_id=615601675]
+visible = false
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.72, 0.78, -2.31)
 mesh = SubResource("BoxMesh_headlight")
 
 [node name="HeadlightRightMesh" type="MeshInstance3D" parent="VisualRoot" unique_id=615601676]
+visible = false
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.72, 0.78, -2.31)
 mesh = SubResource("BoxMesh_headlight")
 
 [node name="IndicatorLeft" type="MeshInstance3D" parent="VisualRoot" unique_id=615601677]
+visible = false
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.88, 0.78, -2.3)
 mesh = SubResource("BoxMesh_amber")
 
 [node name="IndicatorRight" type="MeshInstance3D" parent="VisualRoot" unique_id=615601678]
+visible = false
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.88, 0.78, -2.3)
 mesh = SubResource("BoxMesh_amber")
 
 [node name="TailLampBezelLeft" type="MeshInstance3D" parent="VisualRoot" unique_id=615601758]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.83, 0.78, 2.255)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.83, 0.78, 2.53)
 mesh = SubResource("BoxMesh_taillamp_bezel")
 
 [node name="TaillightLeftMesh" type="MeshInstance3D" parent="VisualRoot" unique_id=615601650]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.83, 0.87, 2.265)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.83, 0.88, 2.56)
 mesh = SubResource("BoxMesh_taillight")
 
 [node name="ReverseLightLeftMesh" type="MeshInstance3D" parent="VisualRoot" unique_id=615601679]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.83, 0.66, 2.265)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.83, 0.62, 2.56)
 mesh = SubResource("BoxMesh_reverse")
 
 [node name="TailLampBezelRight" type="MeshInstance3D" parent="VisualRoot" unique_id=615601759]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.83, 0.78, 2.255)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.83, 0.78, 2.53)
 mesh = SubResource("BoxMesh_taillamp_bezel")
 
 [node name="TaillightRightMesh" type="MeshInstance3D" parent="VisualRoot" unique_id=615601651]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.83, 0.87, 2.265)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.83, 0.88, 2.56)
 mesh = SubResource("BoxMesh_taillight")
 
 [node name="ReverseLightRightMesh" type="MeshInstance3D" parent="VisualRoot" unique_id=615601680]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.83, 0.66, 2.265)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.83, 0.62, 2.56)
 mesh = SubResource("BoxMesh_reverse")
 
 [node name="WheelFL" type="Node3D" parent="VisualRoot" unique_id=615601681]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.95, 0.35, -1.35)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.88, 0.39, -1.35)
 
 [node name="WheelRoll" type="Node3D" parent="VisualRoot/WheelFL" unique_id=615601682]
 
+[node name="WheelModel" parent="VisualRoot/WheelFL/WheelRoll" instance=ExtResource("4_van_wheel")]
+
 [node name="TireMesh" type="MeshInstance3D" parent="VisualRoot/WheelFL/WheelRoll" unique_id=615601683]
+visible = false
 transform = Transform3D(-4.371139e-08, -1, 0, 1, -4.371139e-08, 0, 0, 0, 1, 0, 0, 0)
 mesh = SubResource("CylinderMesh_tire")
 
 [node name="RimMesh" type="MeshInstance3D" parent="VisualRoot/WheelFL/WheelRoll" unique_id=615601684]
+visible = false
 transform = Transform3D(-4.371139e-08, -1, 0, 1, -4.371139e-08, 0, 0, 0, 1, 0, 0, 0)
 mesh = SubResource("CylinderMesh_rim")
 
 [node name="HubCapMesh" type="MeshInstance3D" parent="VisualRoot/WheelFL/WheelRoll" unique_id=615601685]
+visible = false
 transform = Transform3D(-4.371139e-08, -1, 0, 1, -4.371139e-08, 0, 0, 0, 1, 0, 0, 0)
 mesh = SubResource("CylinderMesh_hub")
 
 [node name="WheelSpoke" type="MeshInstance3D" parent="VisualRoot/WheelFL/WheelRoll" unique_id=615601760]
+visible = false
 mesh = SubResource("BoxMesh_wheel_spoke")
 
 [node name="WheelFR" type="Node3D" parent="VisualRoot" unique_id=615601686]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.95, 0.35, -1.35)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.88, 0.39, -1.35)
 
 [node name="WheelRoll" type="Node3D" parent="VisualRoot/WheelFR" unique_id=615601687]
 
+[node name="WheelModel" parent="VisualRoot/WheelFR/WheelRoll" instance=ExtResource("4_van_wheel")]
+
 [node name="TireMesh" type="MeshInstance3D" parent="VisualRoot/WheelFR/WheelRoll" unique_id=615601688]
+visible = false
 transform = Transform3D(-4.371139e-08, -1, 0, 1, -4.371139e-08, 0, 0, 0, 1, 0, 0, 0)
 mesh = SubResource("CylinderMesh_tire")
 
 [node name="RimMesh" type="MeshInstance3D" parent="VisualRoot/WheelFR/WheelRoll" unique_id=615601689]
+visible = false
 transform = Transform3D(-4.371139e-08, -1, 0, 1, -4.371139e-08, 0, 0, 0, 1, 0, 0, 0)
 mesh = SubResource("CylinderMesh_rim")
 
 [node name="HubCapMesh" type="MeshInstance3D" parent="VisualRoot/WheelFR/WheelRoll" unique_id=615601690]
+visible = false
 transform = Transform3D(-4.371139e-08, -1, 0, 1, -4.371139e-08, 0, 0, 0, 1, 0, 0, 0)
 mesh = SubResource("CylinderMesh_hub")
 
 [node name="WheelSpoke" type="MeshInstance3D" parent="VisualRoot/WheelFR/WheelRoll" unique_id=615601761]
+visible = false
 mesh = SubResource("BoxMesh_wheel_spoke")
 
 [node name="WheelRL" type="Node3D" parent="VisualRoot" unique_id=615601691]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.95, 0.35, 1.25)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.88, 0.39, 1.25)
 
 [node name="WheelRoll" type="Node3D" parent="VisualRoot/WheelRL" unique_id=615601692]
 
+[node name="WheelModel" parent="VisualRoot/WheelRL/WheelRoll" instance=ExtResource("4_van_wheel")]
+
 [node name="TireMesh" type="MeshInstance3D" parent="VisualRoot/WheelRL/WheelRoll" unique_id=615601693]
+visible = false
 transform = Transform3D(-4.371139e-08, -1, 0, 1, -4.371139e-08, 0, 0, 0, 1, 0, 0, 0)
 mesh = SubResource("CylinderMesh_tire")
 
 [node name="RimMesh" type="MeshInstance3D" parent="VisualRoot/WheelRL/WheelRoll" unique_id=615601694]
+visible = false
 transform = Transform3D(-4.371139e-08, -1, 0, 1, -4.371139e-08, 0, 0, 0, 1, 0, 0, 0)
 mesh = SubResource("CylinderMesh_rim")
 
 [node name="HubCapMesh" type="MeshInstance3D" parent="VisualRoot/WheelRL/WheelRoll" unique_id=615601695]
+visible = false
 transform = Transform3D(-4.371139e-08, -1, 0, 1, -4.371139e-08, 0, 0, 0, 1, 0, 0, 0)
 mesh = SubResource("CylinderMesh_hub")
 
 [node name="WheelSpoke" type="MeshInstance3D" parent="VisualRoot/WheelRL/WheelRoll" unique_id=615601762]
+visible = false
 mesh = SubResource("BoxMesh_wheel_spoke")
 
 [node name="WheelRR" type="Node3D" parent="VisualRoot" unique_id=615601696]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.95, 0.35, 1.25)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.88, 0.39, 1.25)
 
 [node name="WheelRoll" type="Node3D" parent="VisualRoot/WheelRR" unique_id=615601697]
 
+[node name="WheelModel" parent="VisualRoot/WheelRR/WheelRoll" instance=ExtResource("4_van_wheel")]
+
 [node name="TireMesh" type="MeshInstance3D" parent="VisualRoot/WheelRR/WheelRoll" unique_id=615601698]
+visible = false
 transform = Transform3D(-4.371139e-08, -1, 0, 1, -4.371139e-08, 0, 0, 0, 1, 0, 0, 0)
 mesh = SubResource("CylinderMesh_tire")
 
 [node name="RimMesh" type="MeshInstance3D" parent="VisualRoot/WheelRR/WheelRoll" unique_id=615601699]
+visible = false
 transform = Transform3D(-4.371139e-08, -1, 0, 1, -4.371139e-08, 0, 0, 0, 1, 0, 0, 0)
 mesh = SubResource("CylinderMesh_rim")
 
 [node name="HubCapMesh" type="MeshInstance3D" parent="VisualRoot/WheelRR/WheelRoll" unique_id=615601700]
+visible = false
 transform = Transform3D(-4.371139e-08, -1, 0, 1, -4.371139e-08, 0, 0, 0, 1, 0, 0, 0)
 mesh = SubResource("CylinderMesh_hub")
 
 [node name="WheelSpoke" type="MeshInstance3D" parent="VisualRoot/WheelRR/WheelRoll" unique_id=615601763]
+visible = false
 mesh = SubResource("BoxMesh_wheel_spoke")

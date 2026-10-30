@@ -8,11 +8,11 @@ extends StaticBody3D
 @export var base_dome_energy: float = 0.75
 
 const FORENSIC_LOGS: Array[String] = [
-	"Report #04: Patrol cruiser found idling in rain. Driver's wallet left on passenger seat. Heavy bootprints lead directly into the dark woods and abruptly vanish.",
-	"Report #19: Glovebox contained a wet map of Route 77 with milepost 77 heavily circled in black ink. Handwritten note: 'The odometer won't go past 77.0. It starts over every time.'",
-	"Report #31: Abandoned transport sedan. Key still in ignition turned to ACC. Dashboard radio locked on continuous white noise. Driver side window shattered from the inside.",
-	"Report #55: Evidence log: Found police badge #077 covered in road grit. Vehicle registration matches our unit's plates. How is this car already here?",
-	"Report #72: Incident report: Driver reported seeing high beams approaching from nowhere. Car stalled out, headlights shattered. Audio cassette in player repeats: 'Turn around before milepost 77.'"
+	"† Registro #04: Coche fúnebre hallado en ralentí bajo la niebla. El odómetro sigue girando, aunque las cuatro ruedas están bloqueadas y las velas del altar cercano siguen tibias.",
+	"† Registro #19: Mapa húmedo de la Ruta 77 con el hito 77 marcado con cera roja. Nota manuscrita: 'Las campanas de la capilla en ruinas suenan cada vez que el odómetro vuelve a 85.0.'",
+	"† Registro #31: Sedán abandonado junto a una animita de piedra. La radio repite una letanía en estática blanca. Todas las ventanas tienen marcas de manos por dentro.",
+	"† Registro #55: Evidencia: Placa forense #077 cubierta de ceniza. La carroza negra con cortinas carmesí nos adelantó dos veces sin conductor al volante.",
+	"† Registro #72: Informe final: Cruzamos el arco gótico de piedra en el Km 77. Las luces altas aparecieron de la nada y los cuervos cubrieron el asfalto."
 ]
 
 @onready var dome_light: OmniLight3D = $DomeLight
@@ -78,7 +78,7 @@ func _process_glovebox_search(delta: float) -> void:
 			_search_hold_timer += delta
 			var ratio := clampf(_search_hold_timer / REQUIRED_SEARCH_TIME, 0.0, 1.0)
 			if hud:
-				hud.show_scavenge_prompt("SEARCHING GLOVEBOX...", ratio)
+				hud.show_scavenge_prompt("† RECUPERANDO RELIQUIA DE 1989...", ratio)
 
 			if _search_hold_timer >= REQUIRED_SEARCH_TIME:
 				_complete_glovebox_search()
@@ -86,7 +86,7 @@ func _process_glovebox_search(delta: float) -> void:
 			if _search_hold_timer > 0.0:
 				_search_hold_timer = 0.0
 			if hud:
-				hud.show_scavenge_prompt("[HOLD E] SEARCH GLOVEBOX", 0.0)
+				hud.show_scavenge_prompt("[MANTÉN E] INSPECCIONAR RELIQUIA FORENSE", 0.0)
 	else:
 		if _search_hold_timer > 0.0:
 			_search_hold_timer = 0.0
@@ -97,11 +97,18 @@ func _complete_glovebox_search() -> void:
 	is_searched = true
 	_search_hold_timer = 0.0
 
+	var current_relics: int = 1
+	if van_in_search_zone:
+		van_in_search_zone.collect_relic()
+		current_relics = van_in_search_zone.relics_collected
+
 	var hud := _find_hud()
 	if hud:
 		hud.hide_scavenge_prompt()
-		var log_entry: String = FORENSIC_LOGS[randi() % FORENSIC_LOGS.size()]
-		hud.show_forensic_log(log_entry, 6.0)
+		var log_entry: String = FORENSIC_LOGS[(current_relics - 1) % FORENSIC_LOGS.size()]
+		var header_str := "† RELIQUIA CONSAGRADA (%d/3) // ARCHIVO 1989 †" % current_relics
+		hud.show_forensic_log(log_entry, 7.5, header_str)
+		hud.show_scavenge_success("[ † RELIQUIA %d/3 RECUPERADA | +15%% COMBUSTIBLE | +20%% MOTOR † ]" % current_relics, 3.2)
 
 	if search_area:
 		search_area.set_deferred("monitoring", false)
@@ -128,10 +135,10 @@ func _on_proximity_entered(body: Node3D) -> void:
 		_reported_narrative = true
 		if RadioManager.instance:
 			RadioManager.instance.broadcast_dispatch(
-				"[DISPATCH] ...unattended sedan spotted on shoulder... driver door swung wide... no occupants in area...",
+				"[CENTRAL] ...vehículo abandonado en la berma con luz interior encendida... deténgase y mantenga [E] para recuperar la Reliquia Forense...",
 				6.5,
 				true,
-				0.65
+				0.55
 			)
 
 func _find_hud() -> HUD:
@@ -150,16 +157,10 @@ func _find_hud() -> HUD:
 func _apply_distance_fade(node: Node) -> void:
 	if node is MeshInstance3D:
 		var mi := node as MeshInstance3D
-		if mi.material_override is BaseMaterial3D:
-			var mat := mi.material_override as BaseMaterial3D
-			mat.distance_fade_mode = BaseMaterial3D.DISTANCE_FADE_DISABLED
-		if mi.mesh and mi.mesh.material is BaseMaterial3D:
-			var mat := mi.mesh.material as BaseMaterial3D
-			mat.distance_fade_mode = BaseMaterial3D.DISTANCE_FADE_DISABLED
-		for i in range(mi.get_surface_override_material_count()):
-			var mat := mi.get_surface_override_material(i)
-			if mat is BaseMaterial3D:
-				var bmat := mat as BaseMaterial3D
-				bmat.distance_fade_mode = BaseMaterial3D.DISTANCE_FADE_DISABLED
+		var surface_count := mi.mesh.get_surface_count() if mi.mesh else 0
+		for surface_idx in range(surface_count):
+			var material := mi.get_active_material(surface_idx)
+			if material is BaseMaterial3D:
+				(material as BaseMaterial3D).distance_fade_mode = BaseMaterial3D.DISTANCE_FADE_DISABLED
 	for child in node.get_children():
 		_apply_distance_fade(child)

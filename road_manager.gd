@@ -17,18 +17,27 @@ const AbandonedCarScene = preload("res://abandoned_car.tscn")
 @export var segment_length: float = 80.0
 ## Road surface width in meters (two 7.0m lanes).
 @export var road_width: float = 14.0
-## Turning angle in degrees for curved segments.
-@export var curve_angle: float = 22.5
+## Default turning angle per road segment in a sustained mountain bend.
+@export var curve_angle: float = 48.0
+## Minimum turning angle for sharp drift curves (degrees per 80m chunk).
+@export var drift_curve_min_angle: float = 52.0
+## Maximum turning angle for sharp drift curves (degrees per 80m chunk).
+@export var drift_curve_max_angle: float = 64.0
 ## Distance behind the vehicle after which old segments are recycled and freed.
 @export var despawn_distance: float = 80.0
 ## Number of geometric slices per chunk for smooth curve rendering.
-@export var slice_count: int = 8
+@export var slice_count: int = 10
 
 @export_group("Procedural Generation")
 ## Optional fixed seed for reproducible track generation. Set to 0 for random.
 @export var random_seed: int = 0
-## Probability weight (0.0 to 1.0) of spawning a curved chunk after a straight chunk.
-@export var curve_probability: float = 0.65
+@export_group("Main Route Curves")
+## Minimum straight chunks between random bends (80m each -> 3 chunks = 240m).
+@export var curve_interval_min_chunks: int = 3
+## Maximum straight chunks between random bends (80m each -> 6 chunks = 480m).
+@export var curve_interval_max_chunks: int = 6
+## Consecutive curve segments create a clear, tighter mountain turn.
+@export var curve_segments_per_bend: int = 2
 
 @export_group("Events & Obstacles")
 ## Enables procedural obstacle and roadside props spawning.
@@ -47,18 +56,10 @@ const AbandonedCarScene = preload("res://abandoned_car.tscn")
 @export_group("Abandoned Cars")
 ## Enables roadside abandoned vehicles with open doors and flickering dome lights.
 @export var enable_abandoned_cars: bool = true
-## Minimum chunks generated between abandoned car occurrences (6 to 8 chunks).
-@export var abandoned_car_min_chunks: int = 6
+## Minimum chunks generated between abandoned car occurrences (3 to 5 chunks).
+@export var abandoned_car_min_chunks: int = 3
 ## Maximum chunks generated between abandoned car occurrences.
-@export var abandoned_car_max_chunks: int = 8
-
-@export_group("Rural Turnoffs")
-## Enables procedural dead-end dirt turnoffs branching into the woods.
-@export var enable_turnoffs: bool = true
-## Minimum chunks between turnoff occurrences (12 to 15 chunks).
-@export var turnoff_min_chunks: int = 12
-## Maximum chunks between turnoff occurrences.
-@export var turnoff_max_chunks: int = 15
+@export var abandoned_car_max_chunks: int = 5
 
 @export_group("Doppelgänger / Oncoming Vehicle")
 ## Enables oncoming doppelgänger patrol vehicle encounters in the opposing lane.
@@ -83,8 +84,11 @@ const AbandonedCarScene = preload("res://abandoned_car.tscn")
 # Internal state
 var active_segments: Array[RoadSegment] = []
 var rng: RandomNumberGenerator = RandomNumberGenerator.new()
-var consecutive_curves: int = 0
-var last_curve_type: RoadSegment.SegmentType = RoadSegment.SegmentType.STRAIGHT
+var straight_chunks_until_curve: int = 0
+var curve_segments_left: int = 0
+var scheduled_curve_type: RoadSegment.SegmentType = RoadSegment.SegmentType.CURVE_LEFT
+var scheduled_curve_queue: Array[RoadSegment.SegmentType] = []
+var current_curve_angle: float = 48.0
 var total_segments_spawned: int = 0
 
 var active_oncoming_vehicle: OncomingVehicle = null
@@ -96,9 +100,6 @@ var next_supply_stop_interval: int = 8
 
 var chunks_since_last_abandoned_car: int = 0
 var next_abandoned_car_interval: int = 7
-
-var chunks_since_last_turnoff: int = 0
-var next_turnoff_interval: int = 13
 
 var active_rear_stalker: RearStalker = null
 var chunks_since_last_stalker: int = 0
@@ -112,8 +113,10 @@ func _ready() -> void:
 	chunks_since_last_supply_stop = 0
 	next_abandoned_car_interval = rng.randi_range(abandoned_car_min_chunks, abandoned_car_max_chunks)
 	chunks_since_last_abandoned_car = 0
-	next_turnoff_interval = rng.randi_range(turnoff_min_chunks, turnoff_max_chunks)
-	chunks_since_last_turnoff = 0
+	straight_chunks_until_curve = rng.randi_range(curve_interval_min_chunks, curve_interval_max_chunks)
+	curve_segments_left = 0
+	scheduled_curve_queue.clear()
+	current_curve_angle = curve_angle
 	next_stalker_interval = rng.randi_range(stalker_spawn_min_chunks, stalker_spawn_max_chunks)
 	chunks_since_last_stalker = 0
 	_find_target_vehicle()
@@ -180,16 +183,16 @@ func _spawn_initial_track() -> void:
 		active_rear_stalker.queue_free()
 		active_rear_stalker = null
 	active_segments.clear()
-	consecutive_curves = 0
-	last_curve_type = RoadSegment.SegmentType.STRAIGHT
+	straight_chunks_until_curve = rng.randi_range(curve_interval_min_chunks, curve_interval_max_chunks)
+	curve_segments_left = 0
+	scheduled_curve_queue.clear()
+	current_curve_angle = curve_angle
 	total_segments_spawned = 0
 	chunks_since_last_oncoming = 0
 	chunks_since_last_supply_stop = 0
 	next_supply_stop_interval = rng.randi_range(supply_stop_min_chunks, supply_stop_max_chunks)
 	chunks_since_last_abandoned_car = 0
 	next_abandoned_car_interval = rng.randi_range(abandoned_car_min_chunks, abandoned_car_max_chunks)
-	chunks_since_last_turnoff = 0
-	next_turnoff_interval = rng.randi_range(turnoff_min_chunks, turnoff_max_chunks)
 	chunks_since_last_stalker = 0
 	next_stalker_interval = rng.randi_range(stalker_spawn_min_chunks, stalker_spawn_max_chunks)
 
@@ -252,34 +255,45 @@ func _update_road_streaming() -> void:
 			break
 
 func _select_next_segment_type() -> RoadSegment.SegmentType:
-	# Keep the first 2 chunks strictly straight to give player runway
+	# Give the player a short runway at the start, then schedule random curves (including tight drift turns & S-bends).
 	if total_segments_spawned <= 2:
 		return RoadSegment.SegmentType.STRAIGHT
-
-	# Guard against endless winding curves (max 2 consecutive curves in same direction)
-	if consecutive_curves >= 2:
-		consecutive_curves = 0
+	if not scheduled_curve_queue.is_empty():
+		var queued_type: RoadSegment.SegmentType = scheduled_curve_queue.pop_front()
+		curve_segments_left = scheduled_curve_queue.size()
+		return queued_type
+	if curve_segments_left > 0:
+		curve_segments_left -= 1
+		return scheduled_curve_type
+	if straight_chunks_until_curve > 0:
+		straight_chunks_until_curve -= 1
 		return RoadSegment.SegmentType.STRAIGHT
 
-	# If previous was straight, roll for curve
-	if last_curve_type == RoadSegment.SegmentType.STRAIGHT:
-		if rng.randf() < curve_probability:
-			# Alternate curve direction to balance overall highway trajectory
-			var pick_left: bool = rng.randf() < 0.5
-			var new_type := RoadSegment.SegmentType.CURVE_LEFT if pick_left else RoadSegment.SegmentType.CURVE_RIGHT
-			last_curve_type = new_type
-			consecutive_curves = 1
-			return new_type
-		else:
-			return RoadSegment.SegmentType.STRAIGHT
+	var first_dir := RoadSegment.SegmentType.CURVE_LEFT if rng.randf() < 0.5 else RoadSegment.SegmentType.CURVE_RIGHT
+	var opposite_dir := RoadSegment.SegmentType.CURVE_RIGHT if first_dir == RoadSegment.SegmentType.CURVE_LEFT else RoadSegment.SegmentType.CURVE_LEFT
+	var pattern_roll: float = rng.randf()
+
+	scheduled_curve_queue.clear()
+	if pattern_roll < 0.45:
+		# Sharp drift hairpin / tight corner (52° to 64° per chunk) requiring handbrake drift
+		current_curve_angle = rng.randf_range(drift_curve_min_angle, drift_curve_max_angle)
+		var seg_count: int = 2 if rng.randf() < 0.65 else 1
+		for _i in range(seg_count - 1):
+			scheduled_curve_queue.append(first_dir)
+	elif pattern_roll < 0.78:
+		# S-Curve / Chicane drift sequence (left-then-right or right-then-left at 50° to 58°)
+		current_curve_angle = rng.randf_range(50.0, 58.0)
+		scheduled_curve_queue.append(opposite_dir)
 	else:
-		# Previous was a curve: 60% chance of returning to straight, 40% continuing wide curve
-		if rng.randf() < 0.6:
-			consecutive_curves = 0
-			return RoadSegment.SegmentType.STRAIGHT
-		else:
-			consecutive_curves += 1
-			return last_curve_type
+		# Sustained high-speed mountain bend (44° to 50° over 2 chunks)
+		current_curve_angle = rng.randf_range(44.0, 50.0)
+		for _i in range(maxi(curve_segments_per_bend - 1, 1)):
+			scheduled_curve_queue.append(first_dir)
+
+	scheduled_curve_type = first_dir
+	curve_segments_left = scheduled_curve_queue.size()
+	straight_chunks_until_curve = rng.randi_range(curve_interval_min_chunks, curve_interval_max_chunks)
+	return scheduled_curve_type
 
 func _create_segment_node(type: RoadSegment.SegmentType) -> RoadSegment:
 	var segment := RoadSegment.new()
@@ -288,8 +302,8 @@ func _create_segment_node(type: RoadSegment.SegmentType) -> RoadSegment:
 	segment.segment_type = type
 	segment.segment_length = segment_length
 	segment.road_width = road_width
-	segment.curve_angle_deg = curve_angle
-	segment.slice_count = slice_count
+	segment.curve_angle_deg = current_curve_angle if type != RoadSegment.SegmentType.STRAIGHT else curve_angle
+	segment.slice_count = 12 if (type != RoadSegment.SegmentType.STRAIGHT and current_curve_angle >= 50.0) else slice_count
 	return segment
 
 func _spawn_segment(type: RoadSegment.SegmentType) -> RoadSegment:
@@ -303,6 +317,11 @@ func _spawn_segment(type: RoadSegment.SegmentType) -> RoadSegment:
 	add_child(segment)
 	segment.global_transform = target_transform
 	segment.build_segment()
+	if type == RoadSegment.SegmentType.CURVE_LEFT or type == RoadSegment.SegmentType.CURVE_RIGHT:
+		if not active_segments.is_empty():
+			var approach_segment: RoadSegment = active_segments.back()
+			if is_instance_valid(approach_segment) and approach_segment.segment_type == RoadSegment.SegmentType.STRAIGHT:
+				approach_segment.add_curve_approach_warning(type, current_curve_angle >= 50.0)
 
 	# Check supply stop spawn eligibility (guaranteed regular appearance or before fuel drops below 30%)
 	var has_supply_stop: bool = false
@@ -318,28 +337,15 @@ func _spawn_segment(type: RoadSegment.SegmentType) -> RoadSegment:
 			_spawn_supply_stop(segment)
 
 	# Check roadside abandoned car spawn eligibility (every 6-8 chunks)
-	var has_abandoned_car: bool = false
 	if enable_abandoned_cars and total_segments_spawned >= 3 and not has_supply_stop:
 		chunks_since_last_abandoned_car += 1
 		if chunks_since_last_abandoned_car >= next_abandoned_car_interval:
 			chunks_since_last_abandoned_car = 0
 			next_abandoned_car_interval = rng.randi_range(abandoned_car_min_chunks, abandoned_car_max_chunks)
-			has_abandoned_car = true
 			_spawn_abandoned_car(segment)
 
-	# Check dead-end rural turnoff spawn eligibility (every 12-15 chunks)
-	var has_turnoff: bool = false
-	if enable_turnoffs and total_segments_spawned >= 4 and not has_supply_stop and not has_abandoned_car:
-		chunks_since_last_turnoff += 1
-		if chunks_since_last_turnoff >= next_turnoff_interval:
-			if segment.segment_type != RoadSegment.SegmentType.CURVE_LEFT:
-				chunks_since_last_turnoff = 0
-				next_turnoff_interval = rng.randi_range(turnoff_min_chunks, turnoff_max_chunks)
-				has_turnoff = true
-				_spawn_rural_turnoff(segment)
-
 	if enable_events and event_spawner:
-		event_spawner.spawn_events_for_segment(segment, total_segments_spawned, rng, has_supply_stop or has_abandoned_car or has_turnoff)
+		event_spawner.spawn_events_for_segment(segment, total_segments_spawned, rng, has_supply_stop)
 
 	active_segments.append(segment)
 	total_segments_spawned += 1
@@ -349,26 +355,6 @@ func _spawn_segment(type: RoadSegment.SegmentType) -> RoadSegment:
 
 	return segment
 
-func _spawn_rural_turnoff(segment: RoadSegment) -> void:
-	var slice_count := segment.get_slice_count()
-	if slice_count < 3:
-		return
-
-	var slice_idx: int = clampi(slice_count / 3, 1, slice_count - 2)
-	var slice_tr: Transform3D = segment.get_slice_transform(slice_idx)
-
-	var turnoff := RuralTurnoff.new()
-	turnoff.name = "RuralTurnoff_%d" % total_segments_spawned
-
-	# Position at the right shoulder (X ≈ +8.5m, Y = 0.5m flush with road surface) and yaw branch at ~30 degrees into the woods
-	var branch_yaw_deg: float = -30.0
-	var local_rot := Basis(Vector3.UP, deg_to_rad(branch_yaw_deg))
-	var local_offset := Vector3(8.5, 0.5, 0.0)
-
-	turnoff.transform = slice_tr * Transform3D(local_rot, local_offset)
-	segment.add_child(turnoff)
-	turnoff.build_turnoff(62.0, 4.2)
-
 func _spawn_supply_stop(segment: RoadSegment) -> void:
 	var slice_count := segment.get_slice_count()
 	if slice_count < 2:
@@ -377,8 +363,8 @@ func _spawn_supply_stop(segment: RoadSegment) -> void:
 	var slice_tr: Transform3D = segment.get_slice_transform(slice_idx)
 
 	var stop_inst := SupplyStopScene.instantiate() as SupplyStop
-	# Positioned right along the open right shoulder/berm at road surface level (Y = 0.5)
-	var local_offset := Vector3(7.8, 0.5, 0.0)
+	# Offset beyond the shoulder so the service road exits the highway and leads to the pumps.
+	var local_offset := Vector3(12.5, 0.5, 0.0)
 	stop_inst.transform = slice_tr * Transform3D(Basis.IDENTITY, local_offset)
 	segment.add_child(stop_inst)
 

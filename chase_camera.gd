@@ -19,6 +19,7 @@ extends Camera3D
 
 var _shake_intensity: float = 0.0
 var _micro_shake_timer: float = 0.0
+var _front_view: bool = false
 
 func _ready() -> void:
 	add_to_group("chase_camera")
@@ -45,16 +46,21 @@ func apply_shake(amount: float) -> void:
 	_shake_intensity = clampf(_shake_intensity + amount, 0.0, 1.5)
 
 func _physics_process(delta: float) -> void:
+	if Input.is_action_just_pressed("toggle_front_camera"):
+		_front_view = not _front_view
 	if not target_node or not is_instance_valid(target_node):
 		_ensure_target()
 		if not target_node:
 			return
 
 	# 1. Smoothly follow the CameraTarget position
-	global_position = global_position.lerp(target_node.global_position, follow_speed * delta)
+	var van_node := target_node.get_parent() as Node3D
+	var desired_camera_position := target_node.global_position
+	if _front_view and van_node:
+		desired_camera_position = van_node.global_position + (van_node.global_transform.basis * Vector3(0.0, 3.0, -9.0))
+	global_position = global_position.lerp(desired_camera_position, follow_speed * delta)
 
 	# 2. Orient camera towards vehicle heading and highway ahead with slight downward pitch over van roof
-	var van_node := target_node.get_parent() as Node3D
 	var speed_kmh: float = 0.0
 	if van_node:
 		if van_node is Van:
@@ -66,7 +72,11 @@ func _physics_process(delta: float) -> void:
 			speed_kmh = Vector3(v.x, 0.0, v.z).length() * 3.6
 
 		# Look target adjusted to achieve comfortable downward pitch (~19° to 20°) looking over the roof toward the road ahead
-		var look_target: Vector3 = van_node.global_position + (Vector3.UP * 0.4) - (van_node.global_transform.basis.z * 4.0)
+		var look_target: Vector3
+		if _front_view:
+			look_target = van_node.global_position + Vector3.UP * 1.15
+		else:
+			look_target = van_node.global_position + (Vector3.UP * 0.4) - (van_node.global_transform.basis.z * 4.0)
 		var target_transform: Transform3D = transform.looking_at(look_target, Vector3.UP)
 		transform.basis = transform.basis.slerp(target_transform.basis, rotation_speed * delta)
 

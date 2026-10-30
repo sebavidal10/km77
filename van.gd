@@ -8,13 +8,17 @@ signal distance_updated(distance_traveled_meters: float, current_kilometer: floa
 signal speed_updated(speed_kmh: float)
 signal drift_state_changed(is_drifting_active: bool)
 signal engine_health_changed(current: float, max_val: float)
+signal turbo_state_changed(active: bool, seconds_left: float, cooldown_left: float)
 signal engine_critical
 signal headlight_damaged(light_name: String)
 signal headlights_mode_changed(is_high_beams: bool)
 signal collision_impact(intensity: float)
+signal impact_reported(impact_speed_kmh: float, damage: float, engine_percent: float)
 signal vehicle_collapsed
 signal loop_reset_triggered
 signal paradox_anomaly_triggered
+signal relics_updated(collected: int, required: int)
+signal true_ending_triggered
 
 @export_group("Handling Tuning")
 ## Maximum forward speed in meters per second (33.0 m/s = approx 119 km/h).
@@ -38,24 +42,24 @@ signal paradox_anomaly_triggered
 ## Normal lateral tire grip on paved asphalt (higher = vehicle sticks firmly to heading).
 @export var lateral_grip: float = 18.0
 ## Drastically reduced rear lateral tire friction during handbrake powerslide (Space).
-@export var handbrake_drift_grip: float = 0.15
+@export var handbrake_drift_grip: float = 0.22
 ## Reduced lateral grip when tires slip / aquaplane on wet asphalt at high speeds.
-@export var wet_slip_grip: float = 8.5
-## Speed in km/h above which sharp steering induces wet-road traction loss & understeer.
-@export var aquaplane_speed_threshold_kmh: float = 80.0
+@export var wet_slip_grip: float = 5.2
+## Speed in km/h above which sharp steering induces wet-road traction loss & understeer unless drifting.
+@export var aquaplane_speed_threshold_kmh: float = 68.0
 ## Angular yaw velocity smoothing rate for weighted, mechanical steering inertia.
-@export var steering_angular_damping: float = 11.0
+@export var steering_angular_damping: float = 11.5
 ## Speed at which tire grip recovers when traction is regained or handbrake released.
-@export var grip_recovery_speed: float = 12.0
+@export var grip_recovery_speed: float = 13.5
 ## Minimum speed (m/s) required to turn the vehicle.
 @export var min_steer_speed: float = 0.5
 ## Mechanical handbrake deceleration force (m/s^2) - preserves forward momentum during slides.
-@export var handbrake_force: float = 2.5
+@export var handbrake_force: float = 1.8
 
 # Backward compatibility aliases
-@export var drift_lateral_grip: float = 8.5
-@export var drift_oversteer_multiplier: float = 1.0
-@export var countersteer_boost: float = 1.0
+@export var drift_lateral_grip: float = 5.2
+@export var drift_oversteer_multiplier: float = 1.35
+@export var countersteer_boost: float = 1.25
 @export var drift_drag: float = 0.0
 @export var drift_friction: float = 0.88
 @export var normal_friction: float = 0.98
@@ -76,6 +80,20 @@ signal paradox_anomaly_triggered
 ## Probability of breaking a headlight on medium impacts (5-14 m/s).
 @export var headlight_break_chance_light: float = 0.25
 
+@export_group("Turbo")
+## Duration of one short emergency acceleration burst.
+@export var turbo_duration: float = 4.0
+## Cooldown between turbo bursts.
+@export var turbo_cooldown: float = 12.0
+## Maximum speed multiplier while turbo is active.
+@export var turbo_speed_multiplier: float = 1.4
+## Acceleration multiplier while turbo is active.
+@export var turbo_acceleration_multiplier: float = 1.8
+var _turbo_seconds_left: float = 0.0
+var _turbo_cooldown_left: float = 0.0
+var is_turbo_active: bool:
+	get: return _turbo_seconds_left > 0.0
+
 @export_group("Headlight Beams")
 ## Whether high beams are currently active.
 @export var is_high_beam: bool = false
@@ -83,21 +101,21 @@ var is_high_beams_active: bool:
 	get: return is_high_beam
 	set(val): is_high_beam = val
 ## Low beam spot range (meters).
-@export var low_beam_range: float = 55.0
+@export var low_beam_range: float = 72.0
 ## Low beam cone angle (degrees).
-@export var low_beam_angle: float = 52.0
+@export var low_beam_angle: float = 44.0
 ## Low beam intensity energy.
-@export var low_beam_energy: float = 16.0
+@export var low_beam_energy: float = 19.5
 ## Low beam downward pitch tilt (degrees).
-@export var low_beam_pitch_deg: float = -9.5
+@export var low_beam_pitch_deg: float = -4.2
 ## High beam spot range (meters).
-@export var high_beam_range: float = 115.0
+@export var high_beam_range: float = 160.0
 ## High beam cone angle (degrees).
-@export var high_beam_angle: float = 36.0
+@export var high_beam_angle: float = 40.0
 ## High beam intensity energy.
-@export var high_beam_energy: float = 32.0
+@export var high_beam_energy: float = 36.0
 ## High beam downward pitch tilt (degrees).
-@export var high_beam_pitch_deg: float = -4.5
+@export var high_beam_pitch_deg: float = -1.2
 
 @export_group("Reverse & Coasting")
 ## Maximum reverse speed in m/s (approx 52 km/h).
@@ -212,18 +230,29 @@ var _chase_camera: Camera3D = null
 var is_stalled: bool = false
 var _collapse_stage: int = 0 # 0 = normal, 1 = fading lights & blacking out, 2 = 3s silence pause
 var _collapse_timer: float = 0.0
+var _horn_audio: AudioStreamPlayer3D
+var _horn_is_held: bool = false
+var _horn_button_held: bool = false
+var _horn_elapsed: float = 0.0
+var _horn_short_beep_left: float = 0.0
+const HORN_TAP_DURATION := 0.18
 
 # KM 77 Paradox Anomaly state
 var _is_fog_anomaly: bool = false
 var _fog_anomaly_timer: float = 0.0
 var _world_env: WorldEnvironment = null
-var _orig_fog_light_color := Color(0.031, 0.047, 0.078, 1.0)
-var _orig_volumetric_fog_albedo := Color(0.0313726, 0.0470588, 0.0784314, 1.0)
-var _anomaly_fog_color := Color(0.38, 0.05, 0.08, 1.0) # Deep ominous crimson void
+var _orig_fog_light_color := Color(0.24, 0.26, 0.33, 1.0)
+var _orig_volumetric_fog_albedo := Color(0.32, 0.34, 0.42, 1.0)
+var _anomaly_fog_color := Color(0.36, 0.018, 0.025, 1.0) # Blood-red breach in the monochrome world
 
 var _is_flickering_glitch: bool = false
 var _glitch_timer: float = 0.0
 var _glitch_toggle_timer: float = 0.0
+## Remains set across timeline reboots so the KM 77 event has a lasting consequence.
+var km77_breach_count: int = 0
+var relics_collected: int = 0
+const REQUIRED_RELICS: int = 3
+var is_true_ending_active: bool = false
 
 @onready var visual_root: Node3D = get_node_or_null("VisualRoot") as Node3D
 @onready var visual_mesh: MeshInstance3D = _find_visual_mesh()
@@ -235,6 +264,7 @@ var _glitch_toggle_timer: float = 0.0
 @onready var taillight_right: MeshInstance3D = _find_taillight_right()
 @onready var reverse_light_left: MeshInstance3D = _find_reverse_light_left()
 @onready var reverse_light_right: MeshInstance3D = _find_reverse_light_right()
+@onready var impact_sensor: Area3D = get_node_or_null("ImpactSensor") as Area3D
 var headlights: Array[SpotLight3D] = []
 
 var hud: HUD:
@@ -261,6 +291,7 @@ var _taillight_mat: StandardMaterial3D = null
 var _reverse_light_mat: StandardMaterial3D = null
 
 var _prev_forward_speed: float = 0.0
+var _impact_cooldowns: Dictionary = {}
 var _current_pitch: float = 0.0
 var _current_roll: float = 0.0
 var _idle_shiver_time: float = 0.0
@@ -322,28 +353,42 @@ func _ready() -> void:
 		_base_visual_root_y = visual_root.position.y
 	_ensure_high_beams_action()
 	_ensure_handbrake_action()
+	_ensure_horn_action()
+	_horn_audio = AudioStreamPlayer3D.new()
+	_horn_audio.name = "HornAudio"
+	_horn_audio.stream = load("res://audio/horn.wav") as AudioStream
+	_horn_audio.volume_db = -1.5
+	_horn_audio.unit_size = 12.0
+	_horn_audio.max_distance = 100.0
+	_horn_audio.position = Vector3(0.0, 1.1, -2.5)
+	add_child(_horn_audio)
+	_horn_audio.finished.connect(_on_horn_audio_finished)
 	var tree := get_tree()
 	if tree and tree.current_scene:
 		_world_env = tree.current_scene.get_node_or_null("WorldEnvironment") as WorldEnvironment
 	headlights.clear()
 	if headlight_left:
+		headlight_left.light_color = Color(1.0, 0.90, 0.74, 1.0)
 		headlight_left.position = Vector3(-0.65, 1.05, -2.65)
 		headlight_left.rotation_degrees = Vector3(low_beam_pitch_deg, 0.0, 0.0)
 		headlight_left.shadow_enabled = false
 		headlight_left.light_cull_mask = 4294967295
-		headlight_left.spot_attenuation = 0.38
-		headlight_left.spot_angle_attenuation = 0.45
+		headlight_left.spot_attenuation = 0.45
+		headlight_left.spot_angle_attenuation = 0.44
 		headlights.append(headlight_left)
 	if headlight_right:
+		headlight_right.light_color = Color(1.0, 0.90, 0.74, 1.0)
 		headlight_right.position = Vector3(0.65, 1.05, -2.65)
 		headlight_right.rotation_degrees = Vector3(low_beam_pitch_deg, 0.0, 0.0)
 		headlight_right.shadow_enabled = false
 		headlight_right.light_cull_mask = 4294967295
-		headlight_right.spot_attenuation = 0.38
-		headlight_right.spot_angle_attenuation = 0.45
+		headlight_right.spot_attenuation = 0.45
+		headlight_right.spot_angle_attenuation = 0.44
 		headlights.append(headlight_right)
 
 	_apply_headlight_mode_instant()
+	if impact_sensor and not impact_sensor.body_entered.is_connected(_on_impact_sensor_body_entered):
+		impact_sensor.body_entered.connect(_on_impact_sensor_body_entered)
 	if headlight_left:
 		print("Van forward: ", -global_transform.basis.z, " | HeadlightLeft forward: ", -headlight_left.global_transform.basis.z)
 	headlights_mode_changed.emit(is_high_beam)
@@ -377,7 +422,7 @@ func _ready() -> void:
 			headlight_right_mesh.material_override = _headlight_mat
 
 	# Ensure van body is weathered commercial white (#E0E0E0) for legacy mesh if unassigned
-	if visual_mesh and visual_mesh.get_surface_override_material(0) == null and (visual_mesh.mesh == null or visual_mesh.mesh.material == null):
+	if visual_mesh and visual_mesh.get_surface_override_material(0) == null and (visual_mesh.mesh == null or visual_mesh.get_active_material(0) == null):
 		var white_mat := StandardMaterial3D.new()
 		white_mat.albedo_color = Color(0.88, 0.88, 0.88, 1.0)
 		white_mat.roughness = 0.82
@@ -401,6 +446,19 @@ func _unhandled_key_input(event: InputEvent) -> void:
 			toggle_beams()
 
 func _physics_process(delta: float) -> void:
+	if Input.is_action_just_pressed("horn"):
+		start_horn()
+	if _horn_is_held:
+		_horn_elapsed += delta
+		if not _horn_button_held and not Input.is_action_pressed("horn"):
+			release_horn()
+	if _horn_short_beep_left > 0.0:
+		_horn_short_beep_left = maxf(0.0, _horn_short_beep_left - delta)
+		if _horn_short_beep_left <= 0.0 and _horn_audio and _horn_audio.playing:
+			_horn_audio.stop()
+	if Input.is_action_just_pressed("turbo"):
+		activate_turbo()
+	_process_turbo_timers(delta)
 	is_handbraking = Input.is_action_pressed("handbrake") or Input.is_key_pressed(KEY_SPACE) or Input.is_action_pressed("ui_select")
 
 	# Check stall condition (fuel depleted or engine destroyed)
@@ -455,6 +513,7 @@ func _physics_process(delta: float) -> void:
 	else:
 		velocity.y -= gravity * delta
 
+	var pre_impact_velocity := velocity
 	move_and_slide()
 
 	# 6b. Step-climbing over road curbs/lips when re-entering asphalt from shoulder or ditch
@@ -466,7 +525,7 @@ func _physics_process(delta: float) -> void:
 	forward_speed_state = post_h_vel.dot(forward_dir)
 
 	# 8. Handle obstacle impact deceleration and debris knockback impulses
-	_process_collisions(forward_dir, delta)
+	_process_collisions(forward_dir, pre_impact_velocity)
 
 	# 8b. Off-road mud & gravel spray from spinning rear tires
 	var should_emit_mud: bool = is_on_floor() and (in_shoulder_zone or in_mud_zone) and absf(forward_speed_state) > 1.2
@@ -500,6 +559,77 @@ func _physics_process(delta: float) -> void:
 	_process_engine_audio(delta)
 
 ## Modulates engine audio pitch and playback dynamically based on driving speed and stall status
+## Plays one short horn pulse for callers that request a simple beep.
+func sound_horn() -> void:
+	start_horn()
+	release_horn()
+
+func start_horn(from_button: bool = false) -> void:
+	if not _horn_audio or not _horn_audio.stream or _horn_is_held:
+		return
+	_horn_is_held = true
+	_horn_button_held = from_button
+	_horn_elapsed = 0.0
+	_horn_short_beep_left = 0.0
+	_horn_audio.stop()
+	_horn_audio.play()
+	_disperse_nearby_raven_flocks()
+
+func _disperse_nearby_raven_flocks() -> void:
+	var tree := get_tree()
+	if not tree:
+		return
+	var flocks := tree.get_nodes_in_group("omen_flock")
+	var dispersed_any := false
+	for node in flocks:
+		if node is Node3D and is_instance_valid(node) and node.has_method("disperse_by_horn"):
+			var dist := global_position.distance_to((node as Node3D).global_position)
+			if dist <= 72.0:
+				if node.call("disperse_by_horn"):
+					dispersed_any = true
+	if dispersed_any and RadioManager.instance:
+		RadioManager.instance.report_raven_flock_dispersed()
+
+func collect_relic() -> void:
+	relics_collected = mini(REQUIRED_RELICS, relics_collected + 1)
+	add_fuel(15.0)
+	repair_vehicle(20.0)
+	relics_updated.emit(relics_collected, REQUIRED_RELICS)
+	if RadioManager.instance:
+		RadioManager.instance.report_relic_collected(relics_collected, REQUIRED_RELICS)
+
+func apply_doppelganger_high_beam_curse(pull_sign: float = 1.0) -> void:
+	if is_stalled:
+		return
+	_current_yaw_velocity += pull_sign * 1.15
+	_is_flickering_glitch = true
+	_glitch_timer = 1.2
+	_glitch_toggle_timer = 0.0
+	_apply_camera_shake(0.65)
+
+func release_horn() -> void:
+	if not _horn_is_held:
+		return
+	_horn_is_held = false
+	_horn_button_held = false
+	_horn_short_beep_left = maxf(0.0, HORN_TAP_DURATION - _horn_elapsed)
+	if _horn_short_beep_left <= 0.0 and _horn_audio and _horn_audio.playing:
+		_horn_audio.stop()
+
+func _on_horn_audio_finished() -> void:
+	if _horn_is_held and _horn_audio:
+		_horn_audio.play()
+
+func _ensure_horn_action() -> void:
+	if not InputMap.has_action("horn"):
+		InputMap.add_action("horn")
+	InputMap.action_erase_events("horn")
+	var key_event := InputEventKey.new()
+	key_event.physical_keycode = KEY_X
+	key_event.keycode = KEY_X
+	InputMap.action_add_event("horn", key_event)
+
+
 func _process_engine_audio(delta: float) -> void:
 	if not has_node("EngineAudio"):
 		return
@@ -511,18 +641,27 @@ func _process_engine_audio(delta: float) -> void:
 				engine_audio.stop()
 		return
 
-	if "volume_db" in engine_audio and engine_audio.volume_db < -9.0:
-		engine_audio.volume_db = move_toward(engine_audio.volume_db, -9.0, 12.0 * delta)
+	var target_vol_db: float = -1.5 if is_turbo_active else -9.0
+	if "volume_db" in engine_audio:
+		var vol_rate: float = 28.0 if is_turbo_active else 14.0
+		engine_audio.volume_db = move_toward(engine_audio.volume_db, target_vol_db, vol_rate * delta)
 	if is_inside_tree() and engine_audio.has_method("play") and not engine_audio.playing:
 		engine_audio.play()
 
 	var current_speed: float = absf(forward_speed_state)
-	var speed_ratio: float = clampf(current_speed / max_speed, 0.0, 1.0)
+	var speed_ratio: float = clampf(current_speed / max_speed, 0.0, 1.45)
 	if "pitch_scale" in engine_audio:
-		engine_audio.pitch_scale = lerpf(0.85, 1.3, speed_ratio)
+		var target_pitch: float = lerpf(0.85, 1.32, clampf(speed_ratio, 0.0, 1.0))
+		if is_turbo_active:
+			var turbo_flutter: float = sin(float(Time.get_ticks_msec()) * 0.055) * 0.035
+			target_pitch = lerpf(1.38, 1.72, clampf(speed_ratio / 1.4, 0.0, 1.0)) + turbo_flutter
+		engine_audio.pitch_scale = move_toward(engine_audio.pitch_scale, target_pitch, 3.2 * delta)
 
 ## Smoothly climbs over road curbs and shoulder ledges up to floor_max_climb_step height.
 func _try_step_climb(delta: float, desired_h_vel: Vector3) -> void:
+	# Step assist is only for leaving a soft shoulder/ditch; never let it ramp over traffic props.
+	if not is_on_floor() or (not in_shoulder_zone and not in_mud_zone):
+		return
 	var step_up := Vector3(0.0, floor_max_climb_step, 0.0)
 	if test_move(global_transform, step_up):
 		return
@@ -537,12 +676,14 @@ func _try_step_climb(delta: float, desired_h_vel: Vector3) -> void:
 
 ## Starts the vehicle shutdown and blackout sequence.
 func _start_collapse() -> void:
+	if is_true_ending_active:
+		return
 	print("Reset triggered by: CRITICAL VEHICLE SHUTDOWN (Fuel: %.1f, Health: %.1f)" % [current_fuel, current_engine_health])
 	var root := get_tree().current_scene if get_tree() else null
 	if root:
 		var lrm := root.get_node_or_null("LoopResetManager")
 		if lrm and lrm.has_method("start_timeline_reboot"):
-			lrm.start_timeline_reboot("CRITICAL VEHICLE SHUTDOWN")
+			lrm.start_timeline_reboot("COLAPSO MECÁNICO DE LA UNIDAD 77")
 			return
 
 	is_stalled = true
@@ -556,13 +697,15 @@ func _start_collapse() -> void:
 
 	if RadioManager.instance:
 		RadioManager.instance.broadcast_dispatch(
-			"[RADIO CRITICAL] ...vehicle telemetry flatlined... carrier signal cutting out...",
+			"[RADIO CRÍTICA] ...telemetría de la Unidad 77 detenida... perdiendo portadora en la niebla...",
 			3.5,
 			true
 		)
 
 ## Drives headlight fade, blackout pause, and loop reset.
 func _process_collapse(delta: float) -> void:
+	if is_true_ending_active:
+		return
 	if _collapse_stage == 1:
 		# Gradually extinguish surviving headlights and taillights
 		if headlight_left and not left_headlight_broken:
@@ -592,12 +735,18 @@ func _process_collapse(delta: float) -> void:
 
 ## Resets vehicle position, restores partial fuel/health, rebuilds road, and awakens in the loop.
 func reset_loop_state() -> void:
+	is_true_ending_active = false
 	# 1. Reposition vehicle in right lane facing forward
 	global_position = Vector3(3.5, 1.5, 0.0)
 	rotation = Vector3.ZERO
 	velocity = Vector3.ZERO
 	forward_speed_state = 0.0
+	current_speed_kmh = 0.0
+	_turbo_seconds_left = 0.0
+	_turbo_cooldown_left = 0.0
+	_emit_turbo_state()
 	current_steer_angle = 0.0
+	_current_yaw_velocity = 0.0
 
 	# 2. Rebuild the procedural road from origin
 	var rm := _find_road_manager()
@@ -605,10 +754,11 @@ func reset_loop_state() -> void:
 		rm.reset_road()
 
 	# 3. Restore partial fuel and engine health
-	current_fuel = max_fuel * 0.70
+	current_fuel = max_fuel * 0.75
 	current_engine_health = max_engine_health * 0.85
 	fuel_changed.emit(current_fuel, max_fuel)
 	engine_health_changed.emit(current_engine_health, max_engine_health)
+	relics_updated.emit(relics_collected, REQUIRED_RELICS)
 
 	# 4. Restore headlights and taillights
 	is_high_beam = false
@@ -655,11 +805,11 @@ func reset_loop_state() -> void:
 	if _spray_particles_right:
 		_spray_particles_right.emitting = false
 
-	# 6. Reset odometer back to starting marker
-	starting_kilometer = 85.0
+	# 6. Reset odometer back to the configured starting marker
 	distance_traveled_meters = 0.0
-	current_kilometer = 85.0
+	current_kilometer = starting_kilometer
 	distance_updated.emit(distance_traveled_meters, current_kilometer)
+	speed_updated.emit(current_speed_kmh)
 
 	# 7. Reset narrative milestones
 	if RadioManager.instance:
@@ -672,40 +822,68 @@ func reset_loop_state() -> void:
 
 	# 9. Broadcast loop reset wake-up radio message
 	if RadioManager.instance:
+		var wake_message := "[CENTRAL 10-0] ...Unidad 77, señal restablecida en el Hito 85... ¿se quedó dormido al volante? Confirme estado."
+		if km77_breach_count == 1:
+			wake_message = "[ESTÁTICA 1989] ...Hito 85 otra vez. El reloj volvió a las 03:33. Necesitas recuperar las 3 Reliquias (%d/3) en los coches abandonados para cruzar el Km 77." % relics_collected
+		elif km77_breach_count > 1:
+			wake_message = "[VOZ DEL CONDUCTOR // CICLO #%d] Recuerdo todas las vueltas anteriores. Llevo %d de 3 Reliquias consagradas. Esta noche saldremos de la Ruta 77." % [km77_breach_count + 1, relics_collected]
 		RadioManager.instance.broadcast_dispatch(
-			"[DISPATCH 10-0] ...Unit 77, carrier restored at Milepost 85... did you black out at the wheel? Confirm status.",
+			wake_message,
 			7.5,
 			true
 		)
 
 	loop_reset_triggered.emit()
 
-## Triggers the paradoxical loop reset when the vehicle reaches Kilómetro 77.
+## Triggers the paradoxical loop reset or the True Ending when the vehicle reaches Kilómetro 77.
 func _trigger_km77_paradox() -> void:
-	# 1. Reset odometer back to 85.0 without interrupting driving or forward momentum!
-	starting_kilometer = 85.0
-	distance_traveled_meters = 0.0
-	current_kilometer = 85.0
-	distance_updated.emit(distance_traveled_meters, current_kilometer)
+	if is_true_ending_active:
+		return
+	if relics_collected >= REQUIRED_RELICS:
+		_trigger_true_ending()
+		return
 
-	# 2. Reset radio milestones and emit cryptic recursive broadcast
-	if RadioManager.instance:
-		RadioManager.instance.reset_milestones()
-		RadioManager.instance.broadcast_dispatch(
-			"[RADIO CORRUPT] <<! TEMPORAL RECURSION DETECTED !>> ...MILEPOST 77 BREACHED... LOOP VECTOR RE-INDEXED TO KM 85...",
-			8.0,
-			true
-		)
-
-	# 3. Trigger headlight strobe glitch
+	# Remember the breach across timeline reboots and restart the actual drive at Milepost 85
+	km77_breach_count += 1
 	_is_flickering_glitch = true
 	_glitch_timer = 1.6
 	_glitch_toggle_timer = 0.0
-
-	# 4. Trigger atmospheric fog color shift anomaly
 	_trigger_fog_anomaly()
+	var reboot_reason := "KM 77 PARADOX BREACH #%d" % km77_breach_count
+	var root := get_tree().current_scene if get_tree() else null
+	var reboot_manager := root.get_node_or_null("LoopResetManager") if root else null
+	if reboot_manager and reboot_manager.has_method("start_timeline_reboot"):
+		reboot_manager.start_timeline_reboot(reboot_reason)
+	else:
+		reset_loop_state()
 
 	paradox_anomaly_triggered.emit()
+
+func _trigger_true_ending() -> void:
+	is_true_ending_active = true
+	is_stalled = true
+	current_kilometer = 77.0
+	distance_updated.emit(distance_traveled_meters, current_kilometer)
+	true_ending_triggered.emit()
+
+	var tree := get_tree()
+	if tree and tree.current_scene:
+		_world_env = tree.current_scene.get_node_or_null("WorldEnvironment") as WorldEnvironment
+	if _world_env and _world_env.environment:
+		_world_env.environment.fog_light_color = Color(0.82, 0.68, 0.44, 1.0)
+		_world_env.environment.volumetric_fog_albedo = Color(0.88, 0.74, 0.50, 1.0)
+
+	if RadioManager.instance:
+		RadioManager.instance.broadcast_dispatch(
+			"[AMANECER EN LA PARROQUIA 77] El séptimo féretro ha sido entregado. Las campanas descansan y la niebla de 1989 se disipa por fin.",
+			10.0,
+			true,
+			0.0
+		)
+
+	var hud := _find_hud()
+	if hud and hud.has_method("show_true_ending_screen"):
+		hud.show_true_ending_screen(km77_breach_count + 1)
 
 func _trigger_fog_anomaly() -> void:
 	var tree := get_tree()
@@ -718,7 +896,9 @@ func _trigger_fog_anomaly() -> void:
 		_world_env.environment.volumetric_fog_albedo = _anomaly_fog_color
 
 func _process_visual_effects(delta: float) -> void:
-	# Anomaly fog color pulse decay
+	if is_true_ending_active:
+		return
+	# Anomaly fog color pulse decay or "La Procesión de Ceniza" (KM 78.0 -> 77.0) progressive crimson fog
 	if _is_fog_anomaly:
 		_fog_anomaly_timer = move_toward(_fog_anomaly_timer, 0.0, delta)
 		var progress: float = _fog_anomaly_timer / 2.5
@@ -727,6 +907,11 @@ func _process_visual_effects(delta: float) -> void:
 			_world_env.environment.volumetric_fog_albedo = _orig_volumetric_fog_albedo.lerp(_anomaly_fog_color, progress)
 		if _fog_anomaly_timer <= 0.0:
 			_is_fog_anomaly = false
+	elif _world_env and _world_env.environment:
+		var procession_ratio: float = clampf((78.2 - current_kilometer) / 1.2, 0.0, 1.0)
+		var procession_fog := Color(0.36, 0.05, 0.07, 1.0)
+		_world_env.environment.fog_light_color = _orig_fog_light_color.lerp(procession_fog, procession_ratio * 0.85)
+		_world_env.environment.volumetric_fog_albedo = _orig_volumetric_fog_albedo.lerp(procession_fog, procession_ratio * 0.85)
 
 	# Headlight glitch strobing
 	if _is_flickering_glitch:
@@ -748,7 +933,7 @@ func _process_visual_effects(delta: float) -> void:
 
 	# Dynamic rear tail & reactive brake lights (pure emissive meshes, NO omni bleed)
 	if not is_stalled:
-		var is_braking: bool = (Input.is_action_pressed("brake") and forward_speed_state > 0.2) or Input.is_action_pressed("handbrake")
+		var is_braking: bool = (Input.is_action_pressed("brake") and forward_speed_state > -0.2) or Input.is_action_pressed("handbrake")
 		var target_emission: float = 4.0 if is_braking else 0.8
 		if _taillight_mat:
 			_taillight_mat.emission_energy_multiplier = move_toward(
@@ -865,10 +1050,10 @@ func _apply_headlight_mode_instant() -> void:
 	var target_angle: float = high_beam_angle if is_high_beam else low_beam_angle
 	var target_energy: float = high_beam_energy if is_high_beam else low_beam_energy
 	var target_pitch: float = high_beam_pitch_deg if is_high_beam else low_beam_pitch_deg
-	var target_atten: float = 0.35 if is_high_beam else 0.38
-	var target_angle_atten: float = 0.40 if is_high_beam else 0.45
-	var target_fog_energy: float = 0.8 if is_high_beam else 0.5
-	var target_mesh_emission: float = 6.5 if is_high_beam else 3.2
+	var target_atten: float = 0.28 if is_high_beam else 0.48
+	var target_angle_atten: float = 0.34 if is_high_beam else 0.46
+	var target_fog_energy: float = 0.10 if is_high_beam else 0.24
+	var target_mesh_emission: float = 1.85 if is_high_beam else 0.95
 
 	if headlight_left and not left_headlight_broken:
 		headlight_left.position = Vector3(-0.65, 1.05, -2.65)
@@ -902,8 +1087,8 @@ func _process_headlight_beams(delta: float) -> void:
 		if tree and tree.current_scene:
 			_world_env = tree.current_scene.get_node_or_null("WorldEnvironment") as WorldEnvironment
 
-	var target_fog_energy: float = 0.8 if is_high_beam else 0.5
-	var target_mesh_emission: float = 6.5 if is_high_beam else 3.2
+	var target_fog_energy: float = 0.10 if is_high_beam else 0.24
+	var target_mesh_emission: float = 1.85 if is_high_beam else 0.95
 
 	if not is_stalled:
 		if headlight_left and not left_headlight_broken:
@@ -920,72 +1105,153 @@ func _process_headlight_beams(delta: float) -> void:
 				14.0 * delta
 			)
 
-	# Volumetric fog backscatter effect: keep density low so fog does not absorb headlight projection
+	# High beams cut through the Gothic fog to grant much greater visibility distance
 	if _world_env and _world_env.environment and not _is_fog_anomaly:
-		var target_density: float = 0.010 if is_high_beam else 0.014
+		var target_vol_density: float = 0.020 if is_high_beam else 0.038
+		var target_fog_density: float = 0.009 if is_high_beam else 0.018
+		var target_depth_begin: float = 32.0 if is_high_beam else 15.0
+		var target_depth_end: float = 135.0 if is_high_beam else 65.0
 		_world_env.environment.volumetric_fog_density = move_toward(
 			_world_env.environment.volumetric_fog_density,
-			target_density,
-			0.03 * delta
+			target_vol_density,
+			0.08 * delta
+		)
+		_world_env.environment.fog_density = move_toward(
+			_world_env.environment.fog_density,
+			target_fog_density,
+			0.04 * delta
+		)
+		_world_env.environment.fog_depth_begin = move_toward(
+			_world_env.environment.fog_depth_begin,
+			target_depth_begin,
+			65.0 * delta
+		)
+		_world_env.environment.fog_depth_end = move_toward(
+			_world_env.environment.fog_depth_end,
+			target_depth_end,
+			180.0 * delta
 		)
 
 ## Handles physical impacts with obstacles and vehicles: damage, speed scrub, shake, and headlight failure.
-func _process_collisions(forward_dir: Vector3, _delta: float) -> void:
+func _process_collisions(forward_dir: Vector3, pre_impact_velocity: Vector3) -> void:
 	var slide_count := get_slide_collision_count()
+	var strongest_impact_speed := 0.0
+	var strongest_impact_normal := Vector3.ZERO
+	var strongest_collider: Object = null
+	var strongest_is_heavy := false
+	var now_msec := Time.get_ticks_msec()
+	for key in _impact_cooldowns.keys():
+		if int(_impact_cooldowns[key]) <= now_msec:
+			_impact_cooldowns.erase(key)
 	for i in range(slide_count):
 		var collision := get_slide_collision(i)
 		var collider := collision.get_collider()
 		if not collider:
 			continue
-
 		var col_normal := collision.get_normal()
+		# Small rigid props should tumble even when the van contacts them from above.
+		if collider is RigidBody3D:
+			if collider.has_meta("van_impacted"):
+				continue
+			collider.set_meta("van_impacted", true)
+			var push_dir: Vector3 = -col_normal
+			push_dir.y = 0.0
+			if push_dir.length_squared() < 0.001:
+				push_dir = forward_dir
+			push_dir = push_dir.normalized()
+			var debris_speed := clampf(absf(forward_speed_state) * 0.32, 1.8, 7.0)
+			var object_mass: float = maxf(collider.mass, 0.1)
+			collider.apply_central_impulse(push_dir * object_mass * debris_speed + Vector3.UP * object_mass * 0.28)
+			collider.apply_torque_impulse(Vector3(randf_range(-0.45, 0.45), randf_range(0.25, 0.7), randf_range(-0.45, 0.45)) * object_mass)
+			continue
+		if collider is Node and (collider as Node).is_in_group("underbody_obstacle"):
+			if not (collider as Node).has_meta("van_overrun"):
+				(collider as Node).set_meta("van_overrun", true)
+				forward_speed_state *= 0.94
+				velocity *= 0.94
+				collision_impact.emit(0.18)
+			continue
 		# Ignore ground, shoulder curbs, and sloped ditch banks so climbing back onto the road never scrubs speed
 		if absf(col_normal.y) > 0.25:
 			continue
 
-		var frontal_alignment := maxf(0.0, -forward_dir.dot(col_normal))
-		var impact_speed := absf(forward_speed_state) * frontal_alignment
+		var collider_velocity := Vector3.ZERO
+		if collider is CharacterBody3D:
+			collider_velocity = (collider as CharacterBody3D).velocity
+		var relative_velocity := pre_impact_velocity - collider_velocity
+		var impact_speed := maxf(0.0, -relative_velocity.dot(col_normal))
 
 		# 1. Collision with solid barriers, heavy obstacles, or vehicles
 		var is_heavy: bool = collider.is_in_group("heavy_obstacle") or collider is StaticBody3D or collider is CharacterBody3D
 
-		if is_heavy and impact_speed > impact_speed_threshold:
-			apply_collision_damage(impact_speed, collider.is_in_group("heavy_obstacle"))
+		if not is_heavy or impact_speed <= 2.8:
+			continue
+		var collider_id := collider.get_instance_id()
+		if _impact_cooldowns.has(collider_id):
+			continue
+		if impact_speed > strongest_impact_speed:
+			strongest_impact_speed = impact_speed
+			strongest_impact_normal = col_normal
+			strongest_collider = collider
+			strongest_is_heavy = collider.is_in_group("heavy_obstacle")
+	if strongest_collider and strongest_impact_speed > 0.0:
+		_impact_cooldowns[strongest_collider.get_instance_id()] = now_msec + 700
+		apply_collision_damage(strongest_impact_speed, strongest_is_heavy, strongest_impact_normal)
 
-		# 2. Collision with lightweight dynamic debris (RigidBody3D)
-		if collider is RigidBody3D:
-			var push_dir: Vector3 = -col_normal
-			push_dir.y = 0.0
-			push_dir = push_dir.normalized()
-			var speed_magnitude := clampf(abs(forward_speed_state), 8.0, max_speed)
-			var impulse: Vector3 = (push_dir * speed_magnitude * 10.0) + (Vector3.UP * 4.5)
-			collider.apply_central_impulse(impulse)
-			var torque := Vector3(randf_range(-6.0, 6.0), randf_range(6.0, 12.0), randf_range(-6.0, 6.0))
-			collider.apply_torque_impulse(torque)
+## Debris lives on its own collision layer so the kinematic van cannot ride up its collider.
+## This sensor gives lightweight props a short horizontal shove when the van actually reaches them.
+func _on_impact_sensor_body_entered(body: Node3D) -> void:
+	if not body is RigidBody3D or absf(forward_speed_state) < 1.0:
+		return
+	var debris := body as RigidBody3D
+	if debris.has_meta("van_impacted"):
+		return
+	debris.set_meta("van_impacted", true)
+	var travel_dir := -global_transform.basis.z
+	if forward_speed_state < 0.0:
+		travel_dir = -travel_dir
+	travel_dir.y = 0.0
+	var side_offset := (debris.global_position - global_position).dot(global_transform.basis.x)
+	var shove_dir := (travel_dir + global_transform.basis.x * signf(side_offset) * 0.22).normalized()
+	var shove_speed := clampf(absf(forward_speed_state) * 0.38, 1.5, 8.0)
+	var mass_scale := maxf(debris.mass, 0.1)
+	debris.apply_central_impulse(shove_dir * mass_scale * shove_speed + Vector3.UP * mass_scale * 0.18)
+	debris.apply_torque_impulse(Vector3(randf_range(-0.35, 0.35), randf_range(0.2, 0.55), randf_range(-0.35, 0.35)) * mass_scale)
 
 ## Applies collision damage, momentum scrub, camera trauma, and headlight failure.
-func apply_collision_damage(impact_speed: float, is_heavy_obstacle: bool = true) -> void:
-	if impact_speed <= impact_speed_threshold:
+func apply_collision_damage(impact_speed: float, is_heavy_obstacle: bool = true, impact_normal: Vector3 = Vector3.ZERO) -> void:
+	if impact_speed <= 2.8:
 		return
 
-	# Damage calculation based on impact velocity
-	var damage: float = (impact_speed - impact_speed_threshold) * collision_damage_factor
-	if is_heavy_obstacle:
-		damage *= 1.5
+	# Impacts use relative velocity captured before move_and_slide; soft contact costs speed,
+	# while hard hits progressively damage the engine and kick the van off its line.
+	var severity := clampf((impact_speed - 2.8) / 17.0, 0.0, 1.5)
+	var damage := maxf(0.0, impact_speed - impact_speed_threshold) * collision_damage_factor * (1.25 if is_heavy_obstacle else 0.9)
 	current_engine_health = maxf(0.0, current_engine_health - damage)
 	engine_health_changed.emit(current_engine_health, max_engine_health)
 
-	# Severely scrub forward momentum upon direct impact
-	velocity *= 0.35
-	forward_speed_state *= 0.35
+	# Scale momentum loss with impact speed so taps are recoverable and high-speed crashes hurt.
+	var speed_retention := lerpf(0.92, 0.42, clampf(severity, 0.0, 1.0))
+	velocity *= speed_retention
+	forward_speed_state *= speed_retention
+	var side_hit := impact_normal.dot(global_transform.basis.x)
+	if absf(side_hit) > 0.2 and severity > 0.12:
+		velocity += global_transform.basis.x * signf(side_hit) * minf(impact_speed * 0.12, 3.2)
+		_current_yaw_velocity += signf(side_hit) * minf(severity * 0.55, 0.65)
 
 	# Trigger camera trauma on ChaseCamera
-	var shake_trauma := clampf((impact_speed / max_speed) * camera_shake_intensity, 0.25, 1.4)
+	var shake_trauma := clampf((impact_speed / max_speed) * camera_shake_intensity, 0.12, 1.4)
 	collision_impact.emit(shake_trauma)
 	_apply_camera_shake(shake_trauma)
+	var damage_percent := damage / max_engine_health * 100.0 if max_engine_health > 0.0 else damage
+	impact_reported.emit(impact_speed * 3.6, damage_percent, current_engine_health / max_engine_health * 100.0 if max_engine_health > 0.0 else 0.0)
 
 	# Probabilistic headlight damage
-	var roll_chance := headlight_break_chance_heavy if impact_speed > 14.0 else headlight_break_chance_light
+	var roll_chance := 0.0
+	if impact_speed > 22.0:
+		roll_chance = headlight_break_chance_heavy
+	elif impact_speed > 13.0:
+		roll_chance = headlight_break_chance_light * 0.55
 	if randf() < roll_chance:
 		_damage_random_headlight()
 
@@ -1003,16 +1269,16 @@ func _damage_random_headlight() -> void:
 	if available.is_empty():
 		return
 
-	var victim: SpotLight3D = available[randi() % available.size()]
-	if victim == headlight_left:
+	var damaged_light: SpotLight3D = available[randi() % available.size()]
+	if damaged_light == headlight_left:
 		left_headlight_broken = true
 	else:
 		right_headlight_broken = true
 
 	# Disable light with flicker blackout
-	victim.light_energy = 0.0
-	victim.visible = false
-	headlight_damaged.emit(victim.name)
+	damaged_light.light_energy = 0.0
+	damaged_light.visible = false
+	headlight_damaged.emit(damaged_light.name)
 
 ## Restores fuel to the vehicle, clamping to max_fuel.
 func add_fuel(amount: float) -> void:
@@ -1233,23 +1499,29 @@ func _process_steering(delta: float) -> void:
 		_current_yaw_velocity = move_toward(_current_yaw_velocity, 0.0, steering_angular_damping * delta)
 		return
 
-	# 4. Realistic wet-road traction loss & understeer at highway cruising speeds (> 80 km/h)
+	# 4. Realistic wet-road traction loss & understeer at highway cruising speeds (> 68 km/h)
+	# Tight curves push the nose wide unless the driver initiates a handbrake powerslide (Space) or brakes into the apex.
 	var understeer_factor: float = 1.0
+	var is_sliding_sideways: bool = absf(lat_speed) > 2.4
 	if current_speed_kmh > aquaplane_speed_threshold_kmh and absf(steer_input) > 0.35 and not is_handbraking:
-		var slip_severity: float = clampf((current_speed_kmh - aquaplane_speed_threshold_kmh) / 25.0, 0.0, 1.0)
-		understeer_factor = lerpf(1.0, 0.58, slip_severity * clampf(absf(steer_input) * 1.4, 0.0, 1.0))
-		is_traction_loss = is_on_floor() and slip_severity > 0.08
+		var slip_severity: float = clampf((current_speed_kmh - aquaplane_speed_threshold_kmh) / 22.0, 0.0, 1.0)
+		understeer_factor = lerpf(1.0, 0.36, slip_severity * clampf(absf(steer_input) * 1.45, 0.0, 1.0))
+		is_traction_loss = is_on_floor() and (slip_severity > 0.08 or is_sliding_sideways)
 	else:
-		is_traction_loss = false
+		is_traction_loss = is_on_floor() and is_sliding_sideways
 
 	# 5. Turn rate calculation based on wheelbase geometry with handbrake powerslide yaw amplification
 	var turn_factor := clampf(abs_fwd_speed / wheelbase, 0.0, 3.2)
 	var direction_sign: float = signf(fwd_speed) if abs_fwd_speed > 0.2 else 1.0
 
-	# Amplify yaw rotation rate when steering while handbraking so the rear swings out into a slide
+	# Amplify yaw rotation rate when steering while handbraking (or sustaining a slide) so the rear swings out into tight corners
 	var handbrake_yaw_mult: float = 1.0
 	if is_handbraking and absf(steer_input) > 0.05 and abs_fwd_speed > 2.0:
-		handbrake_yaw_mult = 2.4
+		handbrake_yaw_mult = 2.65
+		understeer_factor = 1.0
+	elif is_sliding_sideways and absf(steer_input) > 0.15:
+		handbrake_yaw_mult = 1.45
+		understeer_factor = maxf(understeer_factor, 0.85)
 
 	var target_yaw_velocity: float = current_steer_angle * turn_factor * direction_sign * understeer_factor * handbrake_yaw_mult
 
@@ -1260,6 +1532,9 @@ func _process_steering(delta: float) -> void:
 ## Updates forward/reverse speed based on throttle, engine torque, drag curve, and handbrake momentum preservation.
 func _process_longitudinal(fwd_speed: float, delta: float) -> float:
 	var throttle := Input.get_axis("brake", "accelerate")
+	var engine_condition := clampf(current_engine_health / maxf(max_engine_health, 1.0), 0.0, 1.0)
+	var engine_power := lerpf(0.52, 1.0, engine_condition)
+	var engine_top_speed := max_speed * lerpf(0.72, 1.0, engine_condition)
 
 	if is_stalled:
 		# Engine failed or out of fuel: coast down to stop
@@ -1273,11 +1548,15 @@ func _process_longitudinal(fwd_speed: float, delta: float) -> float:
 			# Traveling in reverse while throttle pressed: apply service brake to halt reverse
 			fwd_speed = move_toward(fwd_speed, 0.0, braking_force * delta)
 		else:
-			# Boosted forward drive force: reaches ~115–120 km/h smoothly within 4 to 5 seconds of continuous throttle
-			var speed_ratio: float = clampf(fwd_speed / max_speed, 0.0, 1.0)
+			var active_max_speed := engine_top_speed * (turbo_speed_multiplier if is_turbo_active else 1.0)
+			var speed_ratio: float = clampf(fwd_speed / active_max_speed, 0.0, 1.0)
 			var drag_taper: float = clampf(1.0 - pow(speed_ratio, 1.6) * 0.92, 0.08, 1.0)
-			var effective_accel: float = acceleration_rate * 0.30 * drag_taper * throttle
-			fwd_speed = move_toward(fwd_speed, max_speed, effective_accel * delta)
+			var turbo_accel := turbo_acceleration_multiplier if is_turbo_active else 1.0
+			var effective_accel: float = acceleration_rate * 0.30 * drag_taper * turbo_accel * throttle * engine_power
+			if not is_turbo_active and fwd_speed > engine_top_speed:
+				fwd_speed = move_toward(fwd_speed, engine_top_speed, 2.0 * delta)
+			else:
+				fwd_speed = move_toward(fwd_speed, active_max_speed, effective_accel * delta)
 	elif throttle < 0.0:
 		if fwd_speed > 0.25:
 			# Service braking from forward motion: realistic stopping authority
@@ -1288,7 +1567,7 @@ func _process_longitudinal(fwd_speed: float, delta: float) -> float:
 		else:
 			# Reverse gear from 0 km/h has solid instantaneous torque without lagging
 			var reverse_ratio: float = -throttle
-			fwd_speed = move_toward(fwd_speed, -reverse_max_speed, reverse_acceleration * reverse_ratio * delta)
+			fwd_speed = move_toward(fwd_speed, -reverse_max_speed * lerpf(0.72, 1.0, engine_condition), reverse_acceleration * engine_power * reverse_ratio * delta)
 	else:
 		# Passive coasting: vehicle inertia carries momentum
 		fwd_speed = move_toward(fwd_speed, 0.0, coast_deceleration * delta)
@@ -1298,6 +1577,27 @@ func _process_longitudinal(fwd_speed: float, delta: float) -> float:
 		fwd_speed = move_toward(fwd_speed, 0.0, handbrake_force * delta)
 
 	return fwd_speed
+
+func activate_turbo() -> bool:
+	if is_turbo_active or _turbo_cooldown_left > 0.0 or is_stalled or current_fuel <= 0.0 or current_engine_health <= 0.0:
+		return false
+	_turbo_seconds_left = turbo_duration
+	_turbo_cooldown_left = turbo_cooldown
+	_emit_turbo_state()
+	return true
+
+func can_activate_turbo() -> bool:
+	return not is_turbo_active and _turbo_cooldown_left <= 0.0 and not is_stalled and current_fuel > 0.0 and current_engine_health > 0.0
+
+func _process_turbo_timers(delta: float) -> void:
+	var was_active := is_turbo_active
+	_turbo_seconds_left = maxf(0.0, _turbo_seconds_left - delta)
+	_turbo_cooldown_left = maxf(0.0, _turbo_cooldown_left - delta)
+	if was_active or is_turbo_active:
+		_emit_turbo_state()
+
+func _emit_turbo_state() -> void:
+	turbo_state_changed.emit(is_turbo_active, _turbo_seconds_left, _turbo_cooldown_left)
 
 ## Consumes fuel over time based on idle and throttle demand.
 func _process_fuel(delta: float) -> void:

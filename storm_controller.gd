@@ -8,6 +8,8 @@ extends Node3D
 @export var lightning_light: DirectionalLight3D
 
 @export_group("Rain Parameters")
+## Keeps visible rain disabled for the dry-road noir setting. The wet road shader still provides puddles and reflections.
+@export var enable_rain: bool = false
 ## Total particle count for atmospheric rain downpour.
 @export var rain_amount: int = 750
 ## Half-extents of the overhead rain emitter box in meters (28m x 7m x 28m).
@@ -19,24 +21,25 @@ extends Node3D
 
 @export_group("Lightning Parameters")
 ## Minimum seconds between procedural lightning strikes.
-@export var min_lightning_interval: float = 18.0
+@export var min_lightning_interval: float = 12.0
 ## Maximum seconds between procedural lightning strikes.
-@export var max_lightning_interval: float = 35.0
+@export var max_lightning_interval: float = 25.0
 ## Peak illumination energy of the primary lightning burst.
-@export var lightning_peak_energy: float = 3.8
-## Pale cyan-blue electric tint of lightning illumination.
-@export var lightning_color: Color = Color(0.85, 0.92, 1.0, 1.0)
+@export var lightning_peak_energy: float = 4.4
+## Pale silver-violet electric tint of lightning illumination.
+@export var lightning_color: Color = Color(0.84, 0.88, 1.0, 1.0)
 
 # Runtime state
 var _lightning_timer: float = 0.0
-var _next_lightning_interval: float = 22.0
+var _next_lightning_interval: float = 14.0
 var _flash_stage: int = 0 # 0=idle, 1=burst1, 2=dip, 3=burst2, 4=decay
 var _stage_timer: float = 0.0
 var _rain_particles: GPUParticles3D
 
 func _ready() -> void:
 	_init_lightning_light()
-	_create_rain_particles()
+	if enable_rain:
+		_create_rain_particles()
 	_schedule_next_strike()
 
 func _init_lightning_light() -> void:
@@ -111,7 +114,12 @@ func _find_vehicle() -> void:
 			target_vehicle = van
 
 func _schedule_next_strike() -> void:
-	_next_lightning_interval = randf_range(min_lightning_interval, max_lightning_interval)
+	var min_int := min_lightning_interval
+	var max_int := max_lightning_interval
+	if target_vehicle is Van and (target_vehicle as Van).current_kilometer <= 78.2:
+		min_int = 3.5
+		max_int = 7.0
+	_next_lightning_interval = randf_range(min_int, max_int)
 	_lightning_timer = 0.0
 
 ## Triggers an immediate double-strike lightning flash.
@@ -124,7 +132,8 @@ func _process_lightning(delta: float) -> void:
 		return
 
 	if _flash_stage == 0:
-		_lightning_timer += delta
+		var rate: float = 2.2 if (target_vehicle is Van and (target_vehicle as Van).current_kilometer <= 78.2) else 1.0
+		_lightning_timer += delta * rate
 		if _lightning_timer >= _next_lightning_interval:
 			trigger_lightning_strike()
 	elif _flash_stage == 1:

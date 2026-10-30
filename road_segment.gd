@@ -17,9 +17,9 @@ enum SegmentType {
 ## Thickness of the road floor slab.
 @export var road_thickness: float = 1.0
 ## Total turning angle in degrees for curved segments.
-@export var curve_angle_deg: float = 22.5
+@export var curve_angle_deg: float = 48.0
 ## Number of geometric primitive slices used to construct smooth curves.
-@export var slice_count: int = 8
+@export var slice_count: int = 10
 
 @export_group("Shoulders & Ditches")
 ## Width in meters of the flat dirt/gravel shoulder on each side of the asphalt.
@@ -75,15 +75,15 @@ render_mode blend_mix, depth_draw_opaque, cull_back, diffuse_burley, specular_sc
 uniform sampler2D noise_puddles : hint_default_white, filter_linear_mipmap, repeat_enable;
 uniform sampler2D noise_normal : hint_normal, filter_linear_mipmap, repeat_enable;
 
-uniform vec3 gravel_color : source_color = vec3(0.065, 0.070, 0.082);
-uniform vec3 puddle_color : source_color = vec3(0.022, 0.025, 0.032);
+uniform vec3 gravel_color : source_color = vec3(0.145, 0.155, 0.180);
+uniform vec3 puddle_color : source_color = vec3(0.050, 0.056, 0.072);
 uniform float puddle_threshold : hint_range(0.0, 1.0) = 0.45;
 uniform float puddle_blend_softness : hint_range(0.01, 0.5) = 0.12;
 
-uniform float gravel_roughness : hint_range(0.0, 1.0) = 0.94;
+uniform float gravel_roughness : hint_range(0.0, 1.0) = 0.84;
 uniform float puddle_roughness : hint_range(0.0, 1.0) = 0.06;
 
-uniform float gravel_specular : hint_range(0.0, 1.0) = 0.05;
+uniform float gravel_specular : hint_range(0.0, 1.0) = 0.18;
 uniform float puddle_specular : hint_range(0.0, 1.0) = 0.96;
 
 void fragment() {
@@ -139,7 +139,7 @@ shader_type spatial;
 render_mode blend_mix, depth_draw_opaque, cull_back;
 
 uniform sampler2D noise_wear : hint_default_white, filter_linear_mipmap, repeat_enable;
-uniform vec4 paint_color : source_color = vec4(0.88, 0.74, 0.14, 1.0);
+uniform vec4 paint_color : source_color = vec4(0.74, 0.74, 0.74, 1.0);
 uniform float emission_energy : hint_range(0.0, 5.0) = 0.0;
 uniform float wear_threshold : hint_range(0.0, 1.0) = 0.32;
 
@@ -161,7 +161,7 @@ static func get_marking_material() -> Material:
 	if not _marking_material:
 		var mat := ShaderMaterial.new()
 		mat.shader = _get_worn_marking_shader()
-		mat.set_shader_parameter("paint_color", Color(0.88, 0.74, 0.14, 1.0))
+		mat.set_shader_parameter("paint_color", Color(0.74, 0.74, 0.74, 1.0))
 		mat.set_shader_parameter("emission_energy", 0.0)
 		mat.set_shader_parameter("wear_threshold", 0.34)
 
@@ -210,10 +210,10 @@ static func get_stud_housing_material() -> StandardMaterial3D:
 static func get_stud_reflector_material() -> StandardMaterial3D:
 	if not _stud_reflector_mat:
 		_stud_reflector_mat = StandardMaterial3D.new()
-		_stud_reflector_mat.albedo_color = Color(1.0, 0.72, 0.08, 1.0)
+		_stud_reflector_mat.albedo_color = Color(0.72, 0.72, 0.72, 1.0)
 		_stud_reflector_mat.roughness = 0.12
 		_stud_reflector_mat.emission_enabled = true
-		_stud_reflector_mat.emission = Color(1.0, 0.68, 0.05, 1.0)
+		_stud_reflector_mat.emission = Color(0.72, 0.72, 0.72, 1.0)
 		_stud_reflector_mat.emission_energy_multiplier = 0.8
 	return _stud_reflector_mat
 
@@ -244,9 +244,9 @@ static func get_streetlight_metal_material() -> StandardMaterial3D:
 static func get_streetlight_lens_material() -> StandardMaterial3D:
 	if not _streetlight_lens_mat:
 		_streetlight_lens_mat = StandardMaterial3D.new()
-		_streetlight_lens_mat.albedo_color = Color(1.0, 0.69, 0.29, 1.0) # #ffb04a sodium amber
+		_streetlight_lens_mat.albedo_color = Color(0.72, 0.72, 0.72, 1.0)
 		_streetlight_lens_mat.emission_enabled = true
-		_streetlight_lens_mat.emission = Color(1.0, 0.69, 0.29, 1.0)
+		_streetlight_lens_mat.emission = Color(0.82, 0.82, 0.82, 1.0)
 		_streetlight_lens_mat.emission_energy_multiplier = 3.5
 	return _streetlight_lens_mat
 
@@ -286,10 +286,10 @@ static func get_reflector_amber_material() -> StandardMaterial3D:
 	if not _reflector_amber_mat:
 		_reflector_amber_mat = StandardMaterial3D.new()
 		# High-visibility retro-reflective amber (#FFA000) for highway curve delineators
-		_reflector_amber_mat.albedo_color = Color(1.0, 0.62, 0.0, 1.0)
+		_reflector_amber_mat.albedo_color = Color(0.78, 0.78, 0.78, 1.0)
 		_reflector_amber_mat.roughness = 0.25
 		_reflector_amber_mat.emission_enabled = true
-		_reflector_amber_mat.emission = Color(1.0, 0.6, 0.02, 1.0)
+		_reflector_amber_mat.emission = Color(0.85, 0.85, 0.85, 1.0)
 		_reflector_amber_mat.emission_energy_multiplier = 1.35
 	return _reflector_amber_mat
 
@@ -1024,7 +1024,7 @@ func build_segment() -> void:
 				var light := FlickerLight.new()
 				light.name = "Streetlight"
 				light.position = Vector3(arm_offset_x, 5.8, 0.0)
-				light.light_color = Color("#ffb04a")
+				light.light_color = Color(0.82, 0.82, 0.82, 1.0)
 				light.light_energy = 4.2
 				light.base_energy = 4.2
 				light.min_energy = 1.4
@@ -1156,6 +1156,54 @@ func _build_warning_sign(i: int, slice_basis: Basis, slice_center: Vector3, sign
 	var diamond_rot := slice_basis.rotated(slice_basis.z, deg_to_rad(45.0))
 	plate_inst.transform = Transform3D(diamond_rot, slice_center + slice_basis * (sign_local + Vector3(0.0, 0.65, 0.0)))
 	static_body.add_child(plate_inst)
+
+## Adds retro-reflective directional chevron boards on the straight before a scheduled bend.
+func add_curve_approach_warning(curve_type: SegmentType, is_sharp_drift: bool = false) -> void:
+	if not static_body or slice_transforms.is_empty():
+		return
+	var warning_slice := maxi(0, slice_transforms.size() - 2)
+	var slice_tr: Transform3D = slice_transforms[warning_slice]
+	var sign_basis: Basis = slice_tr.basis
+	var sign_center: Vector3 = slice_tr.origin
+	var side_x := road_width * 0.5 + shoulder_width + 1.4
+
+	var plate_mat := StandardMaterial3D.new()
+	plate_mat.albedo_color = Color(0.55, 0.12, 0.14, 1.0) if is_sharp_drift else Color(0.68, 0.62, 0.42, 1.0)
+	plate_mat.roughness = 0.38
+	plate_mat.emission_enabled = true
+	plate_mat.emission = Color(0.65, 0.08, 0.08, 1.0) if is_sharp_drift else Color(0.42, 0.32, 0.12, 1.0)
+	plate_mat.emission_energy_multiplier = 1.45 if is_sharp_drift else 0.95
+
+	var slash_mat := StandardMaterial3D.new()
+	slash_mat.albedo_color = Color(1.0, 0.92, 0.72, 1.0)
+	slash_mat.roughness = 0.25
+	slash_mat.emission_enabled = true
+	slash_mat.emission = Color(0.95, 0.65, 0.22, 1.0)
+	slash_mat.emission_energy_multiplier = 1.85 if is_sharp_drift else 1.25
+
+	for side_sign in [-1.0, 1.0]:
+		var sign_origin := sign_center + sign_basis * Vector3(side_sign * side_x, 1.9, 0.0)
+		var plate_mesh := BoxMesh.new()
+		plate_mesh.size = Vector3(1.15, 0.72, 0.08)
+		plate_mesh.material = plate_mat
+		var plate := MeshInstance3D.new()
+		plate.name = "CurveApproachBoard_%s" % ("L" if side_sign < 0.0 else "R")
+		plate.mesh = plate_mesh
+		plate.transform = Transform3D(sign_basis, sign_origin)
+		static_body.add_child(plate)
+
+		for slash_idx in range(3):
+			var slash_mesh := BoxMesh.new()
+			slash_mesh.size = Vector3(0.14, 0.50, 0.1)
+			slash_mesh.material = slash_mat
+			var slash := MeshInstance3D.new()
+			slash.name = "CurveApproachChevron_%s_%d" % [("L" if side_sign < 0.0 else "R"), slash_idx]
+			slash.mesh = slash_mesh
+			var lean := deg_to_rad(28.0) if curve_type == SegmentType.CURVE_LEFT else deg_to_rad(-28.0)
+			var slash_basis := sign_basis.rotated(sign_basis.z, lean)
+			var x_pos := (float(slash_idx) - 1.0) * 0.28
+			slash.transform = Transform3D(slash_basis, sign_origin + sign_basis * Vector3(x_pos, 0.0, -0.055))
+			static_body.add_child(slash)
 
 ## Instantiates embedded reflective road studs (cat's eyes / retroreflectors) spaced along the divider lines.
 func _build_road_studs(slice_idx: int, slice_basis: Basis, slice_center: Vector3, slice_len: float, mark_y: float) -> void:

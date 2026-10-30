@@ -29,6 +29,7 @@ var _headlight_right: SpotLight3D
 var _lens_left_mat: StandardMaterial3D
 var _lens_right_mat: StandardMaterial3D
 var _body_mat: StandardMaterial3D
+var _tire_mat: StandardMaterial3D
 
 var _blink_timer: float = 0.0
 var _blink_state: bool = true
@@ -38,6 +39,7 @@ var _evade_dir: Vector3 = Vector3.ZERO
 var _target_lateral_offset: float = -3.8 # Left overtaking lane
 var _signaled_radio: bool = false
 var _is_dissolving: bool = false
+var _crash_started: bool = false
 
 func _ready() -> void:
 	collision_layer = 1
@@ -56,113 +58,130 @@ func setup(player_node: Node3D) -> void:
 		current_speed = van_fwd_speed + overtake_speed_boost
 
 func _build_visuals_and_collision() -> void:
-	# 1. Dark silhouette chassis material
+	# 1. Dark chassis material
 	_body_mat = StandardMaterial3D.new()
-	_body_mat.albedo_color = Color(0.06, 0.06, 0.07, 1.0) # Matte sinister charcoal
-	_body_mat.roughness = 0.88
-	_body_mat.metallic = 0.35
+	_body_mat.albedo_color = Color(0.035, 0.035, 0.042, 1.0) # Obsidian funeral lacquer
+	_body_mat.roughness = 0.42
+	_body_mat.metallic = 0.48
+	_tire_mat = StandardMaterial3D.new()
+	_tire_mat.albedo_color = Color(0.018, 0.018, 0.018, 1.0)
+	_tire_mat.roughness = 0.96
 
-	# Main lower body (BoxMesh)
-	var body_mesh := BoxMesh.new()
-	body_mesh.size = Vector3(1.85, 0.75, 4.2)
-	body_mesh.material = _body_mat
+	# Vintage Gothic funeral hearse body stalks the player from behind.
+	var hearse_scene := load("res://models/route77_hearse.glb") as PackedScene
+	if hearse_scene:
+		var hearse_visual := hearse_scene.instantiate()
+		hearse_visual.name = "StalkerHearseBody"
+		add_child(hearse_visual)
+	else:
+		var sedan_scene := load("res://models/route77_sedan.glb") as PackedScene
+		if sedan_scene:
+			var sedan_visual := sedan_scene.instantiate()
+			sedan_visual.name = "StalkerSedanBody"
+			_apply_stalker_body_material(sedan_visual)
+			add_child(sedan_visual)
 
-	var body_inst := MeshInstance3D.new()
-	body_inst.name = "BodyMesh"
-	body_inst.mesh = body_mesh
-	body_inst.position = Vector3(0.0, 0.55, 0.0)
-	add_child(body_inst)
-
-	# Cabin / Greenhouse (BoxMesh)
-	var cab_mesh := BoxMesh.new()
-	cab_mesh.size = Vector3(1.60, 0.65, 2.3)
-	cab_mesh.material = _body_mat
-
-	var cab_inst := MeshInstance3D.new()
-	cab_inst.name = "CabMesh"
-	cab_inst.mesh = cab_mesh
-	cab_inst.position = Vector3(0.0, 1.15, 0.25)
-	add_child(cab_inst)
+	# Four low-poly wheels aligned to the elongated hearse wheelbase.
+	for wheel_pos in [Vector3(-0.96, 0.37, -1.35), Vector3(0.96, 0.37, -1.35), Vector3(-0.96, 0.37, 1.55), Vector3(0.96, 0.37, 1.55)]:
+		var wheel_mesh := CylinderMesh.new()
+		wheel_mesh.top_radius = 0.34
+		wheel_mesh.bottom_radius = 0.34
+		wheel_mesh.height = 0.24
+		wheel_mesh.radial_segments = 8
+		wheel_mesh.material = _tire_mat
+		var wheel := MeshInstance3D.new()
+		wheel.mesh = wheel_mesh
+		wheel.rotation.z = PI * 0.5
+		wheel.position = wheel_pos
+		add_child(wheel)
 
 	# Collision box
 	var col_shape := BoxShape3D.new()
-	col_shape.size = Vector3(1.85, 1.35, 4.2)
+	col_shape.size = Vector3(1.92, 1.65, 4.85)
 
 	var col_inst := CollisionShape3D.new()
 	col_inst.name = "CollisionShape3D"
 	col_inst.shape = col_shape
-	col_inst.position = Vector3(0.0, 0.75, 0.0)
+	col_inst.position = Vector3(0.0, 0.82, 0.0)
 	add_child(col_inst)
 
 	# 2. Glowing High-Beam Headlight Lenses
 	_lens_left_mat = StandardMaterial3D.new()
-	_lens_left_mat.albedo_color = Color(1.0, 0.95, 0.65, 1.0)
+	_lens_left_mat.albedo_color = Color(1.0, 0.92, 0.58, 1.0)
 	_lens_left_mat.emission_enabled = true
-	_lens_left_mat.emission = Color(1.0, 0.94, 0.55, 1.0)
-	_lens_left_mat.emission_energy_multiplier = 6.0
+	_lens_left_mat.emission = Color(1.0, 0.88, 0.48, 1.0)
+	_lens_left_mat.emission_energy_multiplier = 6.5
 
 	_lens_right_mat = _lens_left_mat.duplicate() as StandardMaterial3D
 
 	var lens_mesh := BoxMesh.new()
-	lens_mesh.size = Vector3(0.30, 0.18, 0.06)
+	lens_mesh.size = Vector3(0.32, 0.18, 0.06)
 
 	var lens_left := MeshInstance3D.new()
 	lens_left.name = "LensLeft"
 	lens_left.mesh = lens_mesh
 	lens_left.material_override = _lens_left_mat
-	lens_left.position = Vector3(-0.72, 0.58, -2.12)
+	lens_left.position = Vector3(-0.66, 0.72, -2.35)
 	add_child(lens_left)
 
 	var lens_right := MeshInstance3D.new()
 	lens_right.name = "LensRight"
 	lens_right.mesh = lens_mesh
 	lens_right.material_override = _lens_right_mat
-	lens_right.position = Vector3(0.72, 0.58, -2.12)
+	lens_right.position = Vector3(0.66, 0.72, -2.35)
 	add_child(lens_right)
 
 	# 3. High-Intensity High Beams (SpotLight3D pointing strictly -Z)
 	_headlight_left = SpotLight3D.new()
 	_headlight_left.name = "HeadlightLeft"
-	_headlight_left.position = Vector3(-0.72, 0.58, -2.15)
+	_headlight_left.position = Vector3(-0.66, 0.72, -2.38)
 	_headlight_left.rotation = Vector3.ZERO
-	_headlight_left.light_color = Color(1.0, 0.95, 0.65, 1.0) # Eerie piercing vintage yellow
-	_headlight_left.light_energy = 8.5
+	_headlight_left.light_color = Color(1.0, 0.92, 0.58, 1.0) # Eerie piercing vintage yellow
+	_headlight_left.light_energy = 9.0
 	_headlight_left.spot_range = 75.0
 	_headlight_left.spot_angle = 32.0
-	_headlight_left.light_volumetric_fog_energy = 4.0
+	_headlight_left.light_volumetric_fog_energy = 4.2
 	add_child(_headlight_left)
 
 	_headlight_right = SpotLight3D.new()
 	_headlight_right.name = "HeadlightRight"
-	_headlight_right.position = Vector3(0.72, 0.58, -2.15)
+	_headlight_right.position = Vector3(0.66, 0.72, -2.38)
 	_headlight_right.rotation = Vector3.ZERO
-	_headlight_right.light_color = Color(1.0, 0.95, 0.65, 1.0)
-	_headlight_right.light_energy = 8.5
+	_headlight_right.light_color = Color(1.0, 0.92, 0.58, 1.0)
+	_headlight_right.light_energy = 9.0
 	_headlight_right.spot_range = 75.0
 	_headlight_right.spot_angle = 32.0
-	_headlight_right.light_volumetric_fog_energy = 4.0
+	_headlight_right.light_volumetric_fog_energy = 4.2
 	add_child(_headlight_right)
 
-	# 4. Red Rear Taillight Lenses
+	# 4. Crimson Dagger Rear Taillight Lenses
 	var tail_mat := StandardMaterial3D.new()
-	tail_mat.albedo_color = Color(0.85, 0.05, 0.05, 1.0)
+	tail_mat.albedo_color = Color(0.88, 0.04, 0.04, 1.0)
 	tail_mat.emission_enabled = true
-	tail_mat.emission = Color(0.9, 0.05, 0.05, 1.0)
-	tail_mat.emission_energy_multiplier = 3.5
+	tail_mat.emission = Color(0.95, 0.04, 0.03, 1.0)
+	tail_mat.emission_energy_multiplier = 4.0
 
 	var tail_mesh := BoxMesh.new()
-	tail_mesh.size = Vector3(0.28, 0.16, 0.05)
+	tail_mesh.size = Vector3(0.16, 0.48, 0.06)
 	tail_mesh.material = tail_mat
 
 	var tail_l := MeshInstance3D.new()
 	tail_l.mesh = tail_mesh
-	tail_l.position = Vector3(-0.72, 0.62, 2.12)
+	tail_l.position = Vector3(-0.78, 0.92, 2.62)
 	add_child(tail_l)
 
 	var tail_r := MeshInstance3D.new()
 	tail_r.mesh = tail_mesh
-	tail_r.position = Vector3(0.72, 0.62, 2.12)
+	tail_r.position = Vector3(0.78, 0.92, 2.62)
 	add_child(tail_r)
+
+func _apply_stalker_body_material(node: Node) -> void:
+	if node is MeshInstance3D:
+		var lower_name := node.name.to_lower()
+		if lower_name.contains("body shell") or lower_name.contains("underbody"):
+			(node as MeshInstance3D).material_override = _body_mat
+	for child in node.get_children():
+		_apply_stalker_body_material(child)
 
 func _find_player() -> void:
 	if target_player:
@@ -288,8 +307,85 @@ func _physics_process(delta: float) -> void:
 		var col := get_slide_collision(i)
 		var collider := col.get_collider()
 		if collider and (collider.is_in_group("player") or collider is Van):
-			_trigger_evasion(player_right)
+			_start_crash_burn()
 			break
+
+## A real impact leaves a burning wreck on the road instead of shrinking out of sight.
+func _start_crash_burn() -> void:
+	if _crash_started:
+		return
+	_crash_started = true
+	_is_dissolving = true
+	current_state = State.DISSOLVED
+	current_speed = 0.0
+	velocity = Vector3.ZERO
+	collision_layer = 0
+	collision_mask = 0
+	for child in get_children():
+		if child is CollisionShape3D:
+			(child as CollisionShape3D).set_deferred("disabled", true)
+	if _headlight_left:
+		_headlight_left.light_energy = 0.0
+		_headlight_left.visible = false
+	if _headlight_right:
+		_headlight_right.light_energy = 0.0
+		_headlight_right.visible = false
+	var fire_mat := StandardMaterial3D.new()
+	fire_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	fire_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	fire_mat.albedo_color = Color(1.0, 0.24, 0.025, 0.94)
+	fire_mat.emission_enabled = true
+	fire_mat.emission = Color(1.0, 0.13, 0.015)
+	fire_mat.emission_energy_multiplier = 3.2
+	var flame_mesh := SphereMesh.new()
+	flame_mesh.radius = 0.65
+	flame_mesh.height = 1.5
+	flame_mesh.material = fire_mat
+	var flame := MeshInstance3D.new()
+	flame.name = "ImpactFire"
+	flame.mesh = flame_mesh
+	flame.position = Vector3(0.0, 1.0, -0.15)
+	flame.scale = Vector3(0.2, 0.25, 0.2)
+	add_child(flame)
+	var flash := OmniLight3D.new()
+	flash.name = "CrashFlash"
+	flash.light_color = Color(1.0, 0.28, 0.045)
+	flash.light_energy = 7.0
+	flash.omni_range = 13.0
+	flash.position = Vector3(0.0, 1.15, -0.1)
+	add_child(flash)
+	var sparks := GPUParticles3D.new()
+	sparks.name = "CrashSparks"
+	sparks.amount = 36
+	sparks.lifetime = 0.9
+	sparks.one_shot = true
+	var process := ParticleProcessMaterial.new()
+	process.direction = Vector3(0.0, 1.0, 0.0)
+	process.spread = 180.0
+	process.initial_velocity_min = 2.0
+	process.initial_velocity_max = 7.0
+	process.gravity = Vector3(0.0, -6.0, 0.0)
+	sparks.process_material = process
+	var spark_mesh := SphereMesh.new()
+	spark_mesh.radius = 0.045
+	spark_mesh.height = 0.09
+	var spark_mat := StandardMaterial3D.new()
+	spark_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	spark_mat.albedo_color = Color(1.0, 0.42, 0.07)
+	spark_mat.emission_enabled = true
+	spark_mat.emission = Color(1.0, 0.2, 0.02)
+	spark_mesh.material = spark_mat
+	sparks.draw_pass_1 = spark_mesh
+	sparks.position = Vector3(0.0, 1.05, -0.1)
+	add_child(sparks)
+	sparks.emitting = true
+	var tween := create_tween()
+	tween.set_parallel(true)
+	tween.tween_property(flame, "scale", Vector3(0.9, 1.25, 0.9), 0.18)
+	tween.tween_property(flash, "light_energy", 1.3, 1.4)
+	tween.tween_property(fire_mat, "albedo_color", Color(1.0, 0.24, 0.025, 0.0), 4.8).set_delay(3.0)
+	tween.tween_property(flash, "light_energy", 0.0, 4.8).set_delay(3.0)
+	tween.chain().tween_callback(queue_free).set_delay(1.5)
 
 func _trigger_evasion(player_right: Vector3) -> void:
 	if current_state == State.EVADE or _is_dissolving:

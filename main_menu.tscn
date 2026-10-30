@@ -4,26 +4,31 @@
 [ext_resource type="Script" path="res://storm_controller.gd" id="2_storm"]
 [ext_resource type="Script" path="res://post_process.gd" id="3_post"]
 [ext_resource type="Shader" path="res://shaders/psx_retro.gdshader" id="4_shader"]
+[ext_resource type="PackedScene" path="res://models/route77_hearse.glb" id="5_hearse"]
+[ext_resource type="PackedScene" path="res://models/route77_gothic_arch.glb" id="6_arch"]
+[ext_resource type="PackedScene" path="res://models/route77_roadside_shrine.glb" id="7_shrine"]
+[ext_resource type="PackedScene" path="res://models/route77_dead_tree.glb" id="8_tree"]
+[ext_resource type="PackedScene" path="res://models/route77_gothic_lamppost.glb" id="9_lamp"]
 
 [sub_resource type="Environment" id="Environment_menu"]
 background_mode = 1
-background_color = Color(0.012, 0.016, 0.024, 1)
+background_color = Color(0.012, 0.011, 0.018, 1)
 ambient_light_source = 2
-ambient_light_color = Color(0.12, 0.16, 0.24, 1)
-ambient_light_energy = 0.72
+ambient_light_color = Color(0.36, 0.38, 0.46, 1)
+ambient_light_energy = 0.42
 fog_enabled = true
-fog_light_color = Color(0.05, 0.07, 0.10, 1)
+fog_light_color = Color(0.2, 0.21, 0.26, 1)
 fog_density = 0.018
-fog_depth_begin = 12.0
-fog_depth_end = 50.0
+fog_depth_begin = 8.0
+fog_depth_end = 36.0
 volumetric_fog_enabled = true
-volumetric_fog_density = 0.04
-volumetric_fog_albedo = Color(0.06, 0.08, 0.12, 1)
-volumetric_fog_length = 50.0
+volumetric_fog_density = 0.052
+volumetric_fog_albedo = Color(0.24, 0.25, 0.3, 1)
+volumetric_fog_length = 34.0
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_road"]
-albedo_color = Color(0.1, 0.1, 0.12, 1)
-roughness = 0.18
+albedo_color = Color(0.08, 0.08, 0.1, 1)
+roughness = 0.16
 metallic = 0.08
 metallic_specular = 0.65
 
@@ -32,9 +37,9 @@ material = SubResource("StandardMaterial3D_road")
 size = Vector3(14, 1, 50)
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_stripe"]
-albedo_color = Color(0.9, 0.72, 0.1, 1)
+albedo_color = Color(0.9, 0.62, 0.14, 1)
 emission_enabled = true
-emission = Color(0.9, 0.72, 0.1, 1)
+emission = Color(0.9, 0.62, 0.14, 1)
 emission_energy_multiplier = 0.4
 roughness = 0.3
 
@@ -42,20 +47,11 @@ roughness = 0.3
 material = SubResource("StandardMaterial3D_stripe")
 size = Vector3(0.15, 1.02, 50)
 
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_van"]
-albedo_color = Color(0.88, 0.88, 0.88, 1)
-roughness = 0.82
-metallic = 0.05
-
-[sub_resource type="BoxMesh" id="BoxMesh_van"]
-material = SubResource("StandardMaterial3D_van")
-size = Vector3(2, 1.5, 4)
-
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_taillight"]
-albedo_color = Color(0.85, 0.05, 0.05, 1)
+albedo_color = Color(0.88, 0.04, 0.04, 1)
 emission_enabled = true
-emission = Color(0.95, 0.08, 0.08, 1)
-emission_energy_multiplier = 0.8
+emission = Color(0.98, 0.06, 0.05, 1)
+emission_energy_multiplier = 1.2
 
 [sub_resource type="BoxMesh" id="BoxMesh_taillight"]
 material = SubResource("StandardMaterial3D_taillight")
@@ -64,27 +60,28 @@ size = Vector3(0.35, 0.22, 0.06)
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_psx"]
 shader = ExtResource("4_shader")
 shader_parameter/enable_pixelation = true
-shader_parameter/target_resolution = Vector2(640, 360)
-shader_parameter/color_depth = 32.0
-shader_parameter/dither_intensity = 0.26
-shader_parameter/grain_intensity = 0.012
-shader_parameter/scanline_intensity = 0.018
-shader_parameter/chromatic_aberration = 0.0003
+shader_parameter/target_resolution = Vector2(960, 540)
+shader_parameter/color_depth = 48.0
+shader_parameter/dither_intensity = 0.16
+shader_parameter/grain_intensity = 0.006
+shader_parameter/scanline_intensity = 0.01
+shader_parameter/chromatic_aberration = 0.0002
 shader_parameter/static_glitch_intensity = 0.0
 shader_parameter/glitch_intensity = 0.0
-shader_parameter/saturation = 1.12
+shader_parameter/saturation = 1.15
+shader_parameter/noir_strength = 1.0
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_btn"]
 content_margin_left = 18.0
 content_margin_top = 10.0
 content_margin_right = 18.0
 content_margin_bottom = 10.0
-bg_color = Color(0.04, 0.055, 0.065, 0.88)
-border_width_left = 1
-border_width_top = 1
-border_width_right = 1
-border_width_bottom = 1
-border_color = Color(0.2, 1, 0.4, 0.75)
+bg_color = Color(0.025, 0.018, 0.032, 0.92)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.68, 0.22, 0.2, 0.85)
 corner_radius_top_left = 2
 corner_radius_top_right = 2
 corner_radius_bottom_right = 2
@@ -95,12 +92,12 @@ content_margin_left = 18.0
 content_margin_top = 10.0
 content_margin_right = 18.0
 content_margin_bottom = 10.0
-bg_color = Color(0.08, 0.12, 0.1, 0.95)
-border_width_left = 1
-border_width_top = 1
-border_width_right = 1
-border_width_bottom = 1
-border_color = Color(0.2, 1, 0.4, 1)
+bg_color = Color(0.09, 0.025, 0.035, 0.96)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.95, 0.26, 0.22, 1)
 corner_radius_top_left = 2
 corner_radius_top_right = 2
 corner_radius_bottom_right = 2
@@ -113,14 +110,20 @@ environment = SubResource("Environment_menu")
 
 [node name="DirectionalLight3D" type="DirectionalLight3D" parent="."]
 transform = Transform3D(0.866025, -0.353553, 0.353553, 0, 0.707107, 0.707107, -0.5, -0.612372, 0.612372, 0, 0, 0)
-light_color = Color(0.85, 0.92, 1, 1)
+light_color = Color(0.85, 0.88, 1, 1)
 light_energy = 0.0
+shadow_enabled = true
+
+[node name="MoonLight" type="DirectionalLight3D" parent="."]
+transform = Transform3D(0.866025, -0.353553, 0.353553, 0, 0.707107, 0.707107, -0.5, -0.612372, 0.612372, 0, 12, 0)
+light_color = Color(0.58, 0.64, 0.78, 1)
+light_energy = 0.32
+shadow_enabled = true
 
 [node name="Camera3D" type="Camera3D" parent="."]
-transform = Transform3D(0.838671, 0.0768656, -0.539223, 0, 0.990024, 0.1409, 0.544639, -0.118169, 0.830303, -2.6, 1.25, -4.8)
+transform = Transform3D(0.838671, 0.0768656, -0.539223, 0, 0.990024, 0.1409, 0.544639, -0.118169, 0.830303, -2.6, 1.35, -4.8)
 
 [node name="RoadSurface" type="MeshInstance3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
 mesh = SubResource("BoxMesh_road")
 
 [node name="CenterStripe" type="MeshInstance3D" parent="."]
@@ -128,32 +131,49 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.01, 0)
 mesh = SubResource("BoxMesh_stripe")
 
 [node name="Van" type="Node3D" parent="."]
-transform = Transform3D(0.996195, 0, 0.0871557, 0, 1, 0, -0.0871557, 0, 0.996195, 0, 1.0, 0)
+transform = Transform3D(0.996195, 0, 0.0871557, 0, 1, 0, -0.0871557, 0, 0.996195, 0.2, 0.5, 0)
 
-[node name="Chassis" type="MeshInstance3D" parent="Van"]
-mesh = SubResource("BoxMesh_van")
+[node name="HearseVisual" parent="Van" instance=ExtResource("5_hearse")]
 
 [node name="HeadlightLeft" type="SpotLight3D" parent="Van"]
-transform = Transform3D(1, 0, 0, 0, 0.984808, 0.173648, 0, -0.173648, 0.984808, -0.8, 0.35, -2.1)
-light_color = Color(1, 0.949, 0.8, 1)
-light_energy = 8.0
+transform = Transform3D(1, 0, 0, 0, 0.984808, 0.173648, 0, -0.173648, 0.984808, -0.66, 0.72, -2.35)
+light_color = Color(1, 0.92, 0.68, 1)
+light_energy = 8.5
 spot_range = 45.0
 spot_angle = 50.0
 
 [node name="HeadlightRight" type="SpotLight3D" parent="Van"]
-transform = Transform3D(1, 0, 0, 0, 0.984808, 0.173648, 0, -0.173648, 0.984808, 0.8, 0.35, -2.1)
-light_color = Color(1, 0.949, 0.8, 1)
-light_energy = 8.0
+transform = Transform3D(1, 0, 0, 0, 0.984808, 0.173648, 0, -0.173648, 0.984808, 0.66, 0.72, -2.35)
+light_color = Color(1, 0.92, 0.68, 1)
+light_energy = 8.5
 spot_range = 45.0
 spot_angle = 50.0
 
 [node name="TaillightLeft" type="MeshInstance3D" parent="Van"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.75, 0.25, 2.01)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.78, 0.85, 2.6)
 mesh = SubResource("BoxMesh_taillight")
 
 [node name="TaillightRight" type="MeshInstance3D" parent="Van"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.75, 0.25, 2.01)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.78, 0.85, 2.6)
 mesh = SubResource("BoxMesh_taillight")
+
+[node name="GothicArchDiorama" parent="." instance=ExtResource("6_arch")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.45, 7.5)
+
+[node name="RoadsideShrineDiorama" parent="." instance=ExtResource("7_shrine")]
+transform = Transform3D(0.707107, 0, -0.707107, 0, 1, 0, 0.707107, 0, 0.707107, 3.6, 0.5, -1.2)
+
+[node name="ShrineLight" type="OmniLight3D" parent="RoadsideShrineDiorama"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.65, 0.25)
+light_color = Color(1, 0.18, 0.05, 1)
+light_energy = 2.6
+omni_range = 6.5
+
+[node name="GothicLampDiorama" parent="." instance=ExtResource("9_lamp")]
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 4.8, 0.5, 2.2)
+
+[node name="DeadTreeDiorama" parent="." instance=ExtResource("8_tree")]
+transform = Transform3D(0.866025, 0, -0.5, 0, 1, 0, 0.5, 0, 0.866025, 5.8, 0.45, 5.0)
 
 [node name="StormController" type="Node3D" parent="." node_paths=PackedStringArray("target_vehicle", "lightning_light")]
 script = ExtResource("2_storm")
@@ -202,15 +222,15 @@ theme_override_constants/separation = 18
 
 [node name="Title" type="Label" parent="UI/MarginContainer/VBoxContainer"]
 layout_mode = 2
-theme_override_colors/font_color = Color(0.95, 0.96, 0.98, 1)
+theme_override_colors/font_color = Color(0.95, 0.92, 0.86, 1)
 theme_override_font_sizes/font_size = 38
-text = "KILÓMETRO 77"
+text = "† KILÓMETRO 77 †"
 
 [node name="Subtitle" type="Label" parent="UI/MarginContainer/VBoxContainer"]
 layout_mode = 2
-theme_override_colors/font_color = Color(1, 0.69, 0, 1)
+theme_override_colors/font_color = Color(0.92, 0.22, 0.18, 1)
 theme_override_font_sizes/font_size = 13
-text = "ROUTE 77 // ANOMALOUS TRANSIT INVESTIGATION"
+text = "❖ RUTA 77 // VIGILIA EN LA NIEBLA SEPULCRAL ❖"
 
 [node name="Spacer" type="Control" parent="UI/MarginContainer/VBoxContainer"]
 custom_minimum_size = Vector2(0, 24)
@@ -218,48 +238,50 @@ layout_mode = 2
 
 [node name="StartButton" type="Button" parent="UI/MarginContainer/VBoxContainer"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(220, 42)
+custom_minimum_size = Vector2(240, 42)
 layout_mode = 2
 focus_mode = 2
-theme_override_colors/font_color = Color(0.2, 1, 0.4, 1)
-theme_override_colors/font_hover_color = Color(0.4, 1, 0.6, 1)
+theme_override_colors/font_color = Color(0.94, 0.88, 0.78, 1)
+theme_override_colors/font_hover_color = Color(1, 0.32, 0.26, 1)
 theme_override_font_sizes/font_size = 14
 theme_override_styles/normal = SubResource("StyleBoxFlat_btn")
 theme_override_styles/hover = SubResource("StyleBoxFlat_btn_hover")
 theme_override_styles/pressed = SubResource("StyleBoxFlat_btn")
-text = "[ START PATROL ]"
+text = "† [ INICIAR VIGILIA ] †"
 
 [node name="ExitButton" type="Button" parent="UI/MarginContainer/VBoxContainer"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(220, 42)
+custom_minimum_size = Vector2(240, 42)
 layout_mode = 2
 focus_mode = 2
-theme_override_colors/font_color = Color(0.85, 0.85, 0.85, 1)
+theme_override_colors/font_color = Color(0.75, 0.72, 0.68, 1)
 theme_override_colors/font_hover_color = Color(1, 0.3, 0.3, 1)
 theme_override_font_sizes/font_size = 14
 theme_override_styles/normal = SubResource("StyleBoxFlat_btn")
 theme_override_styles/hover = SubResource("StyleBoxFlat_btn_hover")
 theme_override_styles/pressed = SubResource("StyleBoxFlat_btn")
-text = "[ EXIT ]"
+text = "[ ABANDONAR RUTA ]"
 
 [node name="ControlsLabel" type="Label" parent="UI/MarginContainer/VBoxContainer"]
 layout_mode = 2
-theme_override_colors/font_color = Color(0.48, 0.55, 0.62, 0.8)
+theme_override_colors/font_color = Color(0.68, 0.64, 0.6, 0.85)
 theme_override_font_sizes/font_size = 11
-text = "CONTROLS:
-• W/S / ARROWS: Drive / Brake
-• A/D: Progressive Steer
-• SPACE: Handbrake
-• F / H / L: Toggle High Beams
-• E: Interact & Scavenge"
+text = "CONTROLES:
+• W/S / FLECHAS: Acelerar / Frenar
+• A/D: Dirección progresiva
+• ESPACIO: Freno de mano
+• X: Claxon
+• F / H / L: Alternar Luces Altas
+• E: Mantener para interactuar / Repostar
+• SHIFT: Turbo  ·  Q: Cámara frontal  ·  ESC: Pausa"
 
 [node name="VersionLabel" type="Label" parent="UI/MarginContainer"]
 layout_mode = 2
 size_flags_horizontal = 8
 size_flags_vertical = 8
-theme_override_colors/font_color = Color(0.4, 0.45, 0.5, 0.7)
+theme_override_colors/font_color = Color(0.55, 0.45, 0.44, 0.75)
 theme_override_font_sizes/font_size = 11
-text = "UNIT 77 PROTOCOL // VER 0.9.4"
+text = "† PROTOCOLO UNIDAD 77 // EDICIÓN GÓTICA †"
 
 [node name="FadeRect" type="ColorRect" parent="UI"]
 unique_name_in_owner = true

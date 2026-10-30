@@ -3,15 +3,17 @@ shader_type canvas_item;
 uniform sampler2D screen_texture : hint_screen_texture, repeat_disable, filter_linear;
 
 uniform bool enable_pixelation = true;
-uniform vec2 target_resolution = vec2(640.0, 360.0);
+uniform vec2 target_resolution = vec2(960.0, 540.0);
 uniform float color_depth : hint_range(4.0, 64.0, 1.0) = 32.0;
-uniform float dither_intensity : hint_range(0.0, 2.0, 0.05) = 0.42;
-uniform float grain_intensity : hint_range(0.0, 0.2, 0.005) = 0.016;
-uniform float scanline_intensity : hint_range(0.0, 0.5, 0.01) = 0.025;
+uniform float dither_intensity : hint_range(0.0, 2.0, 0.05) = 0.16;
+uniform float grain_intensity : hint_range(0.0, 0.2, 0.005) = 0.006;
+uniform float scanline_intensity : hint_range(0.0, 0.5, 0.01) = 0.01;
 uniform float chromatic_aberration : hint_range(0.0, 0.05, 0.0005) = 0.0008;
 uniform float static_glitch_intensity : hint_range(0.0, 1.0, 0.01) = 0.0;
 uniform float glitch_intensity : hint_range(0.0, 1.0) = 0.0;
 uniform float saturation : hint_range(0.5, 2.0, 0.05) = 1.15;
+// Keep the physical world noir while allowing phosphor UI accents to retain color.
+uniform float noir_strength : hint_range(0.0, 1.0, 0.05) = 0.0;
 
 // 8x8 Bayer Ordered Dither Matrix (values normalized to [0, 1])
 const float bayer8[64] = float[64](
@@ -110,9 +112,37 @@ void fragment() {
         }
     }
 
-    // 9. Color saturation adjustment to preserve vivid accents through dither
+    // 9. Gothic Sepulchral Noir Grading (obsidian-violet shadows, cold silver midtones, bone highlights)
     float luma = dot(col, vec3(0.299, 0.587, 0.114));
     col = mix(vec3(luma), col, saturation);
+    vec3 warm_light_color = col;
+    float warm_chroma = max(warm_light_color.r, max(warm_light_color.g, warm_light_color.b))
+        - min(warm_light_color.r, min(warm_light_color.g, warm_light_color.b));
+    float warm_red_bias = smoothstep(0.05, 0.22, warm_light_color.r - warm_light_color.g * 0.78)
+        * smoothstep(0.05, 0.20, warm_light_color.r - warm_light_color.b * 1.05);
+    float warm_light_mask = warm_red_bias * smoothstep(0.08, 0.28, warm_chroma)
+        * smoothstep(0.10, 0.34, warm_light_color.r);
+
+    float noir_luma = clamp(dot(col, vec3(0.299, 0.587, 0.114)), 0.0, 1.0);
+    // S-curve contrast for dramatic gothic chiaroscuro
+    float gothic_contrast = smoothstep(0.02, 0.96, pow(noir_luma, 1.08));
+    vec3 shadow_tint = vec3(0.018, 0.015, 0.028);   // Deep sepulchral violet-black
+    vec3 mid_tint = vec3(0.44, 0.46, 0.54);         // Cold moonlight slate-silver
+    vec3 highlight_tint = vec3(0.96, 0.93, 0.88);   // Pale bone / ivory highlight
+    vec3 gothic_grade = mix(
+        mix(shadow_tint, mid_tint, clamp(gothic_contrast * 2.0, 0.0, 1.0)),
+        highlight_tint,
+        clamp((gothic_contrast - 0.5) * 2.0, 0.0, 1.0)
+    );
+    col = mix(col, gothic_grade, noir_strength);
+
+    // Preserve and enrich crimson blood/candlelight and gaslight amber through the Gothic grade
+    vec3 crimson_boosted = vec3(warm_light_color.r * 1.12, warm_light_color.g * 0.92, warm_light_color.b * 0.85);
+    col = mix(col, crimson_boosted, clamp(warm_light_mask * 1.15, 0.0, 1.0) * noir_strength);
+
+    // 10. Subtle Gothic Cathedral Vignette around screen edges
+    float vignette = 1.0 - smoothstep(0.42, 0.92, radial_dist) * 0.38;
+    col *= vignette;
 
     COLOR = vec4(clamp(col, 0.0, 1.0), 1.0);
 }

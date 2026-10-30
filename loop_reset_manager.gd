@@ -90,7 +90,7 @@ func start_timeline_reboot(reason: String = "") -> void:
 		_find_hud()
 	if hud:
 		hud.fade_to_black(1.5)
-		hud.show_reboot_message(true, "UNIT 77 CRITICAL SIGNAL FAILURE... REBOOTING TIMELINE...")
+		hud.show_reboot_message(true, "† SEÑAL PERDIDA EN EL PURGATORIO... REINICIANDO CICLO DE 1989... †")
 
 	# 3. Trigger heavy CRT static and distortion burst
 	if not post_process:
@@ -100,12 +100,14 @@ func start_timeline_reboot(reason: String = "") -> void:
 
 	# 4. Radio dispatch
 	if RadioManager.instance:
-		RadioManager.instance.broadcast_dispatch(
-			"[RADIO CRITICAL] ...Unit 77 signal lost... %s... initiating recursive temporal reboot..." % reason,
-			4.0,
-			true,
-			0.9
-		)
+		var reboot_message := "[RADIO CRÍTICA] ...Unidad 77 sin señal... %s... las campanas vuelven a marcar las 03:33 en el Hito 85..." % reason
+		if reason.begins_with("KM 77 PARADOX BREACH"):
+			var breach_number := reason.get_slice("#", 1)
+			if breach_number == "1":
+				reboot_message = "[ARCHIVO CORRUPTO] HITO 77 ALCANZADO SIN LAS 3 RELIQUIAS. EXPEDIENTE 89-077 ABIERTO: UNIDAD 77 DECLARADA DESAPARECIDA EN OCTUBRE DE 1989."
+			else:
+				reboot_message = "[VOZ EN ESTÁTICA] HITO 77 ALCANZADO DE NUEVO. EL CONDUCTOR RECUERDA EL BUCLE ANTERIOR. BUSCA LAS 3 RELIQUIAS EN LA BERMA."
+		RadioManager.instance.broadcast_dispatch(reboot_message, 6.5, true, 0.9)
 
 func _process_reboot(delta: float) -> void:
 	_reboot_timer += delta
@@ -129,11 +131,7 @@ func _execute_awakening() -> void:
 	if target_van:
 		target_van.reset_loop_state()
 
-	# 2. Reset road
-	if not road_manager:
-		_find_road_manager()
-	if road_manager:
-		road_manager.reset_road()
+	# reset_loop_state() already rebuilt the road; do not build a second track here.
 
 	# 3. Clear reboot text and fade in from black
 	if hud:

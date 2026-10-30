@@ -1,3 +1,18 @@
 # Godot 4+ specific ignores
 .godot/
 /android/
+
+# macOS / OS metadata
+.DS_Store
+
+# Source 3D assets & offline Blender scripts (only runtime .glb + .import are tracked)
+models/source/
+models/*.py
+
+# Unreferenced raw WAV audio sources (runtime uses engine.flac, static.aiff, horn.wav)
+audio/rain.wav
+audio/rain.wav.import
+audio/engine.wav
+audio/engine.wav.import
+audio/static.wav
+audio/static.wav.import
