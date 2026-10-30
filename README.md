@@ -5,7 +5,11 @@
 ![Godot Engine](https://img.shields.io/badge/Godot-4.x_%28Forward%2B%29-478cbf?logo=godotengine&logoColor=white)
 ![Physics](https://img.shields.io/badge/Physics-Jolt_3D-critical)
 ![Style](https://img.shields.io/badge/Aesthetics-PSX_Noir_%2F_CRT-black)
-![Status](https://img.shields.io/badge/Status-Proof_of_Concept-amber)
+![Status](https://img.shields.io/badge/Status-PoC_%28On_Hold_%2F_En_Pausa%29-orange)
+
+> [!IMPORTANT]
+> **Estado del Proyecto: En Pausa Temporal (On Hold)**  
+> Este repositorio se publica como una **Prueba de Concepto (PoC)** funcional. El desarrollo activo se encuentra **en pausa por un tiempo**, conservando aquí la base jugable, estética y técnica alcanzada hasta ahora junto con la hoja de ruta pendiente para cuando se retome.
 
 ---
 
@@ -117,6 +121,38 @@ kilometro-77/
 ├── models/                    # Modelos 3D low-poly exportados en formato .glb
 └── audio/                     # Audio de motor (engine.flac), estática (static.aiff) y claxon (horn.wav)
 ```
+
+---
+
+## Lista de Pendientes (TODO — Post-Pausa)
+
+Cuando se retome el desarrollo más allá de esta Prueba de Concepto, estos son los frentes principales por construir y pulir:
+
+### Jugabilidad y Conducción
+- [ ] **Vista de cabina en primera persona (1st-Person Interior):** Tablero diegético funcional dentro de la furgoneta con velocímetro analógico, indicador de reliquias en el salpicadero, limpiaparabrisas activos y espejo retrovisor físico integrado al chasis.
+- [ ] **Física del féretro en la caja trasera:** Simular el desplazamiento de peso del séptimo féretro en curvas bruscas o frenadas de emergencia (afectando el centro de gravedad de la Unidad 77 si se rompen las cadenas de sujeción).
+- [ ] **Variaciones de superficie y clima:** Tramos con barro profundo tras el aluvión, puentes colgantes estrechos, túneles derrumbados y reactivación opcional de aguacero denso con impacto en la visibilidad del parabrisas.
+- [ ] **Soporte completo para Gamepad / Volante:** Vibración háptica en impactos, curvas de respuesta analógica para gatillos de acelerador/freno y mapeo de botones en el HUD.
+
+### Terror, Eventos y Mundo
+- [ ] **Nuevas anomalías en ruta:**
+  - [ ] Siluetas/autoestopistas que reaparecen dentro de la cabina si no mantienes la velocidad o si miras hacia atrás en el momento equivocado.
+  - [ ] Desvíos rurales secundarios (*ramales prohibidos*) que actúan como atajos de alto riesgo para hallar reliquias o trampas del bucle.
+  - [ ] Procesiones fúnebres completas bloqueando ambas pistas cerca del Km 78.
+- [ ] **Cinemática y secuencia final del Arco del Km 77:** Expandir el desenlace verdadero (*True Ending*) al cruzar el Gran Arco con las 3 Actas de 1989 consagradas, mostrando qué ocurrió realmente la noche del derrumbe.
+- [ ] **Persistencia entre sesiones:** Guardado automático en disco (`user://`) del contador de bucles, expedientes forenses desbloqueados y mejores tiempos de escape.
+
+### Audio y Ambientación
+- [ ] **Actuación de voz (Voice Acting) con filtro de radio:** Voces procesadas para la Central Forense 10-33 e interferencias fantasmales de 1989.
+- [ ] **Diseño sonoro espacial 3D (`AudioStreamPlayer3D`):**
+  - [ ] Sonido posicional de truenos sincronizado con el doble destello de `storm_controller.gd`.
+  - [ ] Campanas parroquiales distantes en las Postas (`supply_stop.gd`) y graznidos 3D en las bandadas de cuervos (`raven_flock_omen.gd`).
+  - [ ] Chirrido de neumáticos en derrape (`handbrake`), golpes metálicos de impacto y crujido del chasis.
+
+### Arte, UI y Optimización
+- [ ] **Reemplazo de geometría procedural restante:** Modelar y texturizar en estilo PSX low-poly los surtidores, señales viales deterioradas, guardarraíles oxidados y el interior de la furgoneta.
+- [ ] **Menú de Opciones:** Ajustes de volumen (Master / Motor / Radio / SFX), sensibilidad de dirección, intensidad del filtro CRT/PSX y selector de resolución/pantalla completa.
+- [ ] **Object Pooling para tramos de carretera:** Reutilizar instancias de `RoadSegment` y props de `RoadEventSpawner` en memoria en lugar de instanciar/liberar nodos en cada tramo para eliminar micro-pausas de recolección de basura.
 
 ---
 
